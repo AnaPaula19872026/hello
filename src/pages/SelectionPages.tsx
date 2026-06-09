@@ -1,0 +1,6 @@
+import { Link } from 'react-router-dom';
+import { schools, classes, subjects } from '../services/mockData';
+export function SelectSchoolPage(){return <Picker title="Selecione a escola" items={schools.map(s=>({id:s.id,title:s.name,sub:s.city||'Escola ativa',to:'/turmas'}))}/>}
+export function SelectClassPage(){return <Picker title="Selecione a turma" items={classes.map(c=>({id:c.id,title:c.name,sub:`${c.shift} • ${c.studentsCount} alunos`,to:'/aulas'}))}/>}
+export function SelectLessonPage(){return <Picker title="Selecione a aula" items={subjects.map(s=>({id:s.id,title:s.name,sub:'Toque para abrir a chamada rápida',to:'/chamada'}))}/>}
+function Picker({title,items}:{title:string;items:{id:string;title:string;sub:string;to:string}[]}){return <main className="mx-auto max-w-3xl px-4 py-6"><h2 className="mb-5 text-3xl font-black text-slate-900 dark:text-white">{title}</h2><div className="space-y-3">{items.map(i=><Link key={i.id} to={i.to} className="block rounded-3xl border border-slate-200 bg-white p-5 shadow-soft active:scale-[.99] dark:border-slate-800 dark:bg-slate-900"><strong className="text-xl text-slate-900 dark:text-white">{i.title}</strong><p className="text-slate-500">{i.sub}</p></Link>)}</div></main>}
