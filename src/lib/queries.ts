@@ -36,6 +36,10 @@ export async function deleteSchool(id: string): Promise<void> {
   const { error } = await supabase.from('schools').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
+export async function bulkDeleteSchools(ids: string[]): Promise<void> {
+  const { error } = await supabase.from('schools').delete().in('id', ids);
+  if (error) throw new Error(error.message);
+}
 export async function bulkInsertSchools(rows: { name: string; city?: string }[]): Promise<number> {
   const payload = rows.map((r) => ({ name: r.name, city: r.city || null }));
   const { error } = await supabase.from('schools').insert(payload);
@@ -59,6 +63,10 @@ export async function saveClass(input: Partial<ClassRoom> & { name: string; scho
 }
 export async function deleteClass(id: string): Promise<void> {
   const { error } = await supabase.from('classes').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+export async function bulkDeleteClasses(ids: string[]): Promise<void> {
+  const { error } = await supabase.from('classes').delete().in('id', ids);
   if (error) throw new Error(error.message);
 }
 export async function bulkInsertClasses(
@@ -85,6 +93,14 @@ export async function listStudentsByClass(classId: string): Promise<Student[]> {
     await supabase.from('students').select('*').eq('class_id', classId).eq('active', true).order('full_name'),
   );
 }
+function mapStudentError(error: { code?: string; message: string }): string {
+  if (error.code === '23505') {
+    if (error.message.includes('registration')) return 'Já existe um aluno com essa matrícula nesta escola.';
+    return 'Já existe um aluno com esse nome nesta turma.';
+  }
+  return error.message;
+}
+
 export async function saveStudent(
   input: Partial<Student> & { full_name: string; school_id: string },
 ): Promise<Student> {
@@ -97,28 +113,60 @@ export async function saveStudent(
     guardian_phone: input.guardian_phone ?? null,
     active: input.active ?? true,
   };
-  if (input.id) return unwrap(await supabase.from('students').update(row).eq('id', input.id).select().single());
-  return unwrap(await supabase.from('students').insert(row).select().single());
+  const q = input.id
+    ? supabase.from('students').update(row).eq('id', input.id)
+    : supabase.from('students').insert(row);
+  const { data, error } = await q.select().single();
+  if (error) throw new Error(mapStudentError(error));
+  return data as Student;
 }
 export async function deleteStudent(id: string): Promise<void> {
   const { error } = await supabase.from('students').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
+export async function bulkDeleteStudents(ids: string[]): Promise<void> {
+  const { error } = await supabase.from('students').delete().in('id', ids);
+  if (error) throw new Error(error.message);
+}
+/** Importa alunos pulando duplicados (mesma matrícula na escola ou mesmo nome na turma). */
 export async function bulkInsertStudents(
   schoolId: string,
   classId: string,
   rows: { full_name: string; registration?: string; guardian_name?: string; guardian_phone?: string }[],
 ): Promise<number> {
-  const payload = rows.map((r) => ({
-    school_id: schoolId,
-    class_id: classId,
-    full_name: r.full_name,
-    registration: r.registration || null,
-    guardian_name: r.guardian_name || null,
-    guardian_phone: r.guardian_phone || null,
-  }));
+  const inSchool = unwrap<{ registration: string | null }[]>(
+    await supabase.from('students').select('registration').eq('school_id', schoolId),
+  );
+  const inClass = unwrap<{ full_name: string }[]>(
+    await supabase.from('students').select('full_name').eq('class_id', classId),
+  );
+  const regSet = new Set(inSchool.map((s) => (s.registration || '').trim()).filter(Boolean));
+  const nameSet = new Set(inClass.map((s) => s.full_name.toLowerCase().trim()));
+  const seenReg = new Set<string>();
+  const seenName = new Set<string>();
+
+  const payload = rows
+    .filter((r) => {
+      const reg = (r.registration || '').trim();
+      const name = r.full_name.toLowerCase().trim();
+      if (reg && (regSet.has(reg) || seenReg.has(reg))) return false;
+      if (nameSet.has(name) || seenName.has(name)) return false;
+      if (reg) seenReg.add(reg);
+      seenName.add(name);
+      return true;
+    })
+    .map((r) => ({
+      school_id: schoolId,
+      class_id: classId,
+      full_name: r.full_name,
+      registration: r.registration || null,
+      guardian_name: r.guardian_name || null,
+      guardian_phone: r.guardian_phone || null,
+    }));
+
+  if (!payload.length) return 0;
   const { error } = await supabase.from('students').insert(payload);
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(mapStudentError(error));
   return payload.length;
 }
 

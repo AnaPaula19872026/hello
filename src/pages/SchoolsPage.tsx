@@ -2,11 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, FileSpreadsheet, ImagePlus, MapPin, Pencil, Phone, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { ImportModal } from '../components/ImportModal';
-import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader } from '../components/ui';
+import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, SelectionBar } from '../components/ui';
 import { fileToCompressedDataUrl } from '../lib/image';
 import type { ColumnDef } from '../lib/importSheet';
-import { bulkInsertSchools, deleteSchool, listSchools, saveSchool } from '../lib/queries';
+import { bulkDeleteSchools, bulkInsertSchools, deleteSchool, listSchools, saveSchool } from '../lib/queries';
 import type { School } from '../lib/types';
+import { useSelection } from '../lib/useSelection';
 
 const IMPORT_COLUMNS: ColumnDef[] = [
   { key: 'name', label: 'Nome', example: 'E.M. João da Silva', required: true },
@@ -32,6 +33,14 @@ export function SchoolsPage() {
   const remove = useMutation({
     mutationFn: deleteSchool,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schools'] }),
+  });
+  const sel = useSelection();
+  const bulkRemove = useMutation({
+    mutationFn: () => bulkDeleteSchools([...sel.ids]),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['schools'] });
+      sel.clear();
+    },
   });
 
   function openNew() {
@@ -99,9 +108,16 @@ export function SchoolsPage() {
           action={<AddButton onClick={openNew} label="Nova escola" />}
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <>
+          <SelectionBar count={sel.size} onClear={sel.clear} onDelete={() => confirm(`Excluir ${sel.size} escola(s)? Turmas e alunos vinculados também serão removidos.`) && bulkRemove.mutate()} busy={bulkRemove.isPending} />
+          <label className="mb-2 flex cursor-pointer items-center gap-2 px-1 text-sm font-bold text-slate-500">
+            <CheckBox checked={data.length > 0 && data.every((s) => sel.has(s.id))} onChange={() => (data.every((s) => sel.has(s.id)) ? sel.clear() : sel.setAll(data.map((s) => s.id)))} />
+            Selecionar todas ({data.length})
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
           {data.map((s) => (
-            <Card key={s.id} className="flex items-start gap-4">
+            <Card key={s.id} className="flex items-start gap-3">
+              <CheckBox checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} />
               <Logo src={s.logo_url} name={s.name} />
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-base font-black text-slate-900">{s.name}</h3>
@@ -131,7 +147,8 @@ export function SchoolsPage() {
               </div>
             </Card>
           ))}
-        </div>
+          </div>
+        </>
       )}
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Editar escola' : 'Nova escola'}>

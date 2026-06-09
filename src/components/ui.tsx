@@ -1,5 +1,5 @@
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { Plus, X } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 import { Fragment, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
 import { cn } from '../lib/cn';
 
@@ -112,6 +112,45 @@ export function EmptyState({ icon, title, hint, action }: { icon: ReactNode; tit
       {hint ? <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">{hint}</p> : null}
       {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
     </div>
+  );
+}
+
+/* -------------------------- Barra de seleção múltipla -------------------------- */
+export function SelectionBar({
+  count,
+  onClear,
+  onDelete,
+  busy,
+}: {
+  count: number;
+  onClear: () => void;
+  onDelete: () => void;
+  busy?: boolean;
+}) {
+  if (!count) return null;
+  return (
+    <div className="sticky top-2 z-20 mb-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-soft">
+      <span className="text-sm font-black text-slate-800">{count} selecionado(s)</span>
+      <button onClick={onClear} className="text-sm font-bold text-slate-500 hover:text-slate-900">
+        Limpar
+      </button>
+      <Button variant="danger" className="ml-auto" onClick={onDelete} disabled={busy}>
+        <Trash2 size={16} /> {busy ? 'Excluindo…' : 'Excluir selecionados'}
+      </Button>
+    </div>
+  );
+}
+
+/** Checkbox quadrado padronizado para seleção em listas. */
+export function CheckBox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+  return (
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      onClick={(e) => e.stopPropagation()}
+      className="h-5 w-5 shrink-0 cursor-pointer rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+    />
   );
 }
 

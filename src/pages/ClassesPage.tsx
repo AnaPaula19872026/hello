@@ -3,8 +3,9 @@ import { FileSpreadsheet, GraduationCap, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
-import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
-import { bulkInsertClasses, deleteClass, listClasses, listSchools, saveClass } from '../lib/queries';
+import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar } from '../components/ui';
+import { bulkDeleteClasses, bulkInsertClasses, deleteClass, listClasses, listSchools, saveClass } from '../lib/queries';
+import { useSelection } from '../lib/useSelection';
 import type { ColumnDef } from '../lib/importSheet';
 import { SHIFTS, type ClassRoom } from '../lib/types';
 
@@ -33,6 +34,14 @@ export function ClassesPage() {
   const remove = useMutation({
     mutationFn: deleteClass,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['classes'] }),
+  });
+  const sel = useSelection();
+  const bulkRemove = useMutation({
+    mutationFn: () => bulkDeleteClasses([...sel.ids]),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['classes'] });
+      sel.clear();
+    },
   });
 
   const schoolName = (id: string) => schools.find((s) => s.id === id)?.name ?? '—';
@@ -100,10 +109,17 @@ export function ClassesPage() {
           action={<AddButton onClick={openNew} label="Nova turma" />}
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <>
+          <SelectionBar count={sel.size} onClear={sel.clear} onDelete={() => confirm(`Excluir ${sel.size} turma(s)?`) && bulkRemove.mutate()} busy={bulkRemove.isPending} />
+          <label className="mb-2 flex cursor-pointer items-center gap-2 px-1 text-sm font-bold text-slate-500">
+            <CheckBox checked={classes.length > 0 && classes.every((c) => sel.has(c.id))} onChange={() => (classes.every((c) => sel.has(c.id)) ? sel.clear() : sel.setAll(classes.map((c) => c.id)))} />
+            Selecionar todas ({classes.length})
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
           {classes.map((c) => (
-            <Card key={c.id} className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
+            <Card key={c.id} className="flex items-start gap-3">
+              <CheckBox checked={sel.has(c.id)} onChange={() => sel.toggle(c.id)} />
+              <div className="min-w-0 flex-1">
                 <h3 className="truncate text-base font-black text-slate-900">{c.name}</h3>
                 <p className="mt-1 text-sm text-slate-500">{schoolName(c.school_id)}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -125,7 +141,8 @@ export function ClassesPage() {
               </div>
             </Card>
           ))}
-        </div>
+          </div>
+        </>
       )}
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Editar turma' : 'Nova turma'}>

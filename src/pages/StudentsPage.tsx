@@ -3,10 +3,11 @@ import { FileSpreadsheet, Pencil, Phone, Search, Trash2, Users } from 'lucide-re
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
-import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
-import { bulkInsertStudents, deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
+import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar } from '../components/ui';
+import { bulkDeleteStudents, bulkInsertStudents, deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
 import type { ColumnDef } from '../lib/importSheet';
 import type { Student } from '../lib/types';
+import { useSelection } from '../lib/useSelection';
 
 const IMPORT_COLUMNS: ColumnDef[] = [
   { key: 'full_name', label: 'Nome', example: 'Maria de Souza', required: true },
@@ -36,6 +37,14 @@ export function StudentsPage() {
   const remove = useMutation({
     mutationFn: deleteStudent,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['students'] }),
+  });
+  const sel = useSelection();
+  const bulkRemove = useMutation({
+    mutationFn: () => bulkDeleteStudents([...sel.ids]),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['students'] });
+      sel.clear();
+    },
   });
 
   const className = (id: string | null) => classes.find((c) => c.id === id)?.name ?? 'Sem turma';
@@ -134,9 +143,15 @@ export function StudentsPage() {
         />
       ) : (
         <div className="space-y-2">
+          <SelectionBar count={sel.size} onClear={sel.clear} onDelete={() => confirm(`Excluir ${sel.size} aluno(s)?`) && bulkRemove.mutate()} busy={bulkRemove.isPending} />
+          <label className="flex cursor-pointer items-center gap-2 px-1 text-sm font-bold text-slate-500">
+            <CheckBox checked={list.length > 0 && list.every((s) => sel.has(s.id))} onChange={() => (list.every((s) => sel.has(s.id)) ? sel.clear() : sel.setAll(list.map((s) => s.id)))} />
+            Selecionar todos ({list.length})
+          </label>
           {list.map((s) => (
             <Card key={s.id} className="flex items-center justify-between gap-3 p-4">
-              <div className="min-w-0">
+              <CheckBox checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} />
+              <div className="min-w-0 flex-1">
                 <h3 className="truncate text-base font-bold text-slate-900">{s.full_name}</h3>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
                   <span className="font-semibold text-emerald-700">{className(s.class_id)}</span>

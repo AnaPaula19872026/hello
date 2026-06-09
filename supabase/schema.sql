@@ -128,6 +128,11 @@ create index if not exists idx_grades_student on public.grades(student_id);
 create index if not exists idx_classes_school on public.classes(school_id);
 create index if not exists idx_students_class on public.students(class_id);
 create index if not exists idx_students_school on public.students(school_id);
+-- Unicidade do aluno: matrícula única por escola, nome único por turma.
+create unique index if not exists uq_students_registration
+  on public.students (school_id, registration) where registration is not null and registration <> '';
+create unique index if not exists uq_students_name_class
+  on public.students (class_id, lower(full_name)) where class_id is not null;
 create index if not exists idx_sessions_lookup on public.attendance_sessions(class_id, session_date);
 create index if not exists idx_records_session on public.attendance_records(session_id);
 create index if not exists idx_records_student on public.attendance_records(student_id);
