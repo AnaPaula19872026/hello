@@ -74,24 +74,6 @@ export function StudentsPage() {
     });
   }
 
-  if (classes.length === 0) {
-    return (
-      <>
-        <PageHeader title="Alunos" subtitle="Alunos organizados por turma." />
-        <EmptyState
-          icon={<Users size={26} />}
-          title="Cadastre uma turma primeiro"
-          hint="Os alunos precisam estar em uma turma."
-          action={
-            <Link to="/turmas">
-              <Button>Cadastrar turma</Button>
-            </Link>
-          }
-        />
-      </>
-    );
-  }
-
   return (
     <>
       <PageHeader
@@ -113,6 +95,19 @@ export function StudentsPage() {
         }
       />
 
+      {classes.length === 0 ? (
+        <EmptyState
+          icon={<Users size={26} />}
+          title="Cadastre uma turma primeiro"
+          hint="Os alunos precisam estar em uma turma."
+          action={
+            <Link to="/turmas">
+              <Button>Cadastrar turma</Button>
+            </Link>
+          }
+        />
+      ) : (
+        <>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row">
         <label className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
           <Search size={18} className="text-slate-400" />
@@ -169,8 +164,18 @@ export function StudentsPage() {
           ))}
         </div>
       )}
+        </>
+      )}
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Editar aluno' : 'Novo aluno'}>
+        {classes.length === 0 ? (
+          <div className="space-y-4 text-center">
+            <p className="text-sm font-medium text-slate-600">Cadastre uma turma antes de adicionar alunos.</p>
+            <Link to="/turmas">
+              <Button onClick={() => setOpen(false)}>Cadastrar turma</Button>
+            </Link>
+          </div>
+        ) : (
         <form onSubmit={onSubmit} className="space-y-4">
           <Field label="Nome completo">
             <Input name="full_name" defaultValue={editing?.full_name} required autoFocus placeholder="Nome do aluno" />
@@ -205,6 +210,7 @@ export function StudentsPage() {
             </Button>
           </div>
         </form>
+        )}
       </Modal>
 
       <ImportModal
@@ -214,7 +220,7 @@ export function StudentsPage() {
         columns={IMPORT_COLUMNS}
         templateFileName="modelo-alunos.xlsx"
         ready={!!importClass}
-        notReadyHint="Selecione a turma dos alunos."
+        notReadyHint={classes.length ? 'Selecione a turma dos alunos.' : 'Cadastre uma turma primeiro.'}
         contextSlot={
           <Field label="Turma dos alunos">
             <Select value={importClass} onChange={(e) => setImportClass(e.target.value)}>
