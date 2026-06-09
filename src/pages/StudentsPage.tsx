@@ -1,0 +1,177 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Pencil, Phone, Search, Trash2, Users } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
+import { deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
+import type { Student } from '../lib/types';
+
+export function StudentsPage() {
+  const qc = useQueryClient();
+  const { data: students = [], isLoading } = useQuery({ queryKey: ['students'], queryFn: listStudents });
+  const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
+  const [editing, setEditing] = useState<Student | null>(null);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [classFilter, setClassFilter] = useState('all');
+
+  const save = useMutation({
+    mutationFn: saveStudent,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['students'] });
+      setOpen(false);
+    },
+  });
+  const remove = useMutation({
+    mutationFn: deleteStudent,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['students'] }),
+  });
+
+  const className = (id: string | null) => classes.find((c) => c.id === id)?.name ?? 'Sem turma';
+
+  const list = useMemo(
+    () =>
+      students
+        .filter((s) => s.full_name.toLowerCase().includes(q.toLowerCase()))
+        .filter((s) => classFilter === 'all' || s.class_id === classFilter),
+    [students, q, classFilter],
+  );
+
+  function openNew() {
+    setEditing(null);
+    setOpen(true);
+  }
+  function openEdit(s: Student) {
+    setEditing(s);
+    setOpen(true);
+  }
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const classId = String(f.get('class_id') || '');
+    const school_id = classes.find((c) => c.id === classId)?.school_id;
+    if (!school_id) return;
+    save.mutate({
+      id: editing?.id,
+      full_name: String(f.get('full_name') || '').trim(),
+      class_id: classId,
+      school_id,
+      registration: String(f.get('registration') || '').trim() || null,
+      guardian_name: String(f.get('guardian_name') || '').trim() || null,
+      guardian_phone: String(f.get('guardian_phone') || '').trim() || null,
+    });
+  }
+
+  if (classes.length === 0) {
+    return (
+      <>
+        <PageHeader title="Alunos" subtitle="Alunos organizados por turma." />
+        <EmptyState icon={<Users size={26} />} title="Cadastre uma turma primeiro" hint="Os alunos precisam estar em uma turma." />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader
+        title="Alunos"
+        subtitle={`${students.length} aluno(s) cadastrado(s).`}
+        action={<AddButton onClick={openNew} label="Novo aluno" />}
+      />
+
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row">
+        <label className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <Search size={18} className="text-slate-400" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar aluno…" className="w-full bg-transparent text-sm outline-none" />
+        </label>
+        <Select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="sm:w-56">
+          <option value="all">Todas as turmas</option>
+          {classes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-slate-500">Carregando…</p>
+      ) : list.length === 0 ? (
+        <EmptyState
+          icon={<Users size={26} />}
+          title="Nenhum aluno"
+          hint="Cadastre alunos para fazer as chamadas."
+          action={<AddButton onClick={openNew} label="Novo aluno" />}
+        />
+      ) : (
+        <div className="space-y-2">
+          {list.map((s) => (
+            <Card key={s.id} className="flex items-center justify-between gap-3 p-4">
+              <div className="min-w-0">
+                <h3 className="truncate text-base font-bold text-slate-900">{s.full_name}</h3>
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                  <span className="font-semibold text-emerald-700">{className(s.class_id)}</span>
+                  {s.registration ? <span>Mat. {s.registration}</span> : null}
+                  {s.guardian_phone ? (
+                    <span className="flex items-center gap-1">
+                      <Phone size={12} /> {s.guardian_phone}
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                <button onClick={() => openEdit(s)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200" aria-label="Editar">
+                  <Pencil size={16} />
+                </button>
+                <button
+                  onClick={() => confirm(`Excluir o aluno "${s.full_name}"?`) && remove.mutate(s.id)}
+                  className="grid h-9 w-9 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                  aria-label="Excluir"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Editar aluno' : 'Novo aluno'}>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <Field label="Nome completo">
+            <Input name="full_name" defaultValue={editing?.full_name} required autoFocus placeholder="Nome do aluno" />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Turma">
+              <Select name="class_id" defaultValue={editing?.class_id ?? classes[0]?.id} required>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Matrícula">
+              <Input name="registration" defaultValue={editing?.registration ?? ''} placeholder="Opcional" />
+            </Field>
+          </div>
+          <Field label="Responsável">
+            <Input name="guardian_name" defaultValue={editing?.guardian_name ?? ''} placeholder="Nome do responsável" />
+          </Field>
+          <Field label="Telefone do responsável">
+            <Input name="guardian_phone" defaultValue={editing?.guardian_phone ?? ''} placeholder="(00) 00000-0000" />
+          </Field>
+          {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? 'Salvando…' : 'Salvar'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </>
+  );
+}

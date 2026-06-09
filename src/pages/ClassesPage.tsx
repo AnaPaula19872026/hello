@@ -1,0 +1,150 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { GraduationCap, Pencil, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
+import { deleteClass, listClasses, listSchools, saveClass } from '../lib/queries';
+import { SHIFTS, type ClassRoom } from '../lib/types';
+
+export function ClassesPage() {
+  const qc = useQueryClient();
+  const { data: classes = [], isLoading } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
+  const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: listSchools });
+  const [editing, setEditing] = useState<ClassRoom | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const save = useMutation({
+    mutationFn: saveClass,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['classes'] });
+      setOpen(false);
+    },
+  });
+  const remove = useMutation({
+    mutationFn: deleteClass,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['classes'] }),
+  });
+
+  const schoolName = (id: string) => schools.find((s) => s.id === id)?.name ?? '—';
+
+  function openNew() {
+    setEditing(null);
+    setOpen(true);
+  }
+  function openEdit(c: ClassRoom) {
+    setEditing(c);
+    setOpen(true);
+  }
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    save.mutate({
+      id: editing?.id,
+      name: String(f.get('name') || '').trim(),
+      school_id: String(f.get('school_id') || ''),
+      shift: String(f.get('shift') || 'Manhã'),
+      year: f.get('year') ? Number(f.get('year')) : null,
+    });
+  }
+
+  if (schools.length === 0) {
+    return (
+      <>
+        <PageHeader title="Turmas" subtitle="Turmas vinculadas a uma escola." />
+        <EmptyState
+          icon={<GraduationCap size={26} />}
+          title="Cadastre uma escola primeiro"
+          hint="As turmas precisam estar vinculadas a uma escola."
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader
+        title="Turmas"
+        subtitle="Turmas vinculadas a uma escola."
+        action={<AddButton onClick={openNew} label="Nova turma" />}
+      />
+
+      {isLoading ? (
+        <p className="text-sm text-slate-500">Carregando…</p>
+      ) : classes.length === 0 ? (
+        <EmptyState
+          icon={<GraduationCap size={26} />}
+          title="Nenhuma turma"
+          hint="Crie a primeira turma para organizar os alunos."
+          action={<AddButton onClick={openNew} label="Nova turma" />}
+        />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {classes.map((c) => (
+            <Card key={c.id} className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="truncate text-base font-black text-slate-900">{c.name}</h3>
+                <p className="mt-1 text-sm text-slate-500">{schoolName(c.school_id)}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{c.shift}</span>
+                  {c.year ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{c.year}</span> : null}
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                <button onClick={() => openEdit(c)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200" aria-label="Editar">
+                  <Pencil size={16} />
+                </button>
+                <button
+                  onClick={() => confirm(`Excluir a turma "${c.name}"?`) && remove.mutate(c.id)}
+                  className="grid h-9 w-9 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                  aria-label="Excluir"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Editar turma' : 'Nova turma'}>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <Field label="Nome da turma">
+            <Input name="name" defaultValue={editing?.name} required autoFocus placeholder="Ex.: 5º ano A" />
+          </Field>
+          <Field label="Escola">
+            <Select name="school_id" defaultValue={editing?.school_id ?? schools[0]?.id} required>
+              {schools.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Turno">
+              <Select name="shift" defaultValue={editing?.shift ?? 'Manhã'}>
+                {SHIFTS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Ano letivo">
+              <Input name="year" type="number" defaultValue={editing?.year ?? new Date().getFullYear()} />
+            </Field>
+          </div>
+          {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? 'Salvando…' : 'Salvar'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </>
+  );
+}

@@ -1,33 +1,139 @@
--- hello / Chamada Rápida Escolar - Supabase PostgreSQL
-create extension if not exists "uuid-ossp";
-create type public.user_role as enum ('super_admin','school_admin','coordinator','teacher','secretary','auditor');
-create type public.attendance_status as enum ('present','absent','late','justified');
-create table public.users (id uuid primary key references auth.users(id) on delete cascade, nome text not null, email text unique not null, foto_perfil text, telefone text, cargo user_role default 'teacher', escola_id uuid, ativo boolean default true, ultimo_acesso timestamptz, criado_em timestamptz default now(), atualizado_em timestamptz default now());
-create table public.schools (id uuid primary key default uuid_generate_v4(), name text not null, city text, logo_url text, active boolean default true, created_at timestamptz default now());
-alter table public.users add constraint users_school_fk foreign key (escola_id) references public.schools(id);
-create table public.shifts (id uuid primary key default uuid_generate_v4(), school_id uuid references schools(id) on delete cascade, name text not null, start_time time, end_time time);
-create table public.classes (id uuid primary key default uuid_generate_v4(), school_id uuid references schools(id) on delete cascade, shift_id uuid references shifts(id), name text not null, school_year int, active boolean default true);
-create table public.subjects (id uuid primary key default uuid_generate_v4(), school_id uuid references schools(id) on delete cascade, name text not null, active boolean default true);
-create table public.teachers (id uuid primary key default uuid_generate_v4(), user_id uuid references users(id), school_id uuid references schools(id), registration text, active boolean default true);
-create table public.students (id uuid primary key default uuid_generate_v4(), school_id uuid references schools(id) on delete cascade, full_name text not null, registration text, document text, birth_date date, guardian_name text, guardian_phone text, guardian_email text, status text default 'Ativo', notes text, created_at timestamptz default now(), updated_at timestamptz default now());
-create table public.enrollments (id uuid primary key default uuid_generate_v4(), school_id uuid references schools(id), class_id uuid references classes(id) on delete cascade, student_id uuid references students(id) on delete cascade, active boolean default true, enrolled_at date default current_date, unique(class_id, student_id));
-create table public.lessons (id uuid primary key default uuid_generate_v4(), school_id uuid references schools(id), class_id uuid references classes(id), subject_id uuid references subjects(id), teacher_id uuid references teachers(id), lesson_date date not null, starts_at time, ends_at time, notes text);
-create table public.attendance_sessions (id uuid primary key default uuid_generate_v4(), school_id uuid references schools(id), class_id uuid references classes(id), lesson_id uuid references lessons(id), teacher_id uuid references teachers(id), session_date date default current_date, started_at timestamptz default now(), saved_at timestamptz, observation text, created_by uuid references users(id));
-create table public.attendance_records (id uuid primary key default uuid_generate_v4(), session_id uuid references attendance_sessions(id) on delete cascade, student_id uuid references students(id), status attendance_status not null default 'present', observation text, reviewed boolean default false, changed_by uuid references users(id), changed_at timestamptz default now(), unique(session_id, student_id));
-create table public.absence_alerts (id uuid primary key default uuid_generate_v4(), school_id uuid references schools(id), student_id uuid references students(id), class_id uuid references classes(id), absence_percent numeric(5,2), threshold_percent numeric(5,2) default 25, active boolean default true, generated_at timestamptz default now());
-create table public.import_batches (id uuid primary key default uuid_generate_v4(), school_id uuid references schools(id), file_name text, total_rows int default 0, imported_rows int default 0, errors jsonb default '[]', created_by uuid references users(id), created_at timestamptz default now());
-create table public.reports (id uuid primary key default uuid_generate_v4(), school_id uuid references schools(id), report_type text not null, filters jsonb default '{}', file_url text, created_by uuid references users(id), created_at timestamptz default now());
-create table public.sync_queue (id uuid primary key default uuid_generate_v4(), user_id uuid references users(id), action text not null, payload jsonb not null, processed boolean default false, attempts int default 0, created_at timestamptz default now(), processed_at timestamptz);
-create table public.audit_logs (id bigserial primary key, table_name text not null, record_id uuid, action text not null, old_data jsonb, new_data jsonb, changed_by uuid, changed_at timestamptz default now());
-create index idx_users_school on users(escola_id); create index idx_classes_school on classes(school_id); create index idx_students_school_name on students(school_id, full_name); create index idx_enrollments_class on enrollments(class_id); create index idx_sessions_lookup on attendance_sessions(school_id, class_id, session_date); create index idx_records_student_status on attendance_records(student_id, status); create index idx_alerts_school_active on absence_alerts(school_id, active);
-alter table users enable row level security; alter table schools enable row level security; alter table classes enable row level security; alter table students enable row level security; alter table attendance_sessions enable row level security; alter table attendance_records enable row level security; alter table sync_queue enable row level security;
-create policy "users read own school" on users for select using (id = auth.uid() or escola_id = (select escola_id from users where id = auth.uid()));
-create policy "schools read own" on schools for select using (id = (select escola_id from users where id = auth.uid()) or exists(select 1 from users where id=auth.uid() and cargo='super_admin'));
-create policy "classes read own school" on classes for select using (school_id = (select escola_id from users where id = auth.uid()));
-create policy "students read own school" on students for select using (school_id = (select escola_id from users where id = auth.uid()));
-create policy "sessions crud own school" on attendance_sessions for all using (school_id = (select escola_id from users where id = auth.uid())) with check (school_id = (select escola_id from users where id = auth.uid()));
-create policy "records read via session school" on attendance_records for select using (exists(select 1 from attendance_sessions s where s.id=session_id and s.school_id=(select escola_id from users where id=auth.uid())));
-create policy "records insert via session school" on attendance_records for insert with check (exists(select 1 from attendance_sessions s where s.id=session_id and s.school_id=(select escola_id from users where id=auth.uid())));
-create policy "sync own queue" on sync_queue for all using (user_id = auth.uid()) with check (user_id = auth.uid());
-create or replace function public.handle_new_user() returns trigger language plpgsql security definer as $$ begin insert into public.users(id,nome,email,foto_perfil) values(new.id, coalesce(new.raw_user_meta_data->>'full_name', new.email), new.email, new.raw_user_meta_data->>'avatar_url') on conflict (id) do update set ultimo_acesso=now(); return new; end; $$;
-create trigger on_auth_user_created after insert on auth.users for each row execute procedure public.handle_new_user();
+-- hello — Gestão Escolar (Supabase / PostgreSQL)
+-- Modelo enxuto, multi-tela, dados na nuvem. Cada usuário só enxerga o que é seu (RLS por owner_id).
+
+create extension if not exists "pgcrypto";
+
+do $$ begin
+  create type public.attendance_status as enum ('present', 'absent', 'late', 'justified');
+exception when duplicate_object then null; end $$;
+
+-- Perfil do usuário (espelha auth.users) ---------------------------------------
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text,
+  email text,
+  avatar_url text,
+  calendar_url text,                 -- URL de embed da Google Agenda
+  created_at timestamptz default now()
+);
+
+-- Cadastros --------------------------------------------------------------------
+create table if not exists public.schools (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name text not null,
+  city text,
+  active boolean default true,
+  created_at timestamptz default now()
+);
+
+create table if not exists public.classes (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  school_id uuid not null references public.schools(id) on delete cascade,
+  name text not null,
+  shift text default 'Manhã',
+  year int,
+  created_at timestamptz default now()
+);
+
+create table if not exists public.students (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  school_id uuid not null references public.schools(id) on delete cascade,
+  class_id uuid references public.classes(id) on delete set null,
+  full_name text not null,
+  registration text,
+  guardian_name text,
+  guardian_phone text,
+  active boolean default true,
+  created_at timestamptz default now()
+);
+
+-- Chamadas (presenças/faltas) --------------------------------------------------
+create table if not exists public.attendance_sessions (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  class_id uuid not null references public.classes(id) on delete cascade,
+  session_date date not null default current_date,
+  note text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique (class_id, session_date)
+);
+
+create table if not exists public.attendance_records (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  session_id uuid not null references public.attendance_sessions(id) on delete cascade,
+  student_id uuid not null references public.students(id) on delete cascade,
+  status public.attendance_status not null default 'present',
+  note text,
+  unique (session_id, student_id)
+);
+
+-- Índices ----------------------------------------------------------------------
+create index if not exists idx_classes_school on public.classes(school_id);
+create index if not exists idx_students_class on public.students(class_id);
+create index if not exists idx_students_school on public.students(school_id);
+create index if not exists idx_sessions_lookup on public.attendance_sessions(class_id, session_date);
+create index if not exists idx_records_session on public.attendance_records(session_id);
+create index if not exists idx_records_student on public.attendance_records(student_id);
+
+-- RLS --------------------------------------------------------------------------
+alter table public.profiles enable row level security;
+alter table public.schools enable row level security;
+alter table public.classes enable row level security;
+alter table public.students enable row level security;
+alter table public.attendance_sessions enable row level security;
+alter table public.attendance_records enable row level security;
+
+do $$ begin
+  create policy "profiles self" on public.profiles
+    for all using (id = auth.uid()) with check (id = auth.uid());
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "schools own" on public.schools
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "classes own" on public.classes
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "students own" on public.students
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "sessions own" on public.attendance_sessions
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "records own" on public.attendance_records
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+exception when duplicate_object then null; end $$;
+
+-- Cria o perfil automaticamente no primeiro login (Google) ----------------------
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.profiles (id, full_name, email, avatar_url)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', new.email),
+    new.email,
+    new.raw_user_meta_data->>'avatar_url'
+  )
+  on conflict (id) do nothing;
+  return new;
+end $$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
