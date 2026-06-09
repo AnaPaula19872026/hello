@@ -1,6 +1,6 @@
 import { Download, FileSpreadsheet, FileText, Plus, Trash2, Upload, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { createStudentTemplate } from '../features/imports/studentTemplate';
+import { createRegistryTemplate, createStudentTemplate } from '../features/imports/studentTemplate';
 import { exportDemoReport } from '../features/reports/reportExport';
 
 const pageCopy: Record<string, { title: string; description: string; action: string }> = {
@@ -133,6 +133,13 @@ export function PlaceholderPage({ type }: { type: string }) {
 
 export function ImportsPage() {
   const formats = ['Excel .xlsx', 'CSV', 'TXT', 'DOC', 'DOCX', 'PDF'];
+  const templates = [
+    { label: 'Modelo completo', kind: 'complete' as const },
+    { label: 'Escolas', kind: 'schools' as const },
+    { label: 'Turmas', kind: 'classes' as const },
+    { label: 'Alunos', kind: 'students' as const },
+    { label: 'Disciplinas', kind: 'subjects' as const },
+  ];
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:py-8">
@@ -141,13 +148,26 @@ export function ImportsPage() {
         Importe bases escolares e gere modelos padronizados para manter os cadastros consistentes.
       </p>
       <section className="mt-6 grid gap-4 lg:grid-cols-[.9fr_1.1fr]">
-        <button
-          onClick={createStudentTemplate}
-          className="flex min-h-32 items-center gap-4 rounded-lg bg-emerald-600 p-5 text-left font-black text-white shadow-soft"
-        >
-          <FileSpreadsheet size={28} />
-          <span>Baixar planilha modelo</span>
-        </button>
+        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-3">
+            <FileSpreadsheet className="text-emerald-600" size={28} />
+            <div>
+              <h3 className="font-black text-slate-950 dark:text-white">Planilhas padrão</h3>
+              <p className="text-sm text-slate-500">Baixe o modelo correto antes de importar.</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {templates.map((template) => (
+              <button
+                key={template.kind}
+                onClick={() => template.kind === 'students' ? createStudentTemplate() : createRegistryTemplate(template.kind)}
+                className="min-h-11 rounded-lg bg-emerald-600 px-4 py-2.5 text-left text-sm font-black text-white"
+              >
+                {template.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="rounded-lg border-2 border-dashed border-slate-300 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-900">
           <Upload className="mx-auto mb-3 text-slate-400" />
           <strong className="text-slate-950 dark:text-white">Arraste o arquivo aqui</strong>

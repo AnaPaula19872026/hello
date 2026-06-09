@@ -1,5 +1,6 @@
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Download, Pencil, Plus, Trash2 } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { createRegistryTemplate } from '../features/imports/studentTemplate';
 import type { ClassRoom, School, Student, Subject } from '../types';
 import {
   ClassForm,
@@ -18,11 +19,11 @@ import {
 type RegistryItem = School | ClassRoom | Student | Subject;
 
 const config = {
-  school: { title: 'Cadastro de escolas', action: 'Nova escola', empty: 'Nenhuma escola cadastrada.' },
-  class: { title: 'Cadastro de turmas', action: 'Nova turma', empty: 'Nenhuma turma cadastrada.' },
-  student: { title: 'Cadastro de alunos', action: 'Novo aluno', empty: 'Nenhum aluno cadastrado.' },
-  subject: { title: 'Cadastro de disciplinas', action: 'Nova disciplina', empty: 'Nenhuma disciplina cadastrada.' },
-} satisfies Record<RegistryKind, { title: string; action: string; empty: string }>;
+  school: { title: 'Cadastro de escolas', action: 'Nova escola', empty: 'Nenhuma escola cadastrada.', template: 'schools' },
+  class: { title: 'Cadastro de turmas', action: 'Nova turma', empty: 'Nenhuma turma cadastrada.', template: 'classes' },
+  student: { title: 'Cadastro de alunos', action: 'Novo aluno', empty: 'Nenhum aluno cadastrado.', template: 'students' },
+  subject: { title: 'Cadastro de disciplinas', action: 'Nova disciplina', empty: 'Nenhuma disciplina cadastrada.', template: 'subjects' },
+} satisfies Record<RegistryKind, { title: string; action: string; empty: string; template: 'schools' | 'classes' | 'students' | 'subjects' }>;
 
 const blankForms = {
   school: { name: '', city: '' },
@@ -98,10 +99,16 @@ export function RegistryPage({ kind }: { kind: RegistryKind }) {
           <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white sm:text-3xl">{copy.title}</h2>
           <p className="mt-2 text-sm font-medium text-slate-500">Crie, edite e exclua registros com persistência local e fila de sincronização.</p>
         </div>
-        <button onClick={startCreate} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-soft">
-          <Plus size={18} />
-          {copy.action}
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button onClick={() => createRegistryTemplate(copy.template)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 shadow-sm">
+            <Download size={18} />
+            Baixar modelo
+          </button>
+          <button onClick={startCreate} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-soft">
+            <Plus size={18} />
+            {copy.action}
+          </button>
+        </div>
       </section>
 
       {open ? (
