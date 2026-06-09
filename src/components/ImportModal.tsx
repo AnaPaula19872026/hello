@@ -35,22 +35,26 @@ export function ImportModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState<number | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   function reset() {
     setParsed(null);
     setFileName('');
     setError('');
     setDone(null);
+    setDragging(false);
   }
   function close() {
     reset();
     onClose();
   }
 
-  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  async function handleFile(file: File) {
+    const ok = /\.(xlsx|xls|csv)$/i.test(file.name);
+    if (!ok) {
+      setError('Formato inválido. Use .xlsx, .xls ou .csv.');
+      return;
+    }
     setError('');
     setDone(null);
     setFileName(file.name);
@@ -59,6 +63,19 @@ export function ImportModal({
     } catch {
       setError('Não consegui ler o arquivo. Use o modelo (.xlsx ou .csv).');
     }
+  }
+
+  function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) void handleFile(file);
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) void handleFile(file);
   }
 
   async function runImport() {
@@ -102,11 +119,23 @@ export function ImportModal({
           {!ready ? (
             <p className="rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-700">{notReadyHint}</p>
           ) : (
-            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-6 text-center transition hover:border-emerald-400 hover:bg-emerald-50/40">
-              <Upload size={24} className="text-slate-400" />
-              <span className="text-sm font-bold text-slate-700">{fileName || 'Clique para enviar a planilha'}</span>
+            <label
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDrop}
+              className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition ${
+                dragging ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 hover:border-emerald-400 hover:bg-emerald-50/40'
+              }`}
+            >
+              <Upload size={24} className={dragging ? 'text-emerald-600' : 'text-slate-400'} />
+              <span className="text-sm font-bold text-slate-700">
+                {dragging ? 'Solte o arquivo aqui' : fileName || 'Clique ou arraste a planilha aqui'}
+              </span>
               <span className="text-xs text-slate-400">.xlsx ou .csv</span>
-              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onFile} />
+              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onInputChange} />
             </label>
           )}
 
