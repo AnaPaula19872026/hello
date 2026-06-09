@@ -8,6 +8,7 @@ import { ClassesPage } from '../pages/ClassesPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { LoginPage } from '../pages/LoginPage';
 import { NotasPage } from '../pages/NotasPage';
+import { ReportsPage } from '../pages/ReportsPage';
 import { SchoolsPage } from '../pages/SchoolsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { StudentsPage } from '../pages/StudentsPage';
@@ -35,6 +36,7 @@ function Protected() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/chamadas" element={<AttendancePage />} />
         <Route path="/notas" element={<NotasPage />} />
+        <Route path="/relatorios" element={<ReportsPage />} />
         <Route path="/calendario" element={<CalendarPage />} />
         <Route path="/escolas" element={<SchoolsPage />} />
         <Route path="/turmas" element={<ClassesPage />} />

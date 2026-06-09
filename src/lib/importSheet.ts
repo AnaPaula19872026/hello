@@ -20,6 +20,15 @@ export async function downloadTemplate(fileName: string, columns: ColumnDef[]) {
   XLSX.writeFile(wb, fileName);
 }
 
+/** Exporta uma matriz (primeira linha = cabeçalho) para .xlsx. */
+export async function downloadXlsx(fileName: string, aoa: (string | number | null)[][], sheetName = 'Relatório') {
+  const XLSX = await import('xlsx');
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, fileName);
+}
+
 export interface ParseResult {
   rows: Record<string, string>[];
   errors: string[];

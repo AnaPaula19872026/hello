@@ -254,6 +254,73 @@ export async function saveGrades(
   }
 }
 
+/* --------------------------------- Relatórios ---------------------------------- */
+export interface AttendanceReportRow {
+  student_id: string;
+  name: string;
+  present: number;
+  absent: number;
+  late: number;
+  justified: number;
+  total: number;
+  pct: number; // % de presença (presente + atrasado)
+}
+export interface AttendanceReport {
+  sessions: number;
+  rows: AttendanceReportRow[];
+}
+
+export async function reportAttendance(classId: string, from: string, to: string): Promise<AttendanceReport> {
+  const sessions = unwrap<{ id: string }[]>(
+    await supabase
+      .from('attendance_sessions')
+      .select('id')
+      .eq('class_id', classId)
+      .gte('session_date', from)
+      .lte('session_date', to),
+  );
+  const ids = sessions.map((s) => s.id);
+  const records = ids.length
+    ? unwrap<{ student_id: string; status: string }[]>(
+        await supabase.from('attendance_records').select('student_id, status').in('session_id', ids),
+      )
+    : [];
+  const students = await listStudentsByClass(classId);
+
+  const rows: AttendanceReportRow[] = students.map((s) => {
+    const mine = records.filter((r) => r.student_id === s.id);
+    const present = mine.filter((r) => r.status === 'present').length;
+    const late = mine.filter((r) => r.status === 'late').length;
+    const absent = mine.filter((r) => r.status === 'absent').length;
+    const justified = mine.filter((r) => r.status === 'justified').length;
+    const total = mine.length;
+    const pct = total ? Math.round(((present + late) / total) * 1000) / 10 : 0;
+    return { student_id: s.id, name: s.full_name, present, absent, late, justified, total, pct };
+  });
+
+  return { sessions: sessions.length, rows };
+}
+
+export interface GradesReportRow {
+  student_id: string;
+  name: string;
+  months: (number | null)[]; // 12 posições
+  media: number | null;
+}
+
+export async function reportGrades(classId: string, year: number): Promise<GradesReportRow[]> {
+  const [grades, students] = await Promise.all([listGrades(classId, year), listStudentsByClass(classId)]);
+  return students.map((s) => {
+    const months: (number | null)[] = Array.from({ length: 12 }, (_, i) => {
+      const g = grades.find((x) => x.student_id === s.id && x.month === i + 1);
+      return g?.score != null ? Number(g.score) : null;
+    });
+    const got = months.filter((m): m is number => m != null);
+    const media = got.length ? Math.round((got.reduce((a, b) => a + b, 0) / got.length) * 10) / 10 : null;
+    return { student_id: s.id, name: s.full_name, months, media };
+  });
+}
+
 /* ----------------------------------- Perfil ------------------------------------ */
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();

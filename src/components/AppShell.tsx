@@ -1,6 +1,7 @@
 import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
 import {
   Award,
+  BarChart3,
   Building2,
   CalendarDays,
   ClipboardCheck,
@@ -27,6 +28,7 @@ const groups: { title?: string; items: NavItem[] }[] = [
       { label: 'Início', to: '/', icon: <Home size={18} /> },
       { label: 'Chamadas', to: '/chamadas', icon: <ClipboardCheck size={18} /> },
       { label: 'Notas', to: '/notas', icon: <Award size={18} /> },
+      { label: 'Relatórios', to: '/relatorios', icon: <BarChart3 size={18} /> },
       { label: 'Calendário', to: '/calendario', icon: <CalendarDays size={18} /> },
     ],
   },

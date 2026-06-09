@@ -38,3 +38,24 @@ a {
 .dark body {
   background: #020617;
 }
+
+@media print {
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+  .lg\:pl-72 {
+    padding-left: 0 !important;
+  }
+  body {
+    background: #fff;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  table {
+    font-size: 11px;
+  }
+}
