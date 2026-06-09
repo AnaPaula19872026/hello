@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Award, Save, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Card, EmptyState, PageHeader, Select } from '../components/ui';
+import { Card, CheckBox, EmptyState, PageHeader, Select, SelectionBar } from '../components/ui';
 import { cn } from '../lib/cn';
-import { listClasses, listGrades, listStudentsByClass, saveGrades } from '../lib/queries';
+import { bulkDeleteGrades, listClasses, listGrades, listStudentsByClass, saveGrades } from '../lib/queries';
 import { MONTHS, SUBJECT } from '../lib/types';
+import { useSelection } from '../lib/useSelection';
 
 export function NotasPage() {
   const qc = useQueryClient();
@@ -93,6 +94,15 @@ export function NotasPage() {
     },
   });
 
+  const sel = useSelection();
+  const bulkRemove = useMutation({
+    mutationFn: () => bulkDeleteGrades(classId, year, month, [...sel.ids]),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['grades', classId, year] });
+      sel.clear();
+    },
+  });
+
   if (classes.length === 0) {
     return (
       <>
@@ -145,10 +155,21 @@ export function NotasPage() {
         <EmptyState icon={<Award size={26} />} title="Turma sem alunos" hint="Cadastre alunos nesta turma para lançar notas." />
       ) : (
         <div className="space-y-2">
+          <SelectionBar
+            count={sel.size}
+            onClear={sel.clear}
+            onDelete={() => confirm(`Apagar as notas de ${MONTHS[month - 1]}/${year} de ${sel.size} aluno(s)?`) && bulkRemove.mutate()}
+            busy={bulkRemove.isPending}
+          />
+          <label className="flex cursor-pointer items-center gap-2 px-1 text-sm font-bold text-slate-500">
+            <CheckBox checked={list.length > 0 && list.every((s) => sel.has(s.id))} onChange={() => (list.every((s) => sel.has(s.id)) ? sel.clear() : sel.setAll(list.map((s) => s.id)))} />
+            Selecionar todos ({list.length})
+          </label>
           {list.map((s) => {
             const m = media[s.id];
             return (
               <Card key={s.id} className="flex items-center justify-between gap-3 p-3">
+                <CheckBox checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-slate-900">{s.full_name}</p>
                   <p className="text-xs text-slate-500">

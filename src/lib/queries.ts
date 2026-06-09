@@ -378,6 +378,24 @@ export async function reportGrades(classId: string, year: number): Promise<Grade
   });
 }
 
+/** Apaga as notas do mês/ano informado para os alunos selecionados. */
+export async function bulkDeleteGrades(
+  classId: string,
+  year: number,
+  month: number,
+  studentIds: string[],
+): Promise<void> {
+  const { error } = await supabase
+    .from('grades')
+    .delete()
+    .eq('class_id', classId)
+    .eq('subject', SUBJECT)
+    .eq('year', year)
+    .eq('month', month)
+    .in('student_id', studentIds);
+  if (error) throw new Error(error.message);
+}
+
 /* ----------------------------------- Perfil ------------------------------------ */
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
