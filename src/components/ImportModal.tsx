@@ -1,0 +1,142 @@
+import { CheckCircle2, Download, FileSpreadsheet, Upload } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { downloadTemplate, parseSheet, type ColumnDef, type ParseResult } from '../lib/importSheet';
+import { Button, Modal } from './ui';
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  columns: ColumnDef[];
+  templateFileName: string;
+  importFn: (rows: Record<string, string>[]) => Promise<number>;
+  onDone?: () => void;
+  /** Conteúdo opcional acima do upload (ex.: escolher escola/turma). */
+  contextSlot?: ReactNode;
+  /** Quando false, bloqueia o upload (falta escolher contexto). */
+  ready?: boolean;
+  notReadyHint?: string;
+}
+
+export function ImportModal({
+  open,
+  onClose,
+  title,
+  columns,
+  templateFileName,
+  importFn,
+  onDone,
+  contextSlot,
+  ready = true,
+  notReadyHint,
+}: Props) {
+  const [parsed, setParsed] = useState<ParseResult | null>(null);
+  const [fileName, setFileName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState<number | null>(null);
+
+  function reset() {
+    setParsed(null);
+    setFileName('');
+    setError('');
+    setDone(null);
+  }
+  function close() {
+    reset();
+    onClose();
+  }
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError('');
+    setDone(null);
+    setFileName(file.name);
+    try {
+      setParsed(await parseSheet(file, columns));
+    } catch {
+      setError('Não consegui ler o arquivo. Use o modelo (.xlsx ou .csv).');
+    }
+  }
+
+  async function runImport() {
+    if (!parsed?.rows.length) return;
+    setBusy(true);
+    setError('');
+    try {
+      const n = await importFn(parsed.rows);
+      setDone(n);
+      onDone?.();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={close} title={title}>
+      {done !== null ? (
+        <div className="py-4 text-center">
+          <CheckCircle2 size={48} className="mx-auto text-emerald-600" />
+          <p className="mt-3 text-lg font-black text-slate-900">{done} cadastrado(s)!</p>
+          <Button className="mt-5" onClick={close}>
+            Concluir
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="rounded-xl bg-slate-50 p-4">
+            <p className="text-sm font-medium text-slate-600">
+              1. Baixe a planilha modelo, preencha a aba <strong>Modelo</strong> e suba o arquivo.
+            </p>
+            <Button variant="ghost" className="mt-3" onClick={() => downloadTemplate(templateFileName, columns)}>
+              <Download size={18} /> Baixar planilha modelo
+            </Button>
+          </div>
+
+          {contextSlot}
+
+          {!ready ? (
+            <p className="rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-700">{notReadyHint}</p>
+          ) : (
+            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-6 text-center transition hover:border-emerald-400 hover:bg-emerald-50/40">
+              <Upload size={24} className="text-slate-400" />
+              <span className="text-sm font-bold text-slate-700">{fileName || 'Clique para enviar a planilha'}</span>
+              <span className="text-xs text-slate-400">.xlsx ou .csv</span>
+              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onFile} />
+            </label>
+          )}
+
+          {parsed ? (
+            <div className="rounded-xl border border-slate-200 p-4">
+              <p className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                <FileSpreadsheet size={16} /> {parsed.rows.length} linha(s) válida(s)
+              </p>
+              {parsed.errors.length ? (
+                <div className="mt-2 max-h-28 overflow-y-auto text-xs text-red-600">
+                  {parsed.errors.map((e, i) => (
+                    <p key={i}>{e}</p>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {error ? <p className="text-sm font-semibold text-red-600">{error}</p> : null}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="ghost" onClick={close}>
+              Cancelar
+            </Button>
+            <Button onClick={runImport} disabled={busy || !parsed?.rows.length}>
+              {busy ? 'Importando…' : `Importar ${parsed?.rows.length || ''}`.trim()}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}

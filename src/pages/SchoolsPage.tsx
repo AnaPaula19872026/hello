@@ -1,15 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { Building2, FileSpreadsheet, MapPin, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { ImportModal } from '../components/ImportModal';
 import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader } from '../components/ui';
-import { deleteSchool, listSchools, saveSchool } from '../lib/queries';
+import { bulkInsertSchools, deleteSchool, listSchools, saveSchool } from '../lib/queries';
+import type { ColumnDef } from '../lib/importSheet';
 import type { School } from '../lib/types';
+
+const IMPORT_COLUMNS: ColumnDef[] = [
+  { key: 'name', label: 'Nome', example: 'E.M. João da Silva', required: true },
+  { key: 'city', label: 'Cidade', example: 'Goiânia' },
+];
 
 export function SchoolsPage() {
   const qc = useQueryClient();
   const { data = [], isLoading } = useQuery({ queryKey: ['schools'], queryFn: listSchools });
   const [editing, setEditing] = useState<School | null>(null);
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const save = useMutation({
     mutationFn: saveSchool,
@@ -47,7 +55,14 @@ export function SchoolsPage() {
       <PageHeader
         title="Escolas"
         subtitle="Unidades onde você faz as chamadas."
-        action={<AddButton onClick={openNew} label="Nova escola" />}
+        action={
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => setImportOpen(true)}>
+              <FileSpreadsheet size={18} /> Importar
+            </Button>
+            <AddButton onClick={openNew} label="Nova escola" />
+          </div>
+        }
       />
 
       {isLoading ? (
@@ -107,6 +122,16 @@ export function SchoolsPage() {
           </div>
         </form>
       </Modal>
+
+      <ImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Importar escolas"
+        columns={IMPORT_COLUMNS}
+        templateFileName="modelo-escolas.xlsx"
+        importFn={(rows) => bulkInsertSchools(rows as { name: string; city?: string }[])}
+        onDone={() => qc.invalidateQueries({ queryKey: ['schools'] })}
+      />
     </>
   );
 }

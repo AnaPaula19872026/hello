@@ -26,6 +26,12 @@ export async function deleteSchool(id: string): Promise<void> {
   const { error } = await supabase.from('schools').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
+export async function bulkInsertSchools(rows: { name: string; city?: string }[]): Promise<number> {
+  const payload = rows.map((r) => ({ name: r.name, city: r.city || null }));
+  const { error } = await supabase.from('schools').insert(payload);
+  if (error) throw new Error(error.message);
+  return payload.length;
+}
 
 /* ----------------------------------- Turmas ------------------------------------ */
 export async function listClasses(): Promise<ClassRoom[]> {
@@ -44,6 +50,20 @@ export async function saveClass(input: Partial<ClassRoom> & { name: string; scho
 export async function deleteClass(id: string): Promise<void> {
   const { error } = await supabase.from('classes').delete().eq('id', id);
   if (error) throw new Error(error.message);
+}
+export async function bulkInsertClasses(
+  schoolId: string,
+  rows: { name: string; shift?: string; year?: string }[],
+): Promise<number> {
+  const payload = rows.map((r) => ({
+    school_id: schoolId,
+    name: r.name,
+    shift: r.shift || 'Manhã',
+    year: r.year ? Number(r.year) : null,
+  }));
+  const { error } = await supabase.from('classes').insert(payload);
+  if (error) throw new Error(error.message);
+  return payload.length;
 }
 
 /* ----------------------------------- Alunos ------------------------------------ */
@@ -73,6 +93,23 @@ export async function saveStudent(
 export async function deleteStudent(id: string): Promise<void> {
   const { error } = await supabase.from('students').delete().eq('id', id);
   if (error) throw new Error(error.message);
+}
+export async function bulkInsertStudents(
+  schoolId: string,
+  classId: string,
+  rows: { full_name: string; registration?: string; guardian_name?: string; guardian_phone?: string }[],
+): Promise<number> {
+  const payload = rows.map((r) => ({
+    school_id: schoolId,
+    class_id: classId,
+    full_name: r.full_name,
+    registration: r.registration || null,
+    guardian_name: r.guardian_name || null,
+    guardian_phone: r.guardian_phone || null,
+  }));
+  const { error } = await supabase.from('students').insert(payload);
+  if (error) throw new Error(error.message);
+  return payload.length;
 }
 
 /* ---------------------------------- Chamadas ----------------------------------- */

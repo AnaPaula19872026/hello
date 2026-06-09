@@ -1,9 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Phone, Search, Trash2, Users } from 'lucide-react';
+import { FileSpreadsheet, Pencil, Phone, Search, Trash2, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { ImportModal } from '../components/ImportModal';
 import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
-import { deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
+import { bulkInsertStudents, deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
+import type { ColumnDef } from '../lib/importSheet';
 import type { Student } from '../lib/types';
+
+const IMPORT_COLUMNS: ColumnDef[] = [
+  { key: 'full_name', label: 'Nome', example: 'Maria de Souza', required: true },
+  { key: 'registration', label: 'Matrícula', example: '2026001' },
+  { key: 'guardian_name', label: 'Responsável', example: 'João de Souza' },
+  { key: 'guardian_phone', label: 'Telefone', example: '(62) 90000-0000' },
+];
 
 export function StudentsPage() {
   const qc = useQueryClient();
@@ -11,6 +20,8 @@ export function StudentsPage() {
   const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
   const [editing, setEditing] = useState<Student | null>(null);
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importClass, setImportClass] = useState('');
   const [q, setQ] = useState('');
   const [classFilter, setClassFilter] = useState('all');
 
@@ -76,7 +87,20 @@ export function StudentsPage() {
       <PageHeader
         title="Alunos"
         subtitle={`${students.length} aluno(s) cadastrado(s).`}
-        action={<AddButton onClick={openNew} label="Novo aluno" />}
+        action={
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setImportClass(classes[0]?.id ?? '');
+                setImportOpen(true);
+              }}
+            >
+              <FileSpreadsheet size={18} /> Importar
+            </Button>
+            <AddButton onClick={openNew} label="Novo aluno" />
+          </div>
+        }
       />
 
       <div className="mb-5 flex flex-col gap-3 sm:flex-row">
@@ -172,6 +196,37 @@ export function StudentsPage() {
           </div>
         </form>
       </Modal>
+
+      <ImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Importar alunos"
+        columns={IMPORT_COLUMNS}
+        templateFileName="modelo-alunos.xlsx"
+        ready={!!importClass}
+        notReadyHint="Selecione a turma dos alunos."
+        contextSlot={
+          <Field label="Turma dos alunos">
+            <Select value={importClass} onChange={(e) => setImportClass(e.target.value)}>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        }
+        importFn={(rows) => {
+          const schoolId = classes.find((c) => c.id === importClass)?.school_id;
+          if (!schoolId) throw new Error('Turma inválida.');
+          return bulkInsertStudents(
+            schoolId,
+            importClass,
+            rows as { full_name: string; registration?: string; guardian_name?: string; guardian_phone?: string }[],
+          );
+        }}
+        onDone={() => qc.invalidateQueries({ queryKey: ['students'] })}
+      />
     </>
   );
 }

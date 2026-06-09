@@ -1,0 +1,60 @@
+// Importação por planilha — template + leitura de .xlsx/.csv.
+// xlsx é carregado sob demanda (dynamic import) para não pesar no bundle inicial.
+
+export interface ColumnDef {
+  key: string;
+  label: string;
+  example: string;
+  required?: boolean;
+}
+
+/** Gera e baixa a planilha modelo: aba "Modelo" (só cabeçalho) + aba "Exemplo". */
+export async function downloadTemplate(fileName: string, columns: ColumnDef[]) {
+  const XLSX = await import('xlsx');
+  const headers = columns.map((c) => c.label);
+  const modelo = XLSX.utils.aoa_to_sheet([headers]);
+  const exemplo = XLSX.utils.aoa_to_sheet([headers, columns.map((c) => c.example)]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, modelo, 'Modelo');
+  XLSX.utils.book_append_sheet(wb, exemplo, 'Exemplo');
+  XLSX.writeFile(wb, fileName);
+}
+
+export interface ParseResult {
+  rows: Record<string, string>[];
+  errors: string[];
+}
+
+/** Lê a primeira aba do arquivo e mapeia colunas pelos rótulos definidos. */
+export async function parseSheet(file: File, columns: ColumnDef[]): Promise<ParseResult> {
+  const XLSX = await import('xlsx');
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+
+  const labelToKey: Record<string, string> = {};
+  columns.forEach((c) => (labelToKey[norm(c.label)] = c.key));
+
+  const rows: Record<string, string>[] = [];
+  const errors: string[] = [];
+
+  raw.forEach((r, i) => {
+    const obj: Record<string, string> = {};
+    Object.entries(r).forEach(([label, val]) => {
+      const key = labelToKey[norm(label)];
+      if (key) obj[key] = String(val ?? '').trim();
+    });
+    // ignora linhas vazias
+    if (!Object.values(obj).some((v) => v)) return;
+    const missing = columns.filter((c) => c.required && !obj[c.key]).map((c) => c.label);
+    if (missing.length) errors.push(`Linha ${i + 2}: faltando ${missing.join(', ')}`);
+    else rows.push(obj);
+  });
+
+  return { rows, errors };
+}
+
+function norm(s: string) {
+  return String(s).toLowerCase().trim();
+}
