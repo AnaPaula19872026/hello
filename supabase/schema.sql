@@ -3,9 +3,30 @@
 
 create extension if not exists "pgcrypto";
 
-do $$ begin
-  create type public.attendance_status as enum ('present', 'absent', 'late', 'justified');
-exception when duplicate_object then null; end $$;
+-- Reset: remove versões antigas das tabelas/tipos do app (sem dados reais ainda).
+-- Ordem respeita as dependências (filhos antes dos pais).
+drop table if exists public.attendance_records cascade;
+drop table if exists public.attendance_sessions cascade;
+drop table if exists public.students cascade;
+drop table if exists public.classes cascade;
+drop table if exists public.schools cascade;
+drop table if exists public.profiles cascade;
+-- Sobras do schema v1 (caso existam):
+drop table if exists public.enrollments cascade;
+drop table if exists public.lessons cascade;
+drop table if exists public.subjects cascade;
+drop table if exists public.shifts cascade;
+drop table if exists public.teachers cascade;
+drop table if exists public.absence_alerts cascade;
+drop table if exists public.import_batches cascade;
+drop table if exists public.reports cascade;
+drop table if exists public.sync_queue cascade;
+drop table if exists public.audit_logs cascade;
+drop table if exists public.users cascade;
+drop type if exists public.attendance_status cascade;
+drop type if exists public.user_role cascade;
+
+create type public.attendance_status as enum ('present', 'absent', 'late', 'justified');
 
 -- Perfil do usuário (espelha auth.users) ---------------------------------------
 create table if not exists public.profiles (
