@@ -2,10 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Building2, ClipboardCheck, GraduationCap, Users } from 'lucide-react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { Card, PageHeader } from '../components/ui';
-import { dashboardCounts, listClasses, listRecentSessions } from '../lib/queries';
+import { dashboardCounts, listClasses, listRecentSessions, type RecentSession } from '../lib/queries';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -13,9 +14,20 @@ export function DashboardPage() {
 
   const { data: counts } = useQuery({ queryKey: ['counts'], queryFn: dashboardCounts });
   const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
-  const { data: recent = [] } = useQuery({ queryKey: ['recent-sessions'], queryFn: () => listRecentSessions(6) });
+  const { data: recent = [] } = useQuery({ queryKey: ['recent-sessions'], queryFn: () => listRecentSessions(40) });
 
   const className = (id: string) => classes.find((c) => c.id === id)?.name ?? 'Turma';
+
+  // Agrupa as chamadas por turma (mais organizadas).
+  const groups = useMemo(() => {
+    const map = new Map<string, RecentSession[]>();
+    recent.forEach((s) => {
+      const arr = map.get(s.class_id) ?? [];
+      arr.push(s);
+      map.set(s.class_id, arr);
+    });
+    return [...map.entries()];
+  }, [recent]);
 
   return (
     <>
@@ -40,24 +52,34 @@ export function DashboardPage() {
         <StatCard to="/alunos" icon={<Users size={20} />} value={counts?.students ?? 0} label="Alunos" />
       </div>
 
-      <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">Chamadas recentes</h2>
-      {recent.length === 0 ? (
+      <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">Chamadas recentes por turma</h2>
+      {groups.length === 0 ? (
         <Card>
           <p className="text-sm text-slate-500">Nenhuma chamada registrada ainda.</p>
         </Card>
       ) : (
-        <div className="space-y-2">
-          {recent.map((s) => (
-            <Card key={s.id} className="flex items-center justify-between gap-3 p-4">
-              <div>
-                <p className="font-bold text-slate-900">{className(s.class_id)}</p>
-                <p className="text-xs text-slate-500">{format(parseISO(s.session_date), "d 'de' MMM yyyy", { locale: ptBR })}</p>
+        <div className="space-y-5">
+          {groups.map(([classId, sessions]) => (
+            <div key={classId}>
+              <div className="mb-2 flex items-center gap-2 px-1">
+                <GraduationCap size={16} className="text-emerald-600" />
+                <h3 className="text-sm font-black text-slate-800">{className(classId)}</h3>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">{sessions.length}</span>
               </div>
-              <div className="flex gap-2 text-xs font-bold">
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{s.present} pres.</span>
-                <span className="rounded-full bg-red-50 px-2.5 py-1 text-red-700">{s.absent} falt.</span>
+              <div className="space-y-2">
+                {sessions.map((s) => (
+                  <Card key={s.id} className="flex items-center justify-between gap-3 p-4">
+                    <p className="text-sm font-bold text-slate-700">
+                      {format(parseISO(s.session_date), "EEE, d 'de' MMM", { locale: ptBR })}
+                    </p>
+                    <div className="flex gap-2 text-xs font-bold">
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{s.present} pres.</span>
+                      <span className="rounded-full bg-red-50 px-2.5 py-1 text-red-700">{s.absent} falt.</span>
+                    </div>
+                  </Card>
+                ))}
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}
