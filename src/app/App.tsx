@@ -6,6 +6,7 @@ import { TopBar } from '../components/ui/TopBar';
 import { LoginPage } from '../features/auth/LoginPage';
 import { QuickAttendancePage } from '../features/attendance/QuickAttendancePage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { RegistryPage } from '../pages/RegistryPages';
 import { ImportsPage, PlaceholderPage, ReportsPage } from '../pages/SimplePages';
 import { SelectClassPage, SelectLessonPage, SelectSchoolPage } from '../pages/SelectionPages';
 
@@ -29,9 +30,11 @@ function Shell() {
           <Route path="/calendarios" element={<PlaceholderPage type="calendars" />} />
           <Route path="/planejamento-semanal" element={<PlaceholderPage type="weeklyPlanning" />} />
           <Route path="/historico" element={<PlaceholderPage type="history" />} />
-          <Route path="/alunos" element={<PlaceholderPage type="students" />} />
-          <Route path="/cadastros/escolas" element={<PlaceholderPage type="schoolRegistry" />} />
-          <Route path="/cadastros/turmas" element={<PlaceholderPage type="classRegistry" />} />
+          <Route path="/alunos" element={<Navigate to="/cadastros/alunos" />} />
+          <Route path="/cadastros/escolas" element={<RegistryPage kind="school" />} />
+          <Route path="/cadastros/turmas" element={<RegistryPage kind="class" />} />
+          <Route path="/cadastros/alunos" element={<RegistryPage kind="student" />} />
+          <Route path="/cadastros/disciplinas" element={<RegistryPage kind="subject" />} />
           <Route path="/importacao" element={<ImportsPage />} />
           <Route path="/relatorios" element={<ReportsPage />} />
           <Route path="/estatisticas-aluno" element={<PlaceholderPage type="studentStats" />} />

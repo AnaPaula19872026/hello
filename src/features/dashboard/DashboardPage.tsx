@@ -9,13 +9,15 @@ import {
   Upload,
   Users,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { StatCard } from '../../components/ui/StatCard';
+import { dashboardStats } from '../../services/registryStore';
 
 const actions = [
   { label: 'Cadastrar escola', to: '/cadastros/escolas', icon: <Building2 size={18} />, tone: 'bg-slate-950 text-white' },
   { label: 'Cadastrar turma', to: '/cadastros/turmas', icon: <GraduationCap size={18} />, tone: 'bg-white text-slate-950' },
-  { label: 'Cadastrar aluno', to: '/alunos', icon: <Users size={18} />, tone: 'bg-white text-slate-950' },
+  { label: 'Cadastrar aluno', to: '/cadastros/alunos', icon: <Users size={18} />, tone: 'bg-white text-slate-950' },
   { label: 'Importar planilha', to: '/importacao', icon: <Upload size={18} />, tone: 'bg-emerald-600 text-white' },
 ];
 
@@ -26,6 +28,12 @@ const absenceRanking = [
 ];
 
 export function DashboardPage() {
+  const [stats, setStats] = useState({ schoolCount: 0, classCount: 0, studentCount: 0, todaySessions: 0, absenceAlerts: 0 });
+
+  useEffect(() => {
+    dashboardStats().then(setStats);
+  }, []);
+
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:py-8">
       <section className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -46,12 +54,12 @@ export function DashboardPage() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        <StatCard title="Escolas" value={2} icon={<Building2 size={20} />} helper="2 ativas" />
-        <StatCard title="Turmas" value={18} icon={<GraduationCap size={20} />} helper="Manhã e tarde" />
-        <StatCard title="Alunos" value={642} icon={<Users size={20} />} helper="Base atual" />
-        <StatCard title="Chamadas hoje" value={24} icon={<CheckCircle2 size={20} />} helper="Sincronizadas" />
+        <StatCard title="Escolas" value={stats.schoolCount} icon={<Building2 size={20} />} helper="Cadastradas" />
+        <StatCard title="Turmas" value={stats.classCount} icon={<GraduationCap size={20} />} helper="Cadastradas" />
+        <StatCard title="Alunos" value={stats.studentCount} icon={<Users size={20} />} helper="Base atual" />
+        <StatCard title="Chamadas hoje" value={stats.todaySessions} icon={<CheckCircle2 size={20} />} helper="Salvas" />
         <StatCard title="Presença geral" value="94%" icon={<CalendarDays size={20} />} helper="Últimos 30 dias" />
-        <StatCard title="Excesso de faltas" value={17} alert icon={<AlertTriangle size={20} />} helper="Requer ação" />
+        <StatCard title="Excesso de faltas" value={stats.absenceAlerts} alert icon={<AlertTriangle size={20} />} helper="Requer ação" />
       </section>
 
       <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_.9fr]">

@@ -37,7 +37,8 @@ const primaryNav: NavItem[] = [
 const registryNav: NavItem[] = [
   { label: 'Cadastro de escolas', to: '/cadastros/escolas', icon: <Building2 size={18} /> },
   { label: 'Cadastro de turmas', to: '/cadastros/turmas', icon: <GraduationCap size={18} /> },
-  { label: 'Cadastro de alunos', to: '/alunos', icon: <Users size={18} /> },
+  { label: 'Cadastro de alunos', to: '/cadastros/alunos', icon: <Users size={18} /> },
+  { label: 'Disciplinas', to: '/cadastros/disciplinas', icon: <FileText size={18} /> },
   { label: 'Importação', to: '/importacao', icon: <FileSpreadsheet size={18} /> },
 ];
 

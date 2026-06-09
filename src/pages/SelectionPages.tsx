@@ -1,28 +1,36 @@
 import { Building2, GraduationCap, Plus, School, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { classes, schools, subjects } from '../services/mockData';
+import type { ClassRoom, School as SchoolType, Subject } from '../types';
+import { listClasses, listSchools, listSubjects } from '../services/registryStore';
 
 export function SelectSchoolPage() {
+  const [items, setItems] = useState<SchoolType[]>([]);
+  useEffect(() => { listSchools().then(setItems); }, []);
   return (
     <Picker
       title="Selecione a escola"
       description="Escolha a unidade para iniciar uma chamada ou cadastre uma nova escola."
       action={{ label: 'Cadastrar escola', to: '/cadastros/escolas' }}
       icon={<Building2 size={18} />}
-      items={schools.map((school) => ({ id: school.id, title: school.name, sub: school.city || 'Escola ativa', to: '/turmas' }))}
+      empty="Cadastre uma escola para iniciar chamadas."
+      items={items.map((school) => ({ id: school.id, title: school.name, sub: school.city || 'Escola ativa', to: '/turmas' }))}
     />
   );
 }
 
 export function SelectClassPage() {
+  const [items, setItems] = useState<ClassRoom[]>([]);
+  useEffect(() => { listClasses().then(setItems); }, []);
   return (
     <Picker
       title="Selecione a turma"
       description="Avance para a aula correta ou organize novas turmas por escola e turno."
       action={{ label: 'Cadastrar turma', to: '/cadastros/turmas' }}
       icon={<GraduationCap size={18} />}
-      items={classes.map((classRoom) => ({
+      empty="Cadastre uma turma antes de iniciar uma chamada."
+      items={items.map((classRoom) => ({
         id: classRoom.id,
         title: classRoom.name,
         sub: `${classRoom.shift} - ${classRoom.studentsCount} alunos`,
@@ -33,13 +41,16 @@ export function SelectClassPage() {
 }
 
 export function SelectLessonPage() {
+  const [items, setItems] = useState<Subject[]>([]);
+  useEffect(() => { listSubjects().then(setItems); }, []);
   return (
     <Picker
       title="Selecione a aula"
       description="Abra a chamada rápida para registrar presenças sem perder tempo."
       action={{ label: 'Ver planejamento', to: '/planejamento-semanal' }}
       icon={<School size={18} />}
-      items={subjects.map((subject) => ({
+      empty="Cadastre uma disciplina para abrir a chamada."
+      items={items.map((subject) => ({
         id: subject.id,
         title: subject.name,
         sub: 'Toque para abrir a chamada rápida',
@@ -54,12 +65,14 @@ function Picker({
   description,
   action,
   icon,
+  empty,
   items,
 }: {
   title: string;
   description: string;
   action: { label: string; to: string };
   icon: ReactNode;
+  empty: string;
   items: { id: string; title: string; sub: string; to: string }[];
 }) {
   return (
@@ -78,6 +91,15 @@ function Picker({
           {action.label}
         </Link>
       </section>
+      {items.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center shadow-soft dark:border-slate-700 dark:bg-slate-900">
+          <p className="font-black text-slate-950 dark:text-white">{empty}</p>
+          <Link to={action.to} className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-black text-white">
+            <Plus size={18} />
+            {action.label}
+          </Link>
+        </div>
+      ) : (
       <div className="grid gap-3 md:grid-cols-2">
         {items.map((item) => (
           <Link
@@ -98,6 +120,7 @@ function Picker({
           </Link>
         ))}
       </div>
+      )}
     </main>
   );
 }

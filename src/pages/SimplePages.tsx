@@ -1,4 +1,5 @@
-import { Download, FileSpreadsheet, FileText, Plus, Upload, Users } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Plus, Trash2, Upload, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { createStudentTemplate } from '../features/imports/studentTemplate';
 import { exportDemoReport } from '../features/reports/reportExport';
 
@@ -57,6 +58,31 @@ const pageCopy: Record<string, { title: string; description: string; action: str
 
 export function PlaceholderPage({ type }: { type: string }) {
   const copy = pageCopy[type] ?? pageCopy.history;
+  const storageKey = `hello-module-${type}`;
+  const [items, setItems] = useState<{ id: string; title: string; note: string; createdAt: string }[]>([]);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(storageKey);
+    setItems(saved ? JSON.parse(saved) : []);
+  }, [storageKey]);
+
+  function persist(next: { id: string; title: string; note: string; createdAt: string }[]) {
+    setItems(next);
+    window.localStorage.setItem(storageKey, JSON.stringify(next));
+  }
+
+  function addItem() {
+    const title = window.prompt(copy.action);
+    if (!title) return;
+    const note = window.prompt('Observação') ?? '';
+    persist([{ id: crypto.randomUUID(), title, note, createdAt: new Date().toISOString() }, ...items]);
+  }
+
+  function deleteItem(id: string) {
+    const confirmed = window.confirm('Excluir este registro?');
+    if (!confirmed) return;
+    persist(items.filter((item) => item.id !== id));
+  }
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:py-8">
@@ -66,7 +92,7 @@ export function PlaceholderPage({ type }: { type: string }) {
           <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white sm:text-3xl">{copy.title}</h2>
           <p className="mt-2 max-w-2xl text-sm font-medium text-slate-500 sm:text-base">{copy.description}</p>
         </div>
-        <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-soft">
+        <button onClick={addItem} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-soft">
           <Plus size={18} />
           {copy.action}
         </button>
@@ -75,18 +101,30 @@ export function PlaceholderPage({ type }: { type: string }) {
       <section className="mt-6 grid gap-4 lg:grid-cols-[.9fr_1.1fr]">
         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-900">
           <Users className="text-emerald-600" />
-          <h3 className="mt-4 text-lg font-black text-slate-950 dark:text-white">Fluxo principal</h3>
+          <h3 className="mt-4 text-lg font-black text-slate-950 dark:text-white">Registros do módulo</h3>
           <p className="mt-2 text-sm font-medium text-slate-500">
-            Tela preparada para formulario, filtros e integracao com Supabase mantendo o padrao visual do sistema.
+            Use o botão principal para criar registros. Tudo fica salvo neste navegador e pode ser excluído quando necessário.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {['Dados básicos', 'Permissões', 'Vínculos', 'Histórico'].map((item) => (
-            <div key={item} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <strong className="text-sm text-slate-950 dark:text-white">{item}</strong>
-              <p className="mt-1 text-sm text-slate-500">Área pronta para edição e consulta.</p>
+        <div className="space-y-3">
+          {items.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-center text-sm font-bold text-slate-500 dark:border-slate-700 dark:bg-slate-900">
+              Nenhum registro criado.
             </div>
-          ))}
+          ) : (
+            items.map((item) => (
+              <div key={item.id} className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div>
+                  <strong className="text-sm text-slate-950 dark:text-white">{item.title}</strong>
+                  {item.note ? <p className="mt-1 text-sm text-slate-500">{item.note}</p> : null}
+                  <p className="mt-2 text-xs font-semibold text-slate-400">{new Date(item.createdAt).toLocaleString('pt-BR')}</p>
+                </div>
+                <button onClick={() => deleteItem(item.id)} className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-700" aria-label="Excluir">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))
+          )}
         </div>
       </section>
     </main>
