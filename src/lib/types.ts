@@ -53,7 +53,25 @@ export interface Profile {
   role: 'user' | 'master';
 }
 
+export interface Grade {
+  id?: string;
+  class_id: string;
+  student_id: string;
+  subject: string;
+  year: number;
+  month: number;
+  score: number | null;
+  note: string | null;
+}
+
 export const SHIFTS = ['Manhã', 'Tarde', 'Noite', 'Integral'] as const;
+
+export const SUBJECT = 'Língua Inglesa';
+
+export const MONTHS = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+] as const;
 
 export const STATUS_LABEL: Record<AttendanceStatus, string> = {
   present: 'Presente',

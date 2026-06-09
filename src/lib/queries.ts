@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { SUBJECT } from './types';
 import type {
   AttendanceRecord,
   AttendanceSession,
@@ -194,6 +195,63 @@ export async function listRecentSessions(limit = 10): Promise<RecentSession[]> {
       total: mine.length,
     };
   });
+}
+
+/* ------------------------------------ Notas ------------------------------------ */
+export interface GradeRow {
+  student_id: string;
+  year: number;
+  month: number;
+  score: number | null;
+}
+
+/** Todas as notas de uma turma num ano (para preencher o mês e calcular médias). */
+export async function listGrades(classId: string, year: number): Promise<GradeRow[]> {
+  return unwrap(
+    await supabase
+      .from('grades')
+      .select('student_id, year, month, score')
+      .eq('class_id', classId)
+      .eq('subject', SUBJECT)
+      .eq('year', year),
+  );
+}
+
+/** Salva as notas de um mês (upsert por aluno). score null apaga a nota daquele mês. */
+export async function saveGrades(
+  classId: string,
+  year: number,
+  month: number,
+  rows: { student_id: string; score: number | null }[],
+): Promise<void> {
+  const toUpsert = rows.filter((r) => r.score !== null);
+  const toClear = rows.filter((r) => r.score === null).map((r) => r.student_id);
+
+  if (toUpsert.length) {
+    const payload = toUpsert.map((r) => ({
+      class_id: classId,
+      student_id: r.student_id,
+      subject: SUBJECT,
+      year,
+      month,
+      score: r.score,
+      updated_at: new Date().toISOString(),
+    }));
+    const { error } = await supabase.from('grades').upsert(payload, { onConflict: 'student_id,subject,year,month' });
+    if (error) throw new Error(error.message);
+  }
+
+  if (toClear.length) {
+    const { error } = await supabase
+      .from('grades')
+      .delete()
+      .eq('class_id', classId)
+      .eq('subject', SUBJECT)
+      .eq('year', year)
+      .eq('month', month)
+      .in('student_id', toClear);
+    if (error) throw new Error(error.message);
+  }
 }
 
 /* ----------------------------------- Perfil ------------------------------------ */
