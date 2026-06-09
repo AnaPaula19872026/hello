@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileSpreadsheet, GraduationCap, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
 import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { bulkInsertClasses, deleteClass, listClasses, listSchools, saveClass } from '../lib/queries';
@@ -65,6 +66,11 @@ export function ClassesPage() {
           icon={<GraduationCap size={26} />}
           title="Cadastre uma escola primeiro"
           hint="As turmas precisam estar vinculadas a uma escola."
+          action={
+            <Link to="/escolas">
+              <Button>Cadastrar escola</Button>
+            </Link>
+          }
         />
       </>
     );

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileSpreadsheet, Pencil, Phone, Search, Trash2, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
 import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { bulkInsertStudents, deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
@@ -77,7 +78,16 @@ export function StudentsPage() {
     return (
       <>
         <PageHeader title="Alunos" subtitle="Alunos organizados por turma." />
-        <EmptyState icon={<Users size={26} />} title="Cadastre uma turma primeiro" hint="Os alunos precisam estar em uma turma." />
+        <EmptyState
+          icon={<Users size={26} />}
+          title="Cadastre uma turma primeiro"
+          hint="Os alunos precisam estar em uma turma."
+          action={
+            <Link to="/turmas">
+              <Button>Cadastrar turma</Button>
+            </Link>
+          }
+        />
       </>
     );
   }
