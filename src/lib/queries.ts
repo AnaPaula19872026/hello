@@ -19,7 +19,16 @@ export async function listSchools(): Promise<School[]> {
   return unwrap(await supabase.from('schools').select('*').order('name'));
 }
 export async function saveSchool(input: Partial<School> & { name: string }): Promise<School> {
-  const row = { name: input.name, city: input.city ?? null, active: input.active ?? true };
+  const row = {
+    name: input.name,
+    city: input.city ?? null,
+    logo_url: input.logo_url ?? null,
+    director: input.director ?? null,
+    address: input.address ?? null,
+    phone: input.phone ?? null,
+    inep: input.inep ?? null,
+    active: input.active ?? true,
+  };
   if (input.id) return unwrap(await supabase.from('schools').update(row).eq('id', input.id).select().single());
   return unwrap(await supabase.from('schools').insert(row).select().single());
 }

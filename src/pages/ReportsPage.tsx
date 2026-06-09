@@ -1,12 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { endOfMonth, endOfYear, format, startOfMonth, startOfYear, subMonths } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { BarChart3, FileDown, Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button, Card, EmptyState, Field, PageHeader, Select } from '../components/ui';
 import { cn } from '../lib/cn';
 import { downloadXlsx } from '../lib/importSheet';
-import { listClasses, listStudentsByClass, reportAttendance, reportGrades } from '../lib/queries';
+import { listClasses, listSchools, listStudentsByClass, reportAttendance, reportGrades } from '../lib/queries';
 import { MONTHS, SUBJECT } from '../lib/types';
 
 type Tipo = 'freq' | 'notas';
@@ -24,13 +23,16 @@ export function ReportsPage() {
   const [onlyBelow, setOnlyBelow] = useState(false);
 
   const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
+  const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: listSchools });
   const { data: students = [] } = useQuery({
     queryKey: ['students-by-class', classId],
     queryFn: () => listStudentsByClass(classId),
     enabled: !!classId,
   });
 
-  const className = classes.find((c) => c.id === classId)?.name ?? '';
+  const klass = classes.find((c) => c.id === classId);
+  const className = klass?.name ?? '';
+  const school = schools.find((s) => s.id === klass?.school_id);
 
   const freq = useQuery({
     queryKey: ['rep-freq', classId, from, to],
@@ -78,14 +80,21 @@ export function ReportsPage() {
   }, [freqRows, freq.data, minPct]);
 
   function exportExcel() {
+    const titulo = [school?.name ?? 'Escola'];
     if (tipo === 'freq') {
       const aoa: (string | number | null)[][] = [
+        titulo,
+        [`Frequência — Turma ${className} — ${fmtBR(from)} a ${fmtBR(to)}`],
+        [],
         ['Aluno', 'Presenças', 'Faltas', 'Atrasos', 'Justificadas', 'Total', '% Presença'],
         ...freqRows.map((r) => [r.name, r.present, r.absent, r.late, r.justified, r.total, r.pct]),
       ];
       downloadXlsx(`frequencia-${slug(className)}-${from}_a_${to}.xlsx`, aoa, 'Frequência');
     } else {
       const aoa: (string | number | null)[][] = [
+        titulo,
+        [`Notas (${SUBJECT}) — Turma ${className} — ${year}`],
+        [],
         ['Aluno', ...MONTHS.map((m) => m.slice(0, 3)), 'Média', 'Situação'],
         ...notasRows.map((r) => [r.name, ...r.months, r.media, situacao(r.media)]),
       ];
@@ -193,6 +202,39 @@ export function ReportsPage() {
         ) : null}
       </Card>
 
+      {/* Cabeçalho do relatório (aparece na tela e na impressão) */}
+      {classId ? (
+        <div className="mb-5 flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft print:shadow-none">
+          {school?.logo_url ? (
+            <img src={school.logo_url} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1" />
+          ) : (
+            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-slate-100 text-xl font-black uppercase text-slate-400">
+              {school?.name?.slice(0, 1) ?? 'E'}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            {school?.name ? <p className="truncate text-xs font-black uppercase tracking-wide text-emerald-700">{school.name}</p> : null}
+            <h2 className="text-lg font-black text-slate-900">
+              {tipo === 'freq' ? 'Relatório de Frequência' : `Relatório de Notas — ${SUBJECT}`}
+            </h2>
+            <p className="text-sm text-slate-500">
+              Turma {className}
+              {tipo === 'freq' ? ` • ${fmtBR(from)} a ${fmtBR(to)}` : ` • ${year}`}
+            </p>
+            {school && (school.address || school.city || school.phone) ? (
+              <p className="mt-0.5 truncate text-xs text-slate-400">
+                {[school.address, school.city, school.phone].filter(Boolean).join(' • ')}
+              </p>
+            ) : null}
+          </div>
+          <div className="ml-auto hidden shrink-0 text-right text-xs text-slate-400 sm:block">
+            Gerado em
+            <br />
+            {format(today, 'dd/MM/yyyy')}
+          </div>
+        </div>
+      ) : null}
+
       {/* Resultado */}
       {!classId ? (
         <EmptyState icon={<BarChart3 size={26} />} title="Escolha uma turma" hint="Selecione a turma para gerar o relatório." />
@@ -276,14 +318,12 @@ export function ReportsPage() {
         </Card>
       )}
 
-      <p className="mt-4 hidden text-xs text-slate-400 print:block">
-        {tipo === 'freq'
-          ? `Frequência • ${className} • ${format(new Date(from), 'dd/MM/yyyy')} a ${format(new Date(to), 'dd/MM/yyyy')}`
-          : `Notas (${SUBJECT}) • ${className} • ${year}`}{' '}
-        — gerado em {format(today, "dd/MM/yyyy", { locale: ptBR })}
-      </p>
     </div>
   );
+}
+
+function fmtBR(iso: string) {
+  return iso.split('-').reverse().join('/');
 }
 
 function Stat({ label, value, danger }: { label: string; value: number | string; danger?: boolean }) {

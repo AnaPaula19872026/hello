@@ -4,6 +4,11 @@ export interface School {
   id: string;
   name: string;
   city: string | null;
+  logo_url: string | null;
+  director: string | null;
+  address: string | null;
+  phone: string | null;
+  inep: string | null;
   active: boolean;
   created_at?: string;
 }

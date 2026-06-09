@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, FileSpreadsheet, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { Building2, FileSpreadsheet, ImagePlus, MapPin, Pencil, Phone, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { ImportModal } from '../components/ImportModal';
 import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader } from '../components/ui';
-import { bulkInsertSchools, deleteSchool, listSchools, saveSchool } from '../lib/queries';
+import { fileToCompressedDataUrl } from '../lib/image';
 import type { ColumnDef } from '../lib/importSheet';
+import { bulkInsertSchools, deleteSchool, listSchools, saveSchool } from '../lib/queries';
 import type { School } from '../lib/types';
 
 const IMPORT_COLUMNS: ColumnDef[] = [
@@ -18,6 +19,8 @@ export function SchoolsPage() {
   const [editing, setEditing] = useState<School | null>(null);
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [logo, setLogo] = useState<string | null>(null);
+  const [logoErr, setLogoErr] = useState('');
 
   const save = useMutation({
     mutationFn: saveSchool,
@@ -33,11 +36,27 @@ export function SchoolsPage() {
 
   function openNew() {
     setEditing(null);
+    setLogo(null);
+    setLogoErr('');
     setOpen(true);
   }
   function openEdit(s: School) {
     setEditing(s);
+    setLogo(s.logo_url ?? null);
+    setLogoErr('');
     setOpen(true);
+  }
+
+  async function onLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setLogoErr('');
+    try {
+      setLogo(await fileToCompressedDataUrl(file));
+    } catch (err) {
+      setLogoErr((err as Error).message);
+    }
   }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -47,6 +66,11 @@ export function SchoolsPage() {
       id: editing?.id,
       name: String(f.get('name') || '').trim(),
       city: String(f.get('city') || '').trim() || null,
+      director: String(f.get('director') || '').trim() || null,
+      address: String(f.get('address') || '').trim() || null,
+      phone: String(f.get('phone') || '').trim() || null,
+      inep: String(f.get('inep') || '').trim() || null,
+      logo_url: logo,
     });
   }
 
@@ -77,12 +101,19 @@ export function SchoolsPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {data.map((s) => (
-            <Card key={s.id} className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
+            <Card key={s.id} className="flex items-start gap-4">
+              <Logo src={s.logo_url} name={s.name} />
+              <div className="min-w-0 flex-1">
                 <h3 className="truncate text-base font-black text-slate-900">{s.name}</h3>
-                {s.city ? (
+                {s.director ? <p className="truncate text-sm text-slate-600">Dir.: {s.director}</p> : null}
+                {s.city || s.address ? (
                   <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-                    <MapPin size={14} /> {s.city}
+                    <MapPin size={14} /> {[s.address, s.city].filter(Boolean).join(' — ')}
+                  </p>
+                ) : null}
+                {s.phone ? (
+                  <p className="mt-0.5 flex items-center gap-1 text-sm text-slate-500">
+                    <Phone size={14} /> {s.phone}
                   </p>
                 ) : null}
               </div>
@@ -105,12 +136,47 @@ export function SchoolsPage() {
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Editar escola' : 'Nova escola'}>
         <form onSubmit={onSubmit} className="space-y-4">
+          {/* Logo */}
+          <div className="flex items-center gap-4">
+            <Logo src={logo} name={editing?.name ?? ''} size="lg" />
+            <div>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-100">
+                <ImagePlus size={18} /> {logo ? 'Trocar logo' : 'Adicionar logo'}
+                <input type="file" accept="image/*" className="hidden" onChange={onLogo} />
+              </label>
+              {logo ? (
+                <button type="button" onClick={() => setLogo(null)} className="ml-2 inline-flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-red-600">
+                  <X size={14} /> Remover
+                </button>
+              ) : null}
+              <p className="mt-1 text-xs text-slate-400">PNG/JPG. Fica leve e salva no banco.</p>
+              {logoErr ? <p className="mt-1 text-xs font-semibold text-red-600">{logoErr}</p> : null}
+            </div>
+          </div>
+
           <Field label="Nome da escola">
             <Input name="name" defaultValue={editing?.name} required autoFocus placeholder="Ex.: E.M. João da Silva" />
           </Field>
-          <Field label="Cidade">
-            <Input name="city" defaultValue={editing?.city ?? ''} placeholder="Ex.: Goiânia" />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cidade">
+              <Input name="city" defaultValue={editing?.city ?? ''} placeholder="Ex.: Goiânia" />
+            </Field>
+            <Field label="Código INEP">
+              <Input name="inep" defaultValue={editing?.inep ?? ''} placeholder="Opcional" />
+            </Field>
+          </div>
+          <Field label="Endereço">
+            <Input name="address" defaultValue={editing?.address ?? ''} placeholder="Rua, nº, bairro" />
           </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Diretor(a)">
+              <Input name="director" defaultValue={editing?.director ?? ''} placeholder="Nome" />
+            </Field>
+            <Field label="Telefone">
+              <Input name="phone" defaultValue={editing?.phone ?? ''} placeholder="(00) 0000-0000" />
+            </Field>
+          </div>
+
           {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
@@ -133,5 +199,17 @@ export function SchoolsPage() {
         onDone={() => qc.invalidateQueries({ queryKey: ['schools'] })}
       />
     </>
+  );
+}
+
+function Logo({ src, name, size = 'md' }: { src?: string | null; name: string; size?: 'md' | 'lg' }) {
+  const dim = size === 'lg' ? 'h-20 w-20 text-2xl' : 'h-14 w-14 text-lg';
+  if (src) {
+    return <img src={src} alt={name} className={`${dim} shrink-0 rounded-xl border border-slate-200 object-contain bg-white p-1`} />;
+  }
+  return (
+    <div className={`${dim} grid shrink-0 place-items-center rounded-xl bg-slate-100 font-black uppercase text-slate-400`}>
+      {name ? name.slice(0, 1) : <Building2 size={22} />}
+    </div>
   );
 }

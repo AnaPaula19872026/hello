@@ -53,6 +53,11 @@ create table if not exists public.schools (
   owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   name text not null,
   city text,
+  logo_url text,        -- imagem comprimida em base64 (data URL), guardada no próprio banco
+  director text,        -- diretor(a)
+  address text,         -- endereço
+  phone text,           -- telefone
+  inep text,            -- código INEP
   active boolean default true,
   created_at timestamptz default now()
 );
