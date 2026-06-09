@@ -1,0 +1,2 @@
+@tailwind base;@tailwind components;@tailwind utilities;
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}body{margin:0;background:#f8fafc}.dark body{background:#020617}.nav{white-space:nowrap;border-radius:999px;background:#fff;padding:.75rem 1rem;color:#334155;box-shadow:0 1px 10px rgba(15,23,42,.05)}.dark .nav{background:#0f172a;color:#e2e8f0}button,input{font:inherit}*{-webkit-tap-highlight-color:transparent}
