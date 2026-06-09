@@ -35,8 +35,16 @@ create table if not exists public.profiles (
   email text,
   avatar_url text,
   calendar_url text,                 -- URL de embed da Google Agenda
+  role text not null default 'user', -- 'master' = administrador com acesso total
   created_at timestamptz default now()
 );
+
+-- Verdadeiro se o usuário logado for administrador master.
+-- security definer ignora o RLS de profiles (evita recursão na política).
+create or replace function public.is_master()
+returns boolean language sql security definer stable set search_path = public as $$
+  select exists (select 1 from public.profiles where id = auth.uid() and role = 'master');
+$$;
 
 -- Cadastros --------------------------------------------------------------------
 create table if not exists public.schools (
@@ -109,35 +117,38 @@ alter table public.students enable row level security;
 alter table public.attendance_sessions enable row level security;
 alter table public.attendance_records enable row level security;
 
-do $$ begin
-  create policy "profiles self" on public.profiles
-    for all using (id = auth.uid()) with check (id = auth.uid());
-exception when duplicate_object then null; end $$;
+-- Recria as políticas (idempotente). Master enxerga/edita tudo; demais, só o próprio.
+drop policy if exists "profiles self" on public.profiles;
+create policy "profiles self" on public.profiles
+  for select using (id = auth.uid() or public.is_master());
+drop policy if exists "profiles update self" on public.profiles;
+create policy "profiles update self" on public.profiles
+  for update using (id = auth.uid()) with check (id = auth.uid());
 
-do $$ begin
-  create policy "schools own" on public.schools
-    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
-exception when duplicate_object then null; end $$;
+drop policy if exists "schools own" on public.schools;
+create policy "schools own" on public.schools
+  for all using (owner_id = auth.uid() or public.is_master())
+  with check (owner_id = auth.uid() or public.is_master());
 
-do $$ begin
-  create policy "classes own" on public.classes
-    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
-exception when duplicate_object then null; end $$;
+drop policy if exists "classes own" on public.classes;
+create policy "classes own" on public.classes
+  for all using (owner_id = auth.uid() or public.is_master())
+  with check (owner_id = auth.uid() or public.is_master());
 
-do $$ begin
-  create policy "students own" on public.students
-    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
-exception when duplicate_object then null; end $$;
+drop policy if exists "students own" on public.students;
+create policy "students own" on public.students
+  for all using (owner_id = auth.uid() or public.is_master())
+  with check (owner_id = auth.uid() or public.is_master());
 
-do $$ begin
-  create policy "sessions own" on public.attendance_sessions
-    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
-exception when duplicate_object then null; end $$;
+drop policy if exists "sessions own" on public.attendance_sessions;
+create policy "sessions own" on public.attendance_sessions
+  for all using (owner_id = auth.uid() or public.is_master())
+  with check (owner_id = auth.uid() or public.is_master());
 
-do $$ begin
-  create policy "records own" on public.attendance_records
-    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
-exception when duplicate_object then null; end $$;
+drop policy if exists "records own" on public.attendance_records;
+create policy "records own" on public.attendance_records
+  for all using (owner_id = auth.uid() or public.is_master())
+  with check (owner_id = auth.uid() or public.is_master());
 
 -- Cria o perfil automaticamente no primeiro login (Google) ----------------------
 create or replace function public.handle_new_user()

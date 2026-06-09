@@ -50,6 +50,7 @@ export interface Profile {
   email: string | null;
   avatar_url: string | null;
   calendar_url: string | null;
+  role: 'user' | 'master';
 }
 
 export const SHIFTS = ['Manhã', 'Tarde', 'Noite', 'Integral'] as const;

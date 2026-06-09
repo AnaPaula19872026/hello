@@ -47,7 +47,17 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Configurações" subtitle="Seus dados, senha e calendário." />
+      <PageHeader
+        title="Configurações"
+        subtitle="Seus dados, senha e calendário."
+        action={
+          profile?.role === 'master' ? (
+            <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-300">
+              Administrador master
+            </span>
+          ) : undefined
+        }
+      />
 
       <div className="space-y-5">
         {/* Dados pessoais */}
