@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ExternalLink, LogOut, ShieldCheck } from 'lucide-react';
+import { Check, KeyRound, LogOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { Button, Card, Field, Input, PageHeader } from '../components/ui';
 import { getProfile, updateProfile } from '../lib/queries';
-import { signOut } from '../lib/supabase';
+import { signOut, supabase } from '../lib/supabase';
 
 export function SettingsPage() {
   const qc = useQueryClient();
@@ -17,6 +17,8 @@ export function SettingsPage() {
 
   const [name, setName] = useState('');
   const [calendarUrl, setCalendarUrl] = useState('');
+  const [pwd, setPwd] = useState('');
+  const [pwd2, setPwd2] = useState('');
 
   useEffect(() => {
     if (profile) {
@@ -30,41 +32,24 @@ export function SettingsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profile', user?.id] }),
   });
 
-  const avatar = user?.user_metadata?.avatar_url as string | undefined;
+  const changePwd = useMutation({
+    mutationFn: async () => {
+      if (pwd.length < 6) throw new Error('A senha precisa de pelo menos 6 caracteres.');
+      if (pwd !== pwd2) throw new Error('As senhas não conferem.');
+      const { error } = await supabase.auth.updateUser({ password: pwd });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      setPwd('');
+      setPwd2('');
+    },
+  });
 
   return (
     <>
-      <PageHeader title="Configurações" subtitle="Seus dados, conta Google e calendário." />
+      <PageHeader title="Configurações" subtitle="Seus dados, senha e calendário." />
 
       <div className="space-y-5">
-        {/* Conta Google */}
-        <Card>
-          <h2 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-500">Conta Google</h2>
-          <div className="flex items-center gap-4">
-            {avatar ? (
-              <img src={avatar} alt="" className="h-14 w-14 rounded-full object-cover" />
-            ) : (
-              <div className="grid h-14 w-14 place-items-center rounded-full bg-emerald-600 text-xl font-black uppercase text-white">
-                {(name || user?.email || '?').slice(0, 1)}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="truncate font-bold text-slate-900">{name || 'Usuária'}</p>
-              <p className="flex items-center gap-1 text-sm text-emerald-700">
-                <ShieldCheck size={14} /> {user?.email}
-              </p>
-            </div>
-          </div>
-          <a
-            href="https://myaccount.google.com/security"
-            target="_blank"
-            rel="noreferrer"
-            className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-slate-900"
-          >
-            Gerenciar conta e senha no Google <ExternalLink size={14} />
-          </a>
-        </Card>
-
         {/* Dados pessoais */}
         <Card>
           <h2 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-500">Dados pessoais</h2>
@@ -72,9 +57,29 @@ export function SettingsPage() {
             <Field label="Nome de exibição">
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" />
             </Field>
-            <Field label="E-mail (vinculado ao Google)">
+            <Field label="E-mail de acesso">
               <Input value={user?.email ?? ''} disabled className="bg-slate-50 text-slate-500" />
             </Field>
+          </div>
+        </Card>
+
+        {/* Senha */}
+        <Card>
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-black uppercase tracking-wide text-slate-500">
+            <KeyRound size={16} /> Trocar senha
+          </h2>
+          <div className="space-y-4">
+            <Field label="Nova senha">
+              <Input type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />
+            </Field>
+            <Field label="Confirmar nova senha">
+              <Input type="password" value={pwd2} onChange={(e) => setPwd2(e.target.value)} placeholder="Repita a senha" autoComplete="new-password" />
+            </Field>
+            {changePwd.isError ? <p className="text-sm font-semibold text-red-600">{(changePwd.error as Error).message}</p> : null}
+            {changePwd.isSuccess ? <p className="text-sm font-semibold text-emerald-700">Senha alterada com sucesso.</p> : null}
+            <Button variant="soft" onClick={() => changePwd.mutate()} disabled={changePwd.isPending || !pwd}>
+              {changePwd.isPending ? 'Salvando…' : 'Atualizar senha'}
+            </Button>
           </div>
         </Card>
 
