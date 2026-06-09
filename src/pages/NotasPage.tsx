@@ -34,6 +34,10 @@ export function NotasPage() {
     enabled: !!classId,
   });
 
+  // Assinaturas estáveis: evita loop de render por causa do default `= []` instável.
+  const studentsSig = students.map((s) => s.id).join(',');
+  const gradesSig = grades.map((g) => `${g.student_id}:${g.month}:${g.score}`).join(',');
+
   // Preenche os inputs com a nota salva do mês selecionado.
   useEffect(() => {
     const map: Record<string, string> = {};
@@ -43,7 +47,8 @@ export function NotasPage() {
     });
     setScores(map);
     setSaved(false);
-  }, [students, grades, month]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentsSig, gradesSig, month]);
 
   // Média anual por aluno (notas salvas).
   const media = useMemo(() => {

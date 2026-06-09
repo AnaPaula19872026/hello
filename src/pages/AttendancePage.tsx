@@ -49,6 +49,10 @@ export function AttendancePage() {
     enabled: !!classId,
   });
 
+  // Assinaturas estáveis: evita loop de render por causa do default `= []` instável.
+  const studentsSig = students.map((s) => s.id).join(',');
+  const existingSig = (existing?.records ?? []).map((r) => `${r.student_id}:${r.status}`).join(',');
+
   // Inicializa estado: todos presentes, sobrescrevendo com a chamada salva.
   useEffect(() => {
     if (!students.length) {
@@ -62,7 +66,8 @@ export function AttendancePage() {
     });
     setRecords(base);
     setSaved(false);
-  }, [students, existing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentsSig, existingSig]);
 
   const counts = useMemo(() => {
     const c = { present: 0, absent: 0, late: 0, justified: 0 };
