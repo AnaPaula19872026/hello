@@ -262,7 +262,7 @@ export function ReportsPage() {
       ) : null}
 
       {/* Pré-visualização */}
-      <Modal open={preview} onClose={() => setPreview(false)} title="Pré-visualização">
+      <Modal open={preview} onClose={() => setPreview(false)} title="Pré-visualização" size="xl">
         {payload ? <ReportView payload={payload} compact={compact} /> : null}
       </Modal>
 

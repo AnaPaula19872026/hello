@@ -160,12 +160,15 @@ export function Modal({
   onClose,
   title,
   children,
+  size = 'lg',
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
+  size?: 'lg' | 'xl';
 }) {
+  const maxW = size === 'xl' ? 'max-w-3xl' : 'max-w-lg';
   return (
     <Transition show={open} as={Fragment}>
       <Dialog className="relative z-50" onClose={onClose}>
@@ -190,14 +193,14 @@ export function Modal({
             leaveFrom="translate-y-0 opacity-100"
             leaveTo="translate-y-full opacity-0 sm:translate-y-4"
           >
-            <DialogPanel className="w-full max-w-lg rounded-t-3xl bg-white p-6 shadow-soft sm:rounded-3xl">
-              <div className="mb-5 flex items-center justify-between">
+            <DialogPanel className={cn('flex max-h-[90vh] w-full flex-col rounded-t-3xl bg-white shadow-soft sm:rounded-3xl', maxW)}>
+              <div className="flex items-center justify-between border-b border-slate-100 p-5">
                 <DialogTitle className="text-lg font-black text-slate-900">{title}</DialogTitle>
                 <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200" aria-label="Fechar">
                   <X size={18} />
                 </button>
               </div>
-              {children}
+              <div className="overflow-y-auto p-5">{children}</div>
             </DialogPanel>
           </TransitionChild>
         </div>
