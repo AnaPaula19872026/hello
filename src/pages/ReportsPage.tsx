@@ -58,7 +58,7 @@ export function ReportsPage() {
     enabled: tipo === 'notas' && !!classId,
   });
 
-  function preset(p: 'mes' | 'mesPassado' | 'ano') {
+  function preset(p: 'mes' | 'mesPassado' | 'ano' | 'tri1' | 'tri2' | 'tri3' | 'tri4') {
     if (p === 'mes') {
       setFrom(iso(startOfMonth(today)));
       setTo(iso(endOfMonth(today)));
@@ -66,9 +66,14 @@ export function ReportsPage() {
       const d = subMonths(today, 1);
       setFrom(iso(startOfMonth(d)));
       setTo(iso(endOfMonth(d)));
-    } else {
+    } else if (p === 'ano') {
       setFrom(iso(startOfYear(today)));
       setTo(iso(endOfYear(today)));
+    } else {
+      const n = Number(p.slice(3)); // 1..4
+      const y = today.getFullYear();
+      setFrom(iso(new Date(y, (n - 1) * 3, 1)));
+      setTo(iso(endOfMonth(new Date(y, (n - 1) * 3 + 2, 1))));
     }
   }
 
@@ -227,6 +232,10 @@ export function ReportsPage() {
               <button onClick={() => preset('mes')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Este mês</button>
               <button onClick={() => preset('mesPassado')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Mês passado</button>
               <button onClick={() => preset('ano')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Ano todo</button>
+              <button onClick={() => preset('tri1')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">1º trimestre</button>
+              <button onClick={() => preset('tri2')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">2º trimestre</button>
+              <button onClick={() => preset('tri3')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">3º trimestre</button>
+              <button onClick={() => preset('tri4')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">4º trimestre</button>
               <div className="ml-auto flex items-center gap-2">
                 <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
                   <input type="checkbox" checked={onlyBelow} onChange={(e) => setOnlyBelow(e.target.checked)} />
