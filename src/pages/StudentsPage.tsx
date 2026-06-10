@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileSpreadsheet, Pencil, Phone, Search, Trash2, Users } from 'lucide-react';
+import { FileSpreadsheet, Phone, Search, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
-import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar, SelectModeButton } from '../components/ui';
+import { ActionsMenu, AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar, SelectModeButton } from '../components/ui';
 import { bulkDeleteStudents, bulkImportAll, importResultToModal, deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
 import { CADASTRO_COLUMNS } from '../lib/importSheet';
 import type { Student } from '../lib/types';
@@ -170,18 +170,10 @@ export function StudentsPage() {
                   ) : null}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-1">
-                <button onClick={() => openEdit(s)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200" aria-label="Editar">
-                  <Pencil size={16} />
-                </button>
-                <button
-                  onClick={() => confirm(`Excluir o aluno "${s.full_name}"?`) && remove.mutate(s.id)}
-                  className="grid h-9 w-9 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
-                  aria-label="Excluir"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+              <ActionsMenu
+                onEdit={() => openEdit(s)}
+                onDelete={() => confirm(`Excluir o aluno "${s.full_name}"?`) && remove.mutate(s.id)}
+              />
             </Card>
           ))}
         </div>

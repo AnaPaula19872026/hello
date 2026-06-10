@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileSpreadsheet, GraduationCap, Pencil, Trash2 } from 'lucide-react';
+import { FileSpreadsheet, GraduationCap } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
-import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar, SelectModeButton } from '../components/ui';
+import { ActionsMenu, AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar, SelectModeButton } from '../components/ui';
 import { bulkDeleteClasses, bulkImportAll, importResultToModal, deleteClass, listClasses, listSchools, saveClass } from '../lib/queries';
 import { useSelection } from '../lib/useSelection';
 import { CADASTRO_COLUMNS } from '../lib/importSheet';
@@ -121,18 +121,10 @@ export function ClassesPage() {
                   {c.year ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{c.year}</span> : null}
                 </div>
               </div>
-              <div className="flex shrink-0 gap-1">
-                <button onClick={() => openEdit(c)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200" aria-label="Editar">
-                  <Pencil size={16} />
-                </button>
-                <button
-                  onClick={() => confirm(`Excluir a turma "${c.name}"? Os alunos não são excluídos, ficam sem turma.`) && remove.mutate(c.id)}
-                  className="grid h-9 w-9 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
-                  aria-label="Excluir"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+              <ActionsMenu
+                onEdit={() => openEdit(c)}
+                onDelete={() => confirm(`Excluir a turma "${c.name}"? Os alunos não são excluídos, ficam sem turma.`) && remove.mutate(c.id)}
+              />
             </Card>
           ))}
           </div>

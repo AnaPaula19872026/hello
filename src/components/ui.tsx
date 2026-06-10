@@ -1,5 +1,5 @@
-import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { Check, CheckSquare, Plus, Trash2, X } from 'lucide-react';
+import { Dialog, DialogPanel, DialogTitle, Menu, MenuButton, MenuItem, MenuItems, Transition, TransitionChild } from '@headlessui/react';
+import { Check, CheckSquare, MoreVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { Fragment, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
 import { cn } from '../lib/cn';
 
@@ -180,6 +180,42 @@ export function CheckBox({ checked, onChange }: { checked: boolean; onChange: ()
       onClick={(e) => e.stopPropagation()}
       className="h-5 w-5 shrink-0 cursor-pointer rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
     />
+  );
+}
+
+/* --------------------------- Menu de ações da linha ---------------------------- */
+export function ActionsMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  return (
+    <Menu as="div" className="relative shrink-0">
+      <MenuButton
+        className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
+        aria-label="Ações"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <MoreVertical size={18} />
+      </MenuButton>
+      <MenuItems
+        anchor="bottom end"
+        className="z-50 w-44 rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-soft focus:outline-none"
+      >
+        <MenuItem>
+          <button
+            onClick={onEdit}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-bold text-slate-700 data-[focus]:bg-slate-100"
+          >
+            <Pencil size={16} /> Editar
+          </button>
+        </MenuItem>
+        <MenuItem>
+          <button
+            onClick={onDelete}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-bold text-red-600 data-[focus]:bg-red-50"
+          >
+            <Trash2 size={16} /> Excluir
+          </button>
+        </MenuItem>
+      </MenuItems>
+    </Menu>
   );
 }
 
