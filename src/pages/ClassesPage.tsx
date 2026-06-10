@@ -117,7 +117,7 @@ export function ClassesPage() {
         />
       ) : (
         <>
-          <SelectionBar count={sel.size} onClear={sel.clear} onDelete={() => confirm(`Excluir ${sel.size} turma(s)?`) && bulkRemove.mutate()} busy={bulkRemove.isPending} />
+          <SelectionBar count={sel.size} onClear={sel.clear} onDelete={() => confirm(`Excluir ${sel.size} turma(s)? Os alunos não são excluídos, ficam sem turma.`) && bulkRemove.mutate()} busy={bulkRemove.isPending} />
           <label className="mb-2 flex cursor-pointer items-center gap-2 px-1 text-sm font-bold text-slate-500">
             <CheckBox checked={classes.length > 0 && classes.every((c) => sel.has(c.id))} onChange={() => (classes.every((c) => sel.has(c.id)) ? sel.clear() : sel.setAll(classes.map((c) => c.id)))} />
             Selecionar todas ({classes.length})
@@ -139,7 +139,7 @@ export function ClassesPage() {
                   <Pencil size={16} />
                 </button>
                 <button
-                  onClick={() => confirm(`Excluir a turma "${c.name}"?`) && remove.mutate(c.id)}
+                  onClick={() => confirm(`Excluir a turma "${c.name}"? Os alunos não são excluídos, ficam sem turma.`) && remove.mutate(c.id)}
                   className="grid h-9 w-9 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
                   aria-label="Excluir"
                 >

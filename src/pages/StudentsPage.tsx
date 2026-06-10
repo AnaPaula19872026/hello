@@ -60,9 +60,13 @@ export function StudentsPage() {
     () =>
       students
         .filter((s) => s.full_name.toLowerCase().includes(q.toLowerCase()))
-        .filter((s) => classFilter === 'all' || s.class_id === classFilter),
+        .filter((s) =>
+          classFilter === 'all' ? true : classFilter === 'none' ? s.class_id === null : s.class_id === classFilter,
+        ),
     [students, q, classFilter],
   );
+
+  const orphans = useMemo(() => students.filter((s) => s.class_id === null).length, [students]);
 
   function openNew() {
     setEditing(null);
@@ -111,7 +115,7 @@ export function StudentsPage() {
         }
       />
 
-      {classes.length === 0 ? (
+      {classes.length === 0 && students.length === 0 ? (
         <EmptyState
           icon={<Users size={26} />}
           title="Cadastre uma turma primeiro"
@@ -124,6 +128,14 @@ export function StudentsPage() {
         />
       ) : (
         <>
+      {orphans > 0 ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+          {orphans} aluno(s) sem turma (turma excluída). Mova-os para uma turma (editar) ou exclua.
+          <Button variant="ghost" className="ml-auto py-1.5" onClick={() => setClassFilter('none')}>
+            Ver sem turma
+          </Button>
+        </div>
+      ) : null}
       <div className="mb-5 flex flex-col gap-3 sm:flex-row">
         <label className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
           <Search size={18} className="text-slate-400" />
@@ -136,6 +148,7 @@ export function StudentsPage() {
               {c.name}
             </option>
           ))}
+          {orphans > 0 ? <option value="none">Sem turma</option> : null}
         </Select>
       </div>
 
