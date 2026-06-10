@@ -3,6 +3,7 @@ import { FileSpreadsheet, Phone, Search, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
+import { successToast } from '../components/Feedback';
 import { ActionsMenu, AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar, SelectModeButton } from '../components/ui';
 import { bulkDeleteStudents, bulkImportAll, importResultToModal, deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
 import { CADASTRO_COLUMNS } from '../lib/importSheet';
@@ -33,11 +34,15 @@ export function StudentsPage() {
     onSuccess: () => {
       refresh();
       setOpen(false);
+      successToast(editing ? 'Aluno atualizado com sucesso' : 'Aluno cadastrado com sucesso');
     },
   });
   const remove = useMutation({
     mutationFn: deleteStudent,
-    onSuccess: refresh,
+    onSuccess: () => {
+      refresh();
+      successToast('Aluno excluído com sucesso');
+    },
   });
   const sel = useSelection();
   const bulkRemove = useMutation({
@@ -45,6 +50,7 @@ export function StudentsPage() {
     onSuccess: () => {
       refresh();
       sel.disable();
+      successToast('Alunos excluídos com sucesso');
     },
   });
 

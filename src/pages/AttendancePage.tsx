@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { Check, CheckCheck, ClipboardCheck, Save, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Card, EmptyState, PageHeader, Select } from '../components/ui';
+import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { getRecords, getSession, listClasses, listStudentsByClass, saveAttendance } from '../lib/queries';
 import type { AttendanceStatus } from '../lib/types';
@@ -80,6 +81,7 @@ export function AttendancePage() {
       setSaved(true);
       qc.invalidateQueries({ queryKey: ['session', classId, date] });
       qc.invalidateQueries({ queryKey: ['recent-sessions'] });
+      successToast('Chamada salva com sucesso');
     },
   });
 

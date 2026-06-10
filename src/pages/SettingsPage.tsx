@@ -3,6 +3,7 @@ import { Check, ImagePlus, KeyRound, LogOut, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { Button, Card, Field, Input, PageHeader } from '../components/ui';
+import { successToast } from '../components/Feedback';
 import { fileToCompressedDataUrl } from '../lib/image';
 import { getProfile, updateProfile } from '../lib/queries';
 import { signOut, supabase } from '../lib/supabase';
@@ -50,7 +51,10 @@ export function SettingsPage() {
       // Atualiza também o nome no auth (usado na saudação e no menu).
       await supabase.auth.updateUser({ data: { full_name: name.trim() } });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['profile', user?.id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['profile', user?.id] });
+      successToast('Dados salvos com sucesso');
+    },
   });
 
   const changePwd = useMutation({
@@ -63,6 +67,7 @@ export function SettingsPage() {
     onSuccess: () => {
       setPwd('');
       setPwd2('');
+      successToast('Senha alterada com sucesso');
     },
   });
 

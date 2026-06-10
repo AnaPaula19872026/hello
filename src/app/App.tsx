@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../auth/AuthProvider';
 import { AppShell } from '../components/AppShell';
+import { FeedbackHost } from '../components/Feedback';
 import { AttendancePage } from '../pages/AttendancePage';
 import { CalendarPage } from '../pages/CalendarPage';
 import { ClassesPage } from '../pages/ClassesPage';
@@ -67,6 +68,7 @@ export default function App() {
         <BrowserRouter>
           <Gate />
         </BrowserRouter>
+        <FeedbackHost />
       </AuthProvider>
     </QueryClientProvider>
   );

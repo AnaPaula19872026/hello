@@ -39,6 +39,35 @@ a {
   background: #020617;
 }
 
+/* ---- Popup de sucesso (check animado, estilo SweetAlert) ---- */
+@keyframes pop-in {
+  0% { transform: scale(0.85); opacity: 0; }
+  60% { transform: scale(1.02); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes draw-circle {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes draw-check {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes ring-fade {
+  0% { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.success-card { animation: pop-in 0.25s ease-out both; }
+.success-ring { animation: ring-fade 0.3s ease-out both; }
+.success-circle {
+  stroke-dasharray: 151;
+  stroke-dashoffset: 151;
+  animation: draw-circle 0.5s ease-out 0.1s forwards;
+}
+.success-check {
+  stroke-dasharray: 36;
+  stroke-dashoffset: 36;
+  animation: draw-check 0.3s ease-out 0.55s forwards;
+}
+
 @media print {
   aside,
   header,

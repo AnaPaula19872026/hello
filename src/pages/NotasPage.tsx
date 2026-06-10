@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Award, Plus, Save, Search, Sliders, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
+import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import {
   getTermConfig,
@@ -106,6 +107,7 @@ export function NotasPage() {
     onSuccess: () => {
       setSaved(true);
       qc.invalidateQueries({ queryKey: ['term-grades', classId, year, term] });
+      successToast('Notas salvas com sucesso');
     },
   });
 
@@ -292,6 +294,7 @@ function ComposicaoModal({
     onSuccess: () => {
       onSaved();
       onClose();
+      successToast('Composição salva com sucesso');
     },
   });
 

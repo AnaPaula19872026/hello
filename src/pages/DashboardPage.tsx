@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { Card, PageHeader } from '../components/ui';
+import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { dashboardCounts, deleteAttendanceSession, listClasses, listRecentSessions, type RecentSession } from '../lib/queries';
 
@@ -23,7 +24,10 @@ export function DashboardPage() {
 
   const delSession = useMutation({
     mutationFn: deleteAttendanceSession,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['recent-sessions'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['recent-sessions'] });
+      successToast('Chamada excluída com sucesso');
+    },
   });
 
   // Agrupa as chamadas por turma.

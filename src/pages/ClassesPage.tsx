@@ -3,6 +3,7 @@ import { FileSpreadsheet, GraduationCap } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
+import { successToast } from '../components/Feedback';
 import { ActionsMenu, AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar, SelectModeButton } from '../components/ui';
 import { bulkDeleteClasses, bulkImportAll, importResultToModal, deleteClass, listClasses, listSchools, saveClass } from '../lib/queries';
 import { useSelection } from '../lib/useSelection';
@@ -31,11 +32,15 @@ export function ClassesPage() {
     onSuccess: () => {
       refresh();
       setOpen(false);
+      successToast(editing ? 'Turma atualizada com sucesso' : 'Turma cadastrada com sucesso');
     },
   });
   const remove = useMutation({
     mutationFn: deleteClass,
-    onSuccess: refresh,
+    onSuccess: () => {
+      refresh();
+      successToast('Turma excluída com sucesso');
+    },
   });
   const sel = useSelection();
   const bulkRemove = useMutation({
@@ -43,6 +48,7 @@ export function ClassesPage() {
     onSuccess: () => {
       refresh();
       sel.disable();
+      successToast('Turmas excluídas com sucesso');
     },
   });
   const allSelected = classes.length > 0 && classes.every((c) => sel.has(c.id));

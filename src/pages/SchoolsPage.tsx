@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, FileSpreadsheet, ImagePlus, MapPin, Phone, X } from 'lucide-react';
 import { useState } from 'react';
 import { ImportModal } from '../components/ImportModal';
+import { successToast } from '../components/Feedback';
 import { ActionsMenu, AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, SelectionBar, SelectModeButton } from '../components/ui';
 import { fileToCompressedDataUrl } from '../lib/image';
 import { CADASTRO_COLUMNS } from '../lib/importSheet';
@@ -33,11 +34,15 @@ export function SchoolsPage() {
     onSuccess: () => {
       refresh();
       setOpen(false);
+      successToast(editing ? 'Escola atualizada com sucesso' : 'Escola cadastrada com sucesso');
     },
   });
   const remove = useMutation({
     mutationFn: deleteSchool,
-    onSuccess: refresh,
+    onSuccess: () => {
+      refresh();
+      successToast('Escola excluída com sucesso');
+    },
   });
   const sel = useSelection();
   const bulkRemove = useMutation({
@@ -45,6 +50,7 @@ export function SchoolsPage() {
     onSuccess: () => {
       refresh();
       sel.disable();
+      successToast('Escolas excluídas com sucesso');
     },
   });
   const allSelected = data.length > 0 && data.every((s) => sel.has(s.id));
