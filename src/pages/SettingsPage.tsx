@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, KeyRound, LogOut } from 'lucide-react';
+import { Check, ImagePlus, KeyRound, LogOut, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { Button, Card, Field, Input, PageHeader } from '../components/ui';
+import { fileToCompressedDataUrl } from '../lib/image';
 import { getProfile, updateProfile } from '../lib/queries';
 import { signOut, supabase } from '../lib/supabase';
 
@@ -17,6 +18,8 @@ export function SettingsPage() {
 
   const [name, setName] = useState('');
   const [calendarUrl, setCalendarUrl] = useState('');
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [photoErr, setPhotoErr] = useState('');
   const [pwd, setPwd] = useState('');
   const [pwd2, setPwd2] = useState('');
 
@@ -24,12 +27,26 @@ export function SettingsPage() {
     if (profile) {
       setName(profile.full_name ?? '');
       setCalendarUrl(profile.calendar_url ?? '');
+      setAvatar(profile.avatar_url ?? null);
     }
   }, [profile]);
 
+  async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoErr('');
+    try {
+      // foto de perfil: 192px, JPEG (leve)
+      setAvatar(await fileToCompressedDataUrl(file, 192, 0.72, true));
+    } catch (err) {
+      setPhotoErr((err as Error).message);
+    }
+  }
+
   const save = useMutation({
     mutationFn: async () => {
-      await updateProfile(user!.id, { full_name: name.trim(), calendar_url: calendarUrl.trim() || null });
+      await updateProfile(user!.id, { full_name: name.trim(), calendar_url: calendarUrl.trim() || null, avatar_url: avatar });
       // Atualiza também o nome no auth (usado na saudação e no menu).
       await supabase.auth.updateUser({ data: { full_name: name.trim() } });
     },
@@ -67,6 +84,31 @@ export function SettingsPage() {
         {/* Dados pessoais */}
         <Card>
           <h2 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-500">Dados pessoais</h2>
+
+          {/* Foto de perfil */}
+          <div className="mb-5 flex items-center gap-4">
+            {avatar ? (
+              <img src={avatar} alt="" className="h-20 w-20 shrink-0 rounded-full border border-slate-200 object-cover" />
+            ) : (
+              <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-emerald-600 text-2xl font-black uppercase text-white">
+                {(name || user?.email || '?').slice(0, 1)}
+              </div>
+            )}
+            <div>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-100">
+                <ImagePlus size={18} /> {avatar ? 'Trocar foto' : 'Adicionar foto'}
+                <input type="file" accept="image/*" className="hidden" onChange={onPhoto} />
+              </label>
+              {avatar ? (
+                <button type="button" onClick={() => setAvatar(null)} className="ml-2 inline-flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-red-600">
+                  <X size={14} /> Remover
+                </button>
+              ) : null}
+              <p className="mt-1 text-xs text-slate-400">Foto sua ou qualquer imagem. Fica leve e salva no banco.</p>
+              {photoErr ? <p className="mt-1 text-xs font-semibold text-red-600">{photoErr}</p> : null}
+            </div>
+          </div>
+
           <div className="space-y-4">
             <Field label="Nome de exibição">
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" />

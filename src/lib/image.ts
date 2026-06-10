@@ -1,7 +1,7 @@
 // Converte uma imagem em data URL base64 leve (redimensiona + comprime),
 // para guardar direto no banco sem precisar de storage externo.
 
-export async function fileToCompressedDataUrl(file: File, maxSize = 256, quality = 0.85): Promise<string> {
+export async function fileToCompressedDataUrl(file: File, maxSize = 256, quality = 0.85, forceJpeg = false): Promise<string> {
   if (!file.type.startsWith('image/')) throw new Error('Selecione um arquivo de imagem.');
 
   const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -29,8 +29,8 @@ export async function fileToCompressedDataUrl(file: File, maxSize = 256, quality
   if (!ctx) throw new Error('Não foi possível processar a imagem.');
   ctx.drawImage(img, 0, 0, w, h);
 
-  // PNG preserva transparência (logos costumam ter fundo transparente).
-  const hasAlpha = file.type === 'image/png' || file.type === 'image/webp';
+  // PNG preserva transparência (logos). Fotos de perfil forçam JPEG (mais leve).
+  const hasAlpha = !forceJpeg && (file.type === 'image/png' || file.type === 'image/webp');
   const out = hasAlpha ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', quality);
 
   // Trava de segurança: evita estourar o tamanho da linha no banco.

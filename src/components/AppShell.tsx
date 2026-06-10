@@ -13,11 +13,13 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { Fragment, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { cn } from '../lib/cn';
+import { getProfile } from '../lib/queries';
 import { signOut } from '../lib/supabase';
 
 type NavItem = { label: string; to: string; icon: ReactNode };
@@ -48,8 +50,9 @@ const groups: { title?: string; items: NavItem[] }[] = [
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuth();
-  const name = user?.user_metadata?.full_name || user?.email || 'Usuária';
-  const avatar = user?.user_metadata?.avatar_url as string | undefined;
+  const { data: profile } = useQuery({ queryKey: ['profile', user?.id], queryFn: () => getProfile(user!.id), enabled: !!user });
+  const name = profile?.full_name || user?.user_metadata?.full_name || user?.email || 'Usuária';
+  const avatar = profile?.avatar_url || (user?.user_metadata?.avatar_url as string | undefined);
 
   return (
     <div className="flex h-full flex-col bg-slate-950 text-white">
