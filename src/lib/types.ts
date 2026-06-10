@@ -101,6 +101,7 @@ export interface ReportPayload {
   freqRows?: ReportFreqRow[];
   subject?: string;
   notasRows?: ReportNotasRow[];
+  notasTerm?: number; // 0 = todos os trimestres; 1-4 = só aquele trimestre
 }
 
 export const SHIFTS = ['Manhã', 'Tarde', 'Noite', 'Integral'] as const;

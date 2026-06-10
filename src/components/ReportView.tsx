@@ -113,6 +113,40 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
   const pad = compact ? 'p-1.5' : 'p-2';
   const TLABEL = ['1º tri', '2º tri', '3º tri', '4º tri'];
 
+  // Filtro por trimestre específico: mostra só a média daquele trimestre.
+  const t = payload.notasTerm ?? 0;
+  if (t >= 1 && t <= 4) {
+    return (
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
+            <tr>
+              <th className={cn('sticky left-0 bg-slate-50', compact ? 'p-2' : 'p-3')}>Aluno</th>
+              <th className={cn('text-center', pad)}>{TLABEL[t - 1]}</th>
+              <th className={cn('text-center', pad)}>Situação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const m = r.terms[t - 1];
+              return (
+                <tr key={r.name} className="border-t border-slate-100">
+                  <td className={cn('sticky left-0 bg-white font-bold text-slate-800', compact ? 'p-2' : 'p-3')}>
+                    <span className="mr-1.5 text-slate-400">{i + 1}.</span>{r.name}
+                  </td>
+                  <td className={cn('text-center', pad)}>
+                    {m != null ? <span className={cn('text-base font-black', m >= 6 ? 'text-emerald-700' : 'text-red-600')}>{m.toFixed(1)}</span> : '–'}
+                  </td>
+                  <td className={cn('text-center text-xs font-bold', pad)}>{situacao(m)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
       <table className="w-full text-sm">

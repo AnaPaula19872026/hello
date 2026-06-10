@@ -25,6 +25,7 @@ export function ReportsPage() {
   const [studentId, setStudentId] = useState('all');
   const [minPct, setMinPct] = useState(75);
   const [onlyBelow, setOnlyBelow] = useState(false);
+  const [notaTerm, setNotaTerm] = useState(0); // 0 = todos os trimestres
   const [compact, setCompact] = useState(false);
   const [preview, setPreview] = useState(false);
   const [share, setShare] = useState(false);
@@ -119,8 +120,9 @@ export function ReportsPage() {
       generatedAt,
       subject: SUBJECT,
       notasRows: notasRows.map((r) => ({ name: r.name, terms: r.terms, final: r.final })),
+      notasTerm: notaTerm,
     };
-  }, [classId, tipo, school, className, from, to, minPct, freq.data, freqRows, year, notasRows]);
+  }, [classId, tipo, school, className, from, to, minPct, freq.data, freqRows, year, notasRows, notaTerm]);
 
   function exportExcel() {
     const titulo = [school?.name ?? 'Escola'];
@@ -134,14 +136,25 @@ export function ReportsPage() {
       ];
       downloadXlsx(`frequencia-${slug(className)}-${from}_a_${to}.xlsx`, aoa, 'Frequência');
     } else {
-      const aoa: (string | number | null)[][] = [
-        titulo,
-        [`Notas (${SUBJECT}) — Turma ${className} — ${year}`],
-        [],
-        ['Aluno', '1º tri', '2º tri', '3º tri', '4º tri', 'Final'],
-        ...notasRows.map((r) => [r.name, ...r.terms, r.final]),
-      ];
-      downloadXlsx(`notas-${slug(className)}-${year}.xlsx`, aoa, 'Notas');
+      const sit = (m: number | null) => (m == null ? '—' : m >= 6 ? 'Aprovado' : 'Recuperação');
+      const aoa: (string | number | null)[][] =
+        notaTerm >= 1 && notaTerm <= 4
+          ? [
+              titulo,
+              [`Notas (${SUBJECT}) — Turma ${className} — ${notaTerm}º trimestre / ${year}`],
+              [],
+              ['Aluno', `${notaTerm}º tri`, 'Situação'],
+              ...notasRows.map((r) => [r.name, r.terms[notaTerm - 1], sit(r.terms[notaTerm - 1])]),
+            ]
+          : [
+              titulo,
+              [`Notas (${SUBJECT}) — Turma ${className} — ${year}`],
+              [],
+              ['Aluno', '1º tri', '2º tri', '3º tri', '4º tri', 'Final'],
+              ...notasRows.map((r) => [r.name, ...r.terms, r.final]),
+            ];
+      const suffix = notaTerm >= 1 ? `-${notaTerm}tri` : '';
+      downloadXlsx(`notas-${slug(className)}-${year}${suffix}.xlsx`, aoa, 'Notas');
     }
   }
 
@@ -247,6 +260,23 @@ export function ReportsPage() {
                   ))}
                 </Select>
               </div>
+            </div>
+          ) : null}
+
+          {tipo === 'notas' ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {[0, 1, 2, 3, 4].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setNotaTerm(t)}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-xs font-bold transition',
+                    notaTerm === t ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                  )}
+                >
+                  {t === 0 ? 'Todos' : `${t}º trimestre`}
+                </button>
+              ))}
             </div>
           ) : null}
         </Card>
