@@ -1,9 +1,11 @@
 import { cn } from '../lib/cn';
 import { MONTHS, type ReportPayload } from '../lib/types';
 
+const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 function fmtDM(iso: string) {
-  const [, m, d] = iso.split('-');
-  return `${d}/${m}`;
+  const [y, m, d] = iso.split('-').map(Number);
+  const wd = WEEKDAYS[new Date(y, m - 1, d).getDay()];
+  return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')} (${wd})`;
 }
 function situacao(media: number | null) {
   if (media == null) return '—';
