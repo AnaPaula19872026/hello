@@ -28,7 +28,11 @@ export function SettingsPage() {
   }, [profile]);
 
   const save = useMutation({
-    mutationFn: () => updateProfile(user!.id, { full_name: name.trim(), calendar_url: calendarUrl.trim() || null }),
+    mutationFn: async () => {
+      await updateProfile(user!.id, { full_name: name.trim(), calendar_url: calendarUrl.trim() || null });
+      // Atualiza também o nome no auth (usado na saudação e no menu).
+      await supabase.auth.updateUser({ data: { full_name: name.trim() } });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profile', user?.id] }),
   });
 
