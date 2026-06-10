@@ -5,6 +5,7 @@ import type {
   AttendanceSession,
   ClassRoom,
   Profile,
+  ReportPayload,
   School,
   Student,
 } from './types';
@@ -364,6 +365,28 @@ export async function reportAttendance(classId: string, from: string, to: string
 export async function deleteAttendanceSession(id: string): Promise<void> {
   const { error } = await supabase.from('attendance_sessions').delete().eq('id', id);
   if (error) throw new Error(error.message);
+}
+
+/* ----------------------------- Relatório por link ------------------------------ */
+function shortId(): string {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  const alphabet = '0123456789abcdefghijklmnopqrstuvwxyz';
+  return Array.from(bytes, (b) => alphabet[b % 36]).join('');
+}
+
+/** Salva o relatório e devolve o id curto para o link público /r/<id>. */
+export async function createSharedReport(payload: ReportPayload): Promise<string> {
+  const id = shortId();
+  const { error } = await supabase.from('shared_reports').insert({ id, payload });
+  if (error) throw new Error(error.message);
+  return id;
+}
+
+export async function getSharedReport(id: string): Promise<ReportPayload | null> {
+  const { data, error } = await supabase.from('shared_reports').select('payload').eq('id', id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data?.payload as ReportPayload) ?? null;
 }
 
 export interface GradesReportRow {

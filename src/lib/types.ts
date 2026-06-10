@@ -69,6 +69,40 @@ export interface Grade {
   note: string | null;
 }
 
+export interface ReportSchool {
+  name: string | null;
+  logo_url: string | null;
+  address: string | null;
+  city: string | null;
+  phone: string | null;
+}
+export interface ReportFreqRow {
+  name: string;
+  present: number;
+  absent: number;
+  total: number;
+  pct: number;
+  absentDates: string[];
+}
+export interface ReportNotasRow {
+  name: string;
+  months: (number | null)[];
+  media: number | null;
+}
+export interface ReportPayload {
+  kind: 'freq' | 'notas';
+  school: ReportSchool | null;
+  className: string;
+  title: string;
+  period: string;
+  generatedAt: string;
+  minPct?: number;
+  sessions?: number;
+  freqRows?: ReportFreqRow[];
+  subject?: string;
+  notasRows?: ReportNotasRow[];
+}
+
 export const SHIFTS = ['Manhã', 'Tarde', 'Noite', 'Integral'] as const;
 
 export const SUBJECT = 'Língua Inglesa';

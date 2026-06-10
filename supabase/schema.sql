@@ -5,6 +5,7 @@ create extension if not exists "pgcrypto";
 
 -- Reset: remove versões antigas das tabelas/tipos do app (sem dados reais ainda).
 -- Ordem respeita as dependências (filhos antes dos pais).
+drop table if exists public.shared_reports cascade;
 drop table if exists public.grades cascade;
 drop table if exists public.attendance_records cascade;
 drop table if exists public.attendance_sessions cascade;
@@ -122,6 +123,14 @@ create table if not exists public.grades (
   unique (student_id, subject, year, month)
 );
 
+-- Relatórios compartilháveis por link ------------------------------------------
+create table if not exists public.shared_reports (
+  id text primary key,
+  owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  payload jsonb not null,
+  created_at timestamptz default now()
+);
+
 -- Índices ----------------------------------------------------------------------
 create index if not exists idx_grades_class_year on public.grades(class_id, year);
 create index if not exists idx_grades_student on public.grades(student_id);
@@ -145,6 +154,7 @@ alter table public.students enable row level security;
 alter table public.attendance_sessions enable row level security;
 alter table public.attendance_records enable row level security;
 alter table public.grades enable row level security;
+alter table public.shared_reports enable row level security;
 
 -- Recria as políticas (idempotente). Master enxerga/edita tudo; demais, só o próprio.
 drop policy if exists "profiles self" on public.profiles;
@@ -183,6 +193,13 @@ drop policy if exists "grades own" on public.grades;
 create policy "grades own" on public.grades
   for all using (owner_id = auth.uid() or public.is_master())
   with check (owner_id = auth.uid() or public.is_master());
+
+drop policy if exists "shared read" on public.shared_reports;
+create policy "shared read" on public.shared_reports for select using (true);
+drop policy if exists "shared insert" on public.shared_reports;
+create policy "shared insert" on public.shared_reports for insert with check (owner_id = auth.uid());
+drop policy if exists "shared delete" on public.shared_reports;
+create policy "shared delete" on public.shared_reports for delete using (owner_id = auth.uid());
 
 -- Cria o perfil automaticamente no primeiro login (Google) ----------------------
 create or replace function public.handle_new_user()

@@ -1,17 +1,20 @@
 import { useQuery } from '@tanstack/react-query';
 import { endOfMonth, endOfYear, format, startOfMonth, startOfYear, subMonths } from 'date-fns';
-import { BarChart3, FileDown, Printer } from 'lucide-react';
+import { BarChart3, Eye, FileDown, List, Printer, Rows3, Send } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Button, Card, EmptyState, Field, PageHeader, Select } from '../components/ui';
+import { ReportView } from '../components/ReportView';
+import { ShareModal } from '../components/ShareModal';
+import { Button, Card, EmptyState, Field, Modal, PageHeader, Select } from '../components/ui';
 import { cn } from '../lib/cn';
 import { downloadXlsx } from '../lib/importSheet';
 import { listClasses, listSchools, listStudentsByClass, reportAttendance, reportGrades } from '../lib/queries';
-import { MONTHS, SUBJECT } from '../lib/types';
+import { MONTHS, SUBJECT, type ReportPayload } from '../lib/types';
 
 type Tipo = 'freq' | 'notas';
 const today = new Date();
 const iso = (d: Date) => format(d, 'yyyy-MM-dd');
+const fmtBR = (s: string) => s.split('-').reverse().join('/');
 
 export function ReportsPage() {
   const [tipo, setTipo] = useState<Tipo>('freq');
@@ -22,8 +25,10 @@ export function ReportsPage() {
   const [studentId, setStudentId] = useState('all');
   const [minPct, setMinPct] = useState(75);
   const [onlyBelow, setOnlyBelow] = useState(false);
+  const [compact, setCompact] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const [share, setShare] = useState(false);
 
-  // Pré-seleciona a turma ao vir do "Analisar" da tela inicial.
   const location = useLocation();
   useEffect(() => {
     const fromState = (location.state as { classId?: string } | null)?.classId;
@@ -80,12 +85,37 @@ export function ReportsPage() {
     return r;
   }, [notas.data, studentId]);
 
-  const freqSummary = useMemo(() => {
-    const rows = freqRows;
-    const avg = rows.length ? Math.round((rows.reduce((a, b) => a + b.pct, 0) / rows.length) * 10) / 10 : 0;
-    const risco = rows.filter((r) => r.pct < minPct).length;
-    return { alunos: rows.length, sessoes: freq.data?.sessions ?? 0, avg, risco };
-  }, [freqRows, freq.data, minPct]);
+  // Relatório pronto (usado na tela, na pré-visualização e no link compartilhado).
+  const payload: ReportPayload | null = useMemo(() => {
+    if (!classId) return null;
+    const reportSchool = school
+      ? { name: school.name, logo_url: school.logo_url, address: school.address, city: school.city, phone: school.phone }
+      : null;
+    const generatedAt = format(today, 'dd/MM/yyyy');
+    if (tipo === 'freq') {
+      return {
+        kind: 'freq',
+        school: reportSchool,
+        className,
+        title: 'Relatório de Frequência',
+        period: `${fmtBR(from)} a ${fmtBR(to)}`,
+        generatedAt,
+        minPct,
+        sessions: freq.data?.sessions ?? 0,
+        freqRows: freqRows.map((r) => ({ name: r.name, present: r.present, absent: r.absent, total: r.total, pct: r.pct, absentDates: r.absentDates })),
+      };
+    }
+    return {
+      kind: 'notas',
+      school: reportSchool,
+      className,
+      title: `Relatório de Notas — ${SUBJECT}`,
+      period: String(year),
+      generatedAt,
+      subject: SUBJECT,
+      notasRows: notasRows.map((r) => ({ name: r.name, months: r.months, media: r.media })),
+    };
+  }, [classId, tipo, school, className, from, to, minPct, freq.data, freqRows, year, notasRows]);
 
   function exportExcel() {
     const titulo = [school?.name ?? 'Escola'];
@@ -103,251 +133,133 @@ export function ReportsPage() {
         titulo,
         [`Notas (${SUBJECT}) — Turma ${className} — ${year}`],
         [],
-        ['Aluno', ...MONTHS.map((m) => m.slice(0, 3)), 'Média', 'Situação'],
-        ...notasRows.map((r) => [r.name, ...r.months, r.media, situacao(r.media)]),
+        ['Aluno', ...MONTHS.map((m) => m.slice(0, 3)), 'Média'],
+        ...notasRows.map((r) => [r.name, ...r.months, r.media]),
       ];
       downloadXlsx(`notas-${slug(className)}-${year}.xlsx`, aoa, 'Notas');
     }
   }
 
   const years = [today.getFullYear() - 1, today.getFullYear(), today.getFullYear() + 1];
+  const loading = tipo === 'freq' ? freq.isLoading : notas.isLoading;
 
   return (
-    <div className="report-root">
-      <PageHeader
-        title="Relatórios"
-        subtitle="Frequência e notas, com filtros e exportação."
-        action={
-          <div className="no-print flex gap-2">
-            <Button variant="ghost" onClick={() => window.print()} disabled={!classId}>
-              <Printer size={18} /> PDF
-            </Button>
-            <Button onClick={exportExcel} disabled={!classId}>
-              <FileDown size={18} /> Excel
-            </Button>
+    <div>
+      <div className="no-print">
+        <PageHeader
+          title="Relatórios"
+          subtitle="Frequência e notas, com filtros, compartilhamento e exportação."
+          action={
+            <div className="flex flex-wrap gap-2">
+              <Button variant="ghost" onClick={() => setCompact((c) => !c)} disabled={!classId} title="Alternar layout">
+                {compact ? <Rows3 size={18} /> : <List size={18} />} {compact ? 'Detalhado' : 'Compacto'}
+              </Button>
+              <Button variant="ghost" onClick={() => setPreview(true)} disabled={!payload}>
+                <Eye size={18} /> Visualizar
+              </Button>
+              <Button variant="ghost" onClick={() => setShare(true)} disabled={!payload}>
+                <Send size={18} /> Enviar
+              </Button>
+              <Button variant="ghost" onClick={() => window.print()} disabled={!classId}>
+                <Printer size={18} /> PDF
+              </Button>
+              <Button onClick={exportExcel} disabled={!classId}>
+                <FileDown size={18} /> Excel
+              </Button>
+            </div>
+          }
+        />
+
+        {/* Filtros */}
+        <Card className="mb-5">
+          <div className="mb-4 flex gap-2">
+            {(['freq', 'notas'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTipo(t)}
+                className={cn('flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition', tipo === t ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}
+              >
+                {t === 'freq' ? 'Frequência' : 'Notas'}
+              </button>
+            ))}
           </div>
-        }
-      />
 
-      {/* Filtros */}
-      <Card className="no-print mb-5">
-        <div className="mb-4 flex gap-2">
-          {(['freq', 'notas'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTipo(t)}
-              className={cn(
-                'flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition',
-                tipo === t ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-              )}
-            >
-              {t === 'freq' ? 'Frequência' : 'Notas'}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Turma">
-            <Select value={classId} onChange={(e) => setClassId(e.target.value)}>
-              <option value="">Selecione a turma…</option>
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Aluno">
-            <Select value={studentId} onChange={(e) => setStudentId(e.target.value)} disabled={!classId}>
-              <option value="all">Todos os alunos</option>
-              {students.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.full_name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          {tipo === 'freq' ? (
-            <>
-              <Field label="De">
-                <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500" />
-              </Field>
-              <Field label="Até">
-                <input type="date" value={to} min={from} max={iso(today)} onChange={(e) => setTo(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500" />
-              </Field>
-            </>
-          ) : (
-            <Field label="Ano">
-              <Select value={year} onChange={(e) => setYear(Number(e.target.value))}>
-                {years.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Turma">
+              <Select value={classId} onChange={(e) => setClassId(e.target.value)}>
+                <option value="">Selecione a turma…</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </Select>
             </Field>
-          )}
-        </div>
-
-        {tipo === 'freq' ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button onClick={() => preset('mes')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Este mês</button>
-            <button onClick={() => preset('mesPassado')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Mês passado</button>
-            <button onClick={() => preset('ano')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Ano todo</button>
-            <div className="ml-auto flex items-center gap-2">
-              <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                <input type="checkbox" checked={onlyBelow} onChange={(e) => setOnlyBelow(e.target.checked)} />
-                Só faltosos abaixo de
-              </label>
-              <Select value={minPct} onChange={(e) => setMinPct(Number(e.target.value))} className="w-24 py-1.5">
-                {[60, 70, 75, 80, 90].map((p) => (
-                  <option key={p} value={p}>{p}%</option>
+            <Field label="Aluno">
+              <Select value={studentId} onChange={(e) => setStudentId(e.target.value)} disabled={!classId}>
+                <option value="all">Todos os alunos</option>
+                {students.map((s) => (
+                  <option key={s.id} value={s.id}>{s.full_name}</option>
                 ))}
               </Select>
-            </div>
-          </div>
-        ) : null}
-      </Card>
+            </Field>
 
-      {/* Cabeçalho do relatório (aparece na tela e na impressão) */}
-      {classId ? (
-        <div className="mb-5 flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft print:shadow-none">
-          {school?.logo_url ? (
-            <img src={school.logo_url} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1" />
-          ) : (
-            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-slate-100 text-xl font-black uppercase text-slate-400">
-              {school?.name?.slice(0, 1) ?? 'E'}
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            {school?.name ? <p className="truncate text-xs font-black uppercase tracking-wide text-emerald-700">{school.name}</p> : null}
-            <h2 className="text-lg font-black text-slate-900">
-              {tipo === 'freq' ? 'Relatório de Frequência' : `Relatório de Notas — ${SUBJECT}`}
-            </h2>
-            <p className="text-sm text-slate-500">
-              Turma {className}
-              {tipo === 'freq' ? ` • ${fmtBR(from)} a ${fmtBR(to)}` : ` • ${year}`}
-            </p>
-            {school && (school.address || school.city || school.phone) ? (
-              <p className="mt-0.5 truncate text-xs text-slate-400">
-                {[school.address, school.city, school.phone].filter(Boolean).join(' • ')}
-              </p>
-            ) : null}
+            {tipo === 'freq' ? (
+              <>
+                <Field label="De">
+                  <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500" />
+                </Field>
+                <Field label="Até">
+                  <input type="date" value={to} min={from} max={iso(today)} onChange={(e) => setTo(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500" />
+                </Field>
+              </>
+            ) : (
+              <Field label="Ano">
+                <Select value={year} onChange={(e) => setYear(Number(e.target.value))}>
+                  {years.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </Select>
+              </Field>
+            )}
           </div>
-          <div className="ml-auto hidden shrink-0 text-right text-xs text-slate-400 sm:block">
-            Gerado em
-            <br />
-            {format(today, 'dd/MM/yyyy')}
-          </div>
-        </div>
-      ) : null}
 
-      {/* Resultado */}
+          {tipo === 'freq' ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button onClick={() => preset('mes')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Este mês</button>
+              <button onClick={() => preset('mesPassado')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Mês passado</button>
+              <button onClick={() => preset('ano')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Ano todo</button>
+              <div className="ml-auto flex items-center gap-2">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                  <input type="checkbox" checked={onlyBelow} onChange={(e) => setOnlyBelow(e.target.checked)} />
+                  Só faltosos abaixo de
+                </label>
+                <Select value={minPct} onChange={(e) => setMinPct(Number(e.target.value))} className="w-24 py-1.5">
+                  {[60, 70, 75, 80, 90].map((p) => (
+                    <option key={p} value={p}>{p}%</option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+          ) : null}
+        </Card>
+      </div>
+
+      {/* Relatório */}
       {!classId ? (
         <EmptyState icon={<BarChart3 size={26} />} title="Escolha uma turma" hint="Selecione a turma para gerar o relatório." />
-      ) : tipo === 'freq' ? (
-        freq.isLoading ? (
-          <p className="text-sm text-slate-500">Gerando…</p>
-        ) : (
-          <>
-            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Stat label="Aulas no período" value={freqSummary.sessoes} />
-              <Stat label="Alunos" value={freqSummary.alunos} />
-              <Stat label="Presença média" value={`${freqSummary.avg}%`} />
-              <Stat label={`Abaixo de ${minPct}%`} value={freqSummary.risco} danger={freqSummary.risco > 0} />
-            </div>
-            {freqRows.length === 0 ? (
-              <Card><p className="text-center text-slate-400">Nenhum dado no período.</p></Card>
-            ) : (
-              <div className="space-y-2">
-                {freqRows.map((r) => (
-                  <Card key={r.student_id} className="p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="min-w-0 flex-1 truncate font-bold text-slate-800">{r.name}</p>
-                      <span className={cn('text-lg font-black', r.pct < minPct ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</span>
-                    </div>
-                    {r.absent === 0 ? (
-                      <p className="mt-1 text-sm font-semibold text-emerald-700">Sem faltas · {r.present}/{r.total} aulas</p>
-                    ) : (
-                      <div className="mt-2">
-                        <p className="text-sm font-bold text-red-600">{r.absent} falta(s):</p>
-                        <div className="mt-1.5 flex flex-wrap gap-1.5">
-                          {r.absentDates.map((d) => (
-                            <span key={d} className="rounded-lg bg-red-50 px-2 py-1 text-xs font-bold text-red-700">
-                              {fmtDM(d)}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            )}
-          </>
-        )
-      ) : notas.isLoading ? (
+      ) : loading ? (
         <p className="text-sm text-slate-500">Gerando…</p>
-      ) : (
-        <Card className="overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
-              <tr>
-                <th className="sticky left-0 bg-slate-50 p-3">Aluno</th>
-                {MONTHS.map((m) => (
-                  <th key={m} className="p-2 text-center">{m.slice(0, 3)}</th>
-                ))}
-                <th className="p-3 text-center">Média</th>
-                <th className="p-3 text-center">Situação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {notasRows.map((r) => (
-                <tr key={r.student_id} className="border-t border-slate-100">
-                  <td className="sticky left-0 bg-white p-3 font-bold text-slate-800">{r.name}</td>
-                  {r.months.map((m, i) => (
-                    <td key={i} className="p-2 text-center text-slate-600">{m != null ? m : '–'}</td>
-                  ))}
-                  <td className="p-3 text-center">
-                    {r.media != null ? <span className={cn('font-black', r.media >= 6 ? 'text-emerald-700' : 'text-red-600')}>{r.media}</span> : '–'}
-                  </td>
-                  <td className="p-3 text-center text-xs font-bold">{situacao(r.media)}</td>
-                </tr>
-              ))}
-              {notasRows.length === 0 ? (
-                <tr><td colSpan={15} className="p-6 text-center text-slate-400">Nenhum dado.</td></tr>
-              ) : null}
-            </tbody>
-          </table>
-        </Card>
-      )}
+      ) : payload ? (
+        <ReportView payload={payload} compact={compact} />
+      ) : null}
 
+      {/* Pré-visualização */}
+      <Modal open={preview} onClose={() => setPreview(false)} title="Pré-visualização">
+        {payload ? <ReportView payload={payload} compact={compact} /> : null}
+      </Modal>
+
+      <ShareModal open={share} onClose={() => setShare(false)} payload={payload} />
     </div>
   );
-}
-
-function fmtBR(iso: string) {
-  return iso.split('-').reverse().join('/');
-}
-function fmtDM(iso: string) {
-  const [, m, d] = iso.split('-');
-  return `${d}/${m}`;
-}
-
-function Stat({ label, value, danger }: { label: string; value: number | string; danger?: boolean }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 text-center">
-      <p className={cn('text-2xl font-black', danger ? 'text-red-600' : 'text-slate-900')}>{value}</p>
-      <p className="text-xs font-bold text-slate-500">{label}</p>
-    </div>
-  );
-}
-
-function situacao(media: number | null): string {
-  if (media == null) return '—';
-  if (media >= 6) return 'Aprovado';
-  return 'Recuperação';
 }
 
 function slug(s: string) {

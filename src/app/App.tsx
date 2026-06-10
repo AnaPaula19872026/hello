@@ -11,6 +11,7 @@ import { NotasPage } from '../pages/NotasPage';
 import { ReportsPage } from '../pages/ReportsPage';
 import { SchoolsPage } from '../pages/SchoolsPage';
 import { SettingsPage } from '../pages/SettingsPage';
+import { SharedReportPage } from '../pages/SharedReportPage';
 import { StudentsPage } from '../pages/StudentsPage';
 
 const qc = new QueryClient({
@@ -52,6 +53,7 @@ function Gate() {
   const { session, loading } = useAuth();
   return (
     <Routes>
+      <Route path="/r/:id" element={<SharedReportPage />} />
       <Route path="/login" element={!loading && session ? <Navigate to="/" replace /> : <LoginPage />} />
       <Route path="/*" element={<Protected />} />
     </Routes>
