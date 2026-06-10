@@ -21,15 +21,13 @@ export const CADASTRO_COLUMNS: ColumnDef[] = [
   { key: 'phone', label: 'Telefone', example: '(62) 90000-0000' },
 ];
 
-/** Gera e baixa a planilha modelo: aba "Modelo" (só cabeçalho) + aba "Exemplo". */
+/** Gera e baixa a planilha modelo: uma aba só, com cabeçalho + 1 linha de exemplo. */
 export async function downloadTemplate(fileName: string, columns: ColumnDef[]) {
   const XLSX = await import('xlsx');
   const headers = columns.map((c) => c.label);
-  const modelo = XLSX.utils.aoa_to_sheet([headers]);
-  const exemplo = XLSX.utils.aoa_to_sheet([headers, columns.map((c) => c.example)]);
+  const ws = XLSX.utils.aoa_to_sheet([headers, columns.map((c) => c.example)]);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, modelo, 'Modelo');
-  XLSX.utils.book_append_sheet(wb, exemplo, 'Exemplo');
+  XLSX.utils.book_append_sheet(wb, ws, 'Cadastro');
   XLSX.writeFile(wb, fileName);
 }
 
@@ -47,16 +45,25 @@ export interface ParseResult {
   errors: string[];
 }
 
-/** Lê a primeira aba do arquivo e mapeia colunas pelos rótulos definidos. */
+/** Lê o arquivo (aba com mais dados), mapeia pelas colunas e ignora a linha de exemplo. */
 export async function parseSheet(file: File, columns: ColumnDef[]): Promise<ParseResult> {
   const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: 'array' });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+
+  // Escolhe a aba que tiver mais linhas (robusto a Modelo/Exemplo, nomes de aba, etc.)
+  let raw: Record<string, unknown>[] = [];
+  for (const name of wb.SheetNames) {
+    const j = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[name], { defval: '' });
+    if (j.length > raw.length) raw = j;
+  }
 
   const labelToKey: Record<string, string> = {};
-  columns.forEach((c) => (labelToKey[norm(c.label)] = c.key));
+  const exampleByKey: Record<string, string> = {};
+  columns.forEach((c) => {
+    labelToKey[norm(c.label)] = c.key;
+    exampleByKey[c.key] = norm(c.example);
+  });
 
   const rows: Record<string, string>[] = [];
   const errors: string[] = [];
@@ -69,6 +76,10 @@ export async function parseSheet(file: File, columns: ColumnDef[]): Promise<Pars
     });
     // ignora linhas vazias
     if (!Object.values(obj).some((v) => v)) return;
+    // ignora a linha de exemplo do modelo (todos os valores iguais aos exemplos)
+    const filled = Object.keys(obj).filter((k) => obj[k]);
+    if (filled.length > 0 && filled.every((k) => norm(obj[k]) === exampleByKey[k])) return;
+
     const missing = columns.filter((c) => c.required && !obj[c.key]).map((c) => c.label);
     if (missing.length) errors.push(`Linha ${i + 2}: faltando ${missing.join(', ')}`);
     else rows.push(obj);

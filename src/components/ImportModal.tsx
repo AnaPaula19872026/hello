@@ -107,7 +107,7 @@ export function ImportModal({
         <div className="space-y-4">
           <div className="rounded-xl bg-slate-50 p-4">
             <p className="text-sm font-medium text-slate-600">
-              1. Baixe a planilha modelo, preencha a aba <strong>Modelo</strong> e suba o arquivo.
+              1. Baixe a planilha modelo, preencha uma linha por aluno (a linha de exemplo é ignorada) e suba o arquivo.
             </p>
             <Button variant="ghost" className="mt-3" onClick={() => downloadTemplate(templateFileName, columns)}>
               <Download size={18} /> Baixar planilha modelo

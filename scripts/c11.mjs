@@ -1,0 +1,18 @@
+import puppeteer from 'puppeteer-core';
+import fs from 'node:fs';
+const session = JSON.parse(fs.readFileSync('/tmp/session.json','utf8'));
+const b = await puppeteer.launch({executablePath:'/usr/bin/google-chrome-stable',headless:'new',args:['--no-sandbox']});
+const p = await b.newPage(); await p.setViewport({width:1280,height:900});
+const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:5173/',{waitUntil:'domcontentloaded'});
+await p.evaluate(([k,v])=>localStorage.setItem(k,v),['sb-rogvgrnkjvxdulkcunuo-auth-token',JSON.stringify(session)]);
+await p.goto('http://localhost:5173/escolas',{waitUntil:'networkidle2'});
+await new Promise(x=>setTimeout(x,1200));
+await p.evaluate(()=>{const b=[...document.querySelectorAll('button')].find(x=>x.textContent.includes('Importar')); b&&b.click();});
+await new Promise(x=>setTimeout(x,600));
+const input = await p.$('input[type=file]');
+await input.uploadFile('/tmp/teste-cadastro.xlsx');
+await new Promise(x=>setTimeout(x,1500));
+console.log('resultado parse:', await p.evaluate(()=>{const e=[...document.querySelectorAll('*')].find(el=>el.children.length===0&&/linha\(s\) válida/.test(el.textContent)); return e?e.textContent.trim():'NAO ENCONTROU';}));
+console.log('erros:', errs.length?errs.join(' | '):'NENHUM');
+await b.close();
