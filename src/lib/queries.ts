@@ -493,7 +493,7 @@ export async function getSharedReport(id: string): Promise<ReportPayload | null>
 export interface TermsReportRow {
   student_id: string;
   name: string;
-  terms: (number | null)[]; // média de cada trimestre (4 posições)
+  terms: (number | null)[]; // média de cada trimestre (3 posições)
   final: number | null; // média anual (média dos trimestres com nota)
 }
 
@@ -505,7 +505,7 @@ export async function reportTerms(classId: string, year: number): Promise<TermsR
     listStudentsByClass(classId),
   ]);
   return students.map((s) => {
-    const terms: (number | null)[] = [1, 2, 3, 4].map((t) => {
+    const terms: (number | null)[] = [1, 2, 3].map((t) => {
       const g = grades.find((x) => x.student_id === s.id && x.term === t);
       return g ? calcMedia(g.scores) : null;
     });

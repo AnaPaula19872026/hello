@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { endOfMonth, endOfYear, format, startOfMonth, startOfYear, subMonths } from 'date-fns';
+import { endOfMonth, format, startOfMonth, subMonths } from 'date-fns';
 import { BarChart3, Eye, FileDown, List, Printer, Rows3, Send } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -9,7 +9,7 @@ import { Button, Card, EmptyState, Field, Modal, PageHeader, Select } from '../c
 import { cn } from '../lib/cn';
 import { downloadXlsx } from '../lib/importSheet';
 import { listClasses, listSchools, listStudentsByClass, reportAttendance, reportTerms } from '../lib/queries';
-import { SUBJECT, type ReportPayload } from '../lib/types';
+import { SCHOOL_YEAR_MONTHS, SUBJECT, TERM_MONTHS, type ReportPayload } from '../lib/types';
 
 type Tipo = 'freq' | 'notas';
 const today = new Date();
@@ -59,7 +59,8 @@ export function ReportsPage() {
     enabled: tipo === 'notas' && !!classId,
   });
 
-  function preset(p: 'mes' | 'mesPassado' | 'ano' | 'tri1' | 'tri2' | 'tri3' | 'tri4') {
+  function preset(p: 'mes' | 'mesPassado' | 'ano' | 'tri1' | 'tri2' | 'tri3') {
+    const y = today.getFullYear();
     if (p === 'mes') {
       setFrom(iso(startOfMonth(today)));
       setTo(iso(endOfMonth(today)));
@@ -68,13 +69,14 @@ export function ReportsPage() {
       setFrom(iso(startOfMonth(d)));
       setTo(iso(endOfMonth(d)));
     } else if (p === 'ano') {
-      setFrom(iso(startOfYear(today)));
-      setTo(iso(endOfYear(today)));
+      // ano letivo: fev a nov
+      setFrom(iso(new Date(y, SCHOOL_YEAR_MONTHS[0], 1)));
+      setTo(iso(endOfMonth(new Date(y, SCHOOL_YEAR_MONTHS[1], 1))));
     } else {
-      const n = Number(p.slice(3)); // 1..4
-      const y = today.getFullYear();
-      setFrom(iso(new Date(y, (n - 1) * 3, 1)));
-      setTo(iso(endOfMonth(new Date(y, (n - 1) * 3 + 2, 1))));
+      const n = Number(p.slice(3)); // 1..3
+      const [a, b] = TERM_MONTHS[n];
+      setFrom(iso(new Date(y, a, 1)));
+      setTo(iso(endOfMonth(new Date(y, b, 1))));
     }
   }
 
@@ -138,7 +140,7 @@ export function ReportsPage() {
     } else {
       const sit = (m: number | null) => (m == null ? '—' : m >= 6 ? 'Aprovado' : 'Recuperação');
       const aoa: (string | number | null)[][] =
-        notaTerm >= 1 && notaTerm <= 4
+        notaTerm >= 1 && notaTerm <= 3
           ? [
               titulo,
               [`Notas (${SUBJECT}) — Turma ${className} — ${notaTerm}º trimestre / ${year}`],
@@ -150,7 +152,7 @@ export function ReportsPage() {
               titulo,
               [`Notas (${SUBJECT}) — Turma ${className} — ${year}`],
               [],
-              ['Aluno', '1º tri', '2º tri', '3º tri', '4º tri', 'Final'],
+              ['Aluno', '1º tri', '2º tri', '3º tri', 'Final'],
               ...notasRows.map((r) => [r.name, ...r.terms, r.final]),
             ];
       const suffix = notaTerm >= 1 ? `-${notaTerm}tri` : '';
@@ -244,11 +246,10 @@ export function ReportsPage() {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button onClick={() => preset('mes')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Este mês</button>
               <button onClick={() => preset('mesPassado')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Mês passado</button>
-              <button onClick={() => preset('ano')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Ano todo</button>
+              <button onClick={() => preset('ano')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Ano letivo</button>
               <button onClick={() => preset('tri1')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">1º trimestre</button>
               <button onClick={() => preset('tri2')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">2º trimestre</button>
               <button onClick={() => preset('tri3')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">3º trimestre</button>
-              <button onClick={() => preset('tri4')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">4º trimestre</button>
               <div className="ml-auto flex items-center gap-2">
                 <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
                   <input type="checkbox" checked={onlyBelow} onChange={(e) => setOnlyBelow(e.target.checked)} />
@@ -265,7 +266,7 @@ export function ReportsPage() {
 
           {tipo === 'notas' ? (
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              {[0, 1, 2, 3, 4].map((t) => (
+              {[0, 1, 2, 3].map((t) => (
                 <button
                   key={t}
                   onClick={() => setNotaTerm(t)}

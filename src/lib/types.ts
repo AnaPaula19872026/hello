@@ -128,8 +128,13 @@ export const DEFAULT_ACTIVITIES: GradeActivity[] = [
   { name: 'CRÉDITO VARIÁVEL', max: 4 },
 ];
 
-export const TERMS = [1, 2, 3, 4] as const;
-export const TERM_LABEL: Record<number, string> = { 1: '1º trimestre', 2: '2º trimestre', 3: '3º trimestre', 4: '4º trimestre' };
+// Ano letivo: fevereiro a novembro, dividido em 3 trimestres.
+export const TERMS = [1, 2, 3] as const;
+export const TERM_LABEL: Record<number, string> = { 1: '1º trimestre', 2: '2º trimestre', 3: '3º trimestre' };
+// Faixa de meses (0 = janeiro) de cada trimestre, para filtros de frequência.
+export const TERM_MONTHS: Record<number, [number, number]> = { 1: [1, 4], 2: [5, 7], 3: [8, 10] };
+// Ano letivo completo: fev (1) a nov (10).
+export const SCHOOL_YEAR_MONTHS: [number, number] = [1, 10];
 export const MEDIA_APROVACAO = 6;
 export const MEDIA_DIVISOR = 3; // média = soma das notas / 3
 

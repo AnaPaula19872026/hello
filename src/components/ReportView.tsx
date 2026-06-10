@@ -111,11 +111,11 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
   const rows = payload.notasRows ?? [];
   if (rows.length === 0) return <p className="text-center text-slate-400">Nenhum dado.</p>;
   const pad = compact ? 'p-1.5' : 'p-2';
-  const TLABEL = ['1º tri', '2º tri', '3º tri', '4º tri'];
+  const TLABEL = ['1º tri', '2º tri', '3º tri'];
 
   // Filtro por trimestre específico: mostra só a média daquele trimestre.
   const t = payload.notasTerm ?? 0;
-  if (t >= 1 && t <= 4) {
+  if (t >= 1 && t <= 3) {
     return (
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
