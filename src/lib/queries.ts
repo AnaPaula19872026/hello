@@ -317,10 +317,9 @@ export interface AttendanceReportRow {
   name: string;
   present: number;
   absent: number;
-  late: number;
-  justified: number;
   total: number;
-  pct: number; // % de presença (presente + atrasado)
+  pct: number; // % de presença
+  absentDates: string[]; // dias (yyyy-mm-dd) em que faltou
 }
 export interface AttendanceReport {
   sessions: number;
@@ -328,34 +327,43 @@ export interface AttendanceReport {
 }
 
 export async function reportAttendance(classId: string, from: string, to: string): Promise<AttendanceReport> {
-  const sessions = unwrap<{ id: string }[]>(
+  const sessions = unwrap<{ id: string; session_date: string }[]>(
     await supabase
       .from('attendance_sessions')
-      .select('id')
+      .select('id, session_date')
       .eq('class_id', classId)
       .gte('session_date', from)
       .lte('session_date', to),
   );
   const ids = sessions.map((s) => s.id);
   const records = ids.length
-    ? unwrap<{ student_id: string; status: string }[]>(
-        await supabase.from('attendance_records').select('student_id, status').in('session_id', ids),
+    ? unwrap<{ student_id: string; status: string; session_id: string }[]>(
+        await supabase.from('attendance_records').select('student_id, status, session_id').in('session_id', ids),
       )
     : [];
+  const dateById = new Map(sessions.map((s) => [s.id, s.session_date]));
   const students = await listStudentsByClass(classId);
 
   const rows: AttendanceReportRow[] = students.map((s) => {
     const mine = records.filter((r) => r.student_id === s.id);
     const present = mine.filter((r) => r.status === 'present').length;
-    const late = mine.filter((r) => r.status === 'late').length;
-    const absent = mine.filter((r) => r.status === 'absent').length;
-    const justified = mine.filter((r) => r.status === 'justified').length;
+    const absentRecs = mine.filter((r) => r.status !== 'present');
     const total = mine.length;
-    const pct = total ? Math.round(((present + late) / total) * 1000) / 10 : 0;
-    return { student_id: s.id, name: s.full_name, present, absent, late, justified, total, pct };
+    const pct = total ? Math.round((present / total) * 1000) / 10 : 0;
+    const absentDates = absentRecs
+      .map((r) => dateById.get(r.session_id))
+      .filter((d): d is string => !!d)
+      .sort();
+    return { student_id: s.id, name: s.full_name, present, absent: absentRecs.length, total, pct, absentDates };
   });
 
   return { sessions: sessions.length, rows };
+}
+
+/** Apaga uma chamada (sessão) e seus registros. */
+export async function deleteAttendanceSession(id: string): Promise<void> {
+  const { error } = await supabase.from('attendance_sessions').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 }
 
 export interface GradesReportRow {

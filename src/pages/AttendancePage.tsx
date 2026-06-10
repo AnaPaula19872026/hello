@@ -1,20 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { CheckCheck, ClipboardCheck, Save, Search } from 'lucide-react';
+import { Check, CheckCheck, ClipboardCheck, Save, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Card, EmptyState, PageHeader, Select } from '../components/ui';
 import { cn } from '../lib/cn';
 import { getRecords, getSession, listClasses, listStudentsByClass, saveAttendance } from '../lib/queries';
-import { STATUS_LABEL, type AttendanceStatus } from '../lib/types';
-
-const STATUS_ORDER: AttendanceStatus[] = ['present', 'absent', 'late', 'justified'];
-
-const chip: Record<AttendanceStatus, { on: string; short: string }> = {
-  present: { on: 'bg-emerald-600 text-white', short: 'P' },
-  absent: { on: 'bg-red-600 text-white', short: 'F' },
-  late: { on: 'bg-amber-500 text-white', short: 'A' },
-  justified: { on: 'bg-sky-600 text-white', short: 'J' },
-};
+import type { AttendanceStatus } from '../lib/types';
 
 export function AttendancePage() {
   const qc = useQueryClient();
@@ -49,11 +40,10 @@ export function AttendancePage() {
     enabled: !!classId,
   });
 
-  // Assinaturas estáveis: evita loop de render por causa do default `= []` instável.
   const studentsSig = students.map((s) => s.id).join(',');
   const existingSig = (existing?.records ?? []).map((r) => `${r.student_id}:${r.status}`).join(',');
 
-  // Inicializa estado: todos presentes, sobrescrevendo com a chamada salva.
+  // Inicializa: todos presentes, sobrescrevendo com a chamada salva.
   useEffect(() => {
     if (!students.length) {
       setRecords({});
@@ -62,7 +52,8 @@ export function AttendancePage() {
     const base: Record<string, AttendanceStatus> = {};
     students.forEach((s) => (base[s.id] = 'present'));
     existing?.records.forEach((r) => {
-      if (base[r.student_id] !== undefined) base[r.student_id] = r.status;
+      // qualquer status que não seja presente conta como falta
+      if (base[r.student_id] !== undefined) base[r.student_id] = r.status === 'present' ? 'present' : 'absent';
     });
     setRecords(base);
     setSaved(false);
@@ -70,15 +61,13 @@ export function AttendancePage() {
   }, [studentsSig, existingSig]);
 
   const counts = useMemo(() => {
-    const c = { present: 0, absent: 0, late: 0, justified: 0 };
-    Object.values(records).forEach((s) => (c[s] += 1));
-    return c;
+    let present = 0;
+    let absent = 0;
+    Object.values(records).forEach((s) => (s === 'present' ? present++ : absent++));
+    return { present, absent };
   }, [records]);
 
-  const list = useMemo(
-    () => students.filter((s) => s.full_name.toLowerCase().includes(q.toLowerCase())),
-    [students, q],
-  );
+  const list = useMemo(() => students.filter((s) => s.full_name.toLowerCase().includes(q.toLowerCase())), [students, q]);
 
   const save = useMutation({
     mutationFn: () =>
@@ -94,8 +83,8 @@ export function AttendancePage() {
     },
   });
 
-  function setStatus(id: string, status: AttendanceStatus) {
-    setRecords((prev) => ({ ...prev, [id]: status }));
+  function toggle(id: string) {
+    setRecords((prev) => ({ ...prev, [id]: prev[id] === 'absent' ? 'present' : 'absent' }));
     setSaved(false);
   }
   function allPresent() {
@@ -116,7 +105,7 @@ export function AttendancePage() {
 
   return (
     <div className="pb-28">
-      <PageHeader title="Chamadas" subtitle="As presenças e faltas ficam salvas na nuvem." />
+      <PageHeader title="Chamadas" subtitle="Toque no aluno para marcar falta. As faltas ficam salvas por dia." />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
         <Select value={classId} onChange={(e) => setClassId(e.target.value)}>
@@ -135,11 +124,9 @@ export function AttendancePage() {
         />
       </div>
 
-      <div className="mb-4 grid grid-cols-4 gap-2 text-center">
+      <div className="mb-4 grid grid-cols-2 gap-3 text-center">
         <Stat label="Presentes" value={counts.present} className="text-emerald-700" />
-        <Stat label="Faltas" value={counts.absent} className="text-red-700" />
-        <Stat label="Atrasos" value={counts.late} className="text-amber-600" />
-        <Stat label="Justif." value={counts.justified} className="text-sky-700" />
+        <Stat label="Faltas" value={counts.absent} className="text-red-600" />
       </div>
 
       <div className="mb-3 flex flex-col gap-2 sm:flex-row">
@@ -159,26 +146,29 @@ export function AttendancePage() {
       ) : (
         <div className="space-y-2">
           {list.map((s) => {
-            const status = records[s.id] ?? 'present';
+            const absent = records[s.id] === 'absent';
             return (
-              <Card key={s.id} className="flex items-center justify-between gap-3 p-3">
-                <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-900">{s.full_name}</span>
-                <div className="flex shrink-0 gap-1">
-                  {STATUS_ORDER.map((st) => (
-                    <button
-                      key={st}
-                      onClick={() => setStatus(s.id, st)}
-                      title={STATUS_LABEL[st]}
-                      className={cn(
-                        'grid h-10 w-10 place-items-center rounded-lg text-sm font-black transition',
-                        status === st ? chip[st].on : 'bg-slate-100 text-slate-500 hover:bg-slate-200',
-                      )}
-                    >
-                      {chip[st].short}
-                    </button>
-                  ))}
-                </div>
-              </Card>
+              <button
+                key={s.id}
+                onClick={() => toggle(s.id)}
+                className={cn(
+                  'flex w-full items-center justify-between gap-3 rounded-2xl border p-4 text-left transition active:scale-[.99]',
+                  absent ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50/60',
+                )}
+              >
+                <span className={cn('min-w-0 flex-1 truncate text-base font-bold', absent ? 'text-red-800' : 'text-slate-800')}>
+                  {s.full_name}
+                </span>
+                <span
+                  className={cn(
+                    'flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-black text-white',
+                    absent ? 'bg-red-600' : 'bg-emerald-600',
+                  )}
+                >
+                  {absent ? <X size={18} /> : <Check size={18} />}
+                  {absent ? 'Falta' : 'Presente'}
+                </span>
+              </button>
             );
           })}
         </div>

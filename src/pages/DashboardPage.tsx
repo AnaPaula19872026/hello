@@ -1,24 +1,32 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Building2, ClipboardCheck, GraduationCap, Users } from 'lucide-react';
-import { useMemo } from 'react';
+import { BarChart3, Building2, ChevronDown, ClipboardCheck, GraduationCap, Trash2, Users } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { Card, PageHeader } from '../components/ui';
-import { dashboardCounts, listClasses, listRecentSessions, type RecentSession } from '../lib/queries';
+import { cn } from '../lib/cn';
+import { dashboardCounts, deleteAttendanceSession, listClasses, listRecentSessions, type RecentSession } from '../lib/queries';
 
 export function DashboardPage() {
+  const qc = useQueryClient();
   const { user } = useAuth();
   const firstName = (user?.user_metadata?.full_name || user?.email || 'Bem-vinda').split(' ')[0];
 
   const { data: counts } = useQuery({ queryKey: ['counts'], queryFn: dashboardCounts });
   const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
-  const { data: recent = [] } = useQuery({ queryKey: ['recent-sessions'], queryFn: () => listRecentSessions(40) });
+  const { data: recent = [] } = useQuery({ queryKey: ['recent-sessions'], queryFn: () => listRecentSessions(60) });
 
+  const [open, setOpen] = useState<string | null>(null);
   const className = (id: string) => classes.find((c) => c.id === id)?.name ?? 'Turma';
 
-  // Agrupa as chamadas por turma (mais organizadas).
+  const delSession = useMutation({
+    mutationFn: deleteAttendanceSession,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['recent-sessions'] }),
+  });
+
+  // Agrupa as chamadas por turma.
   const groups = useMemo(() => {
     const map = new Map<string, RecentSession[]>();
     recent.forEach((s) => {
@@ -52,35 +60,61 @@ export function DashboardPage() {
         <StatCard to="/alunos" icon={<Users size={20} />} value={counts?.students ?? 0} label="Alunos" />
       </div>
 
-      <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">Chamadas recentes por turma</h2>
+      <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">Chamadas por turma</h2>
       {groups.length === 0 ? (
         <Card>
           <p className="text-sm text-slate-500">Nenhuma chamada registrada ainda.</p>
         </Card>
       ) : (
-        <div className="space-y-5">
-          {groups.map(([classId, sessions]) => (
-            <div key={classId}>
-              <div className="mb-2 flex items-center gap-2 px-1">
-                <GraduationCap size={16} className="text-emerald-600" />
-                <h3 className="text-sm font-black text-slate-800">{className(classId)}</h3>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">{sessions.length}</span>
-              </div>
-              <div className="space-y-2">
-                {sessions.map((s) => (
-                  <Card key={s.id} className="flex items-center justify-between gap-3 p-4">
-                    <p className="text-sm font-bold text-slate-700">
-                      {format(parseISO(s.session_date), "EEE, d 'de' MMM", { locale: ptBR })}
+        <div className="space-y-2">
+          {groups.map(([classId, sessions]) => {
+            const isOpen = open === classId;
+            const faltas = sessions.reduce((a, s) => a + s.absent, 0);
+            return (
+              <Card key={classId} className="overflow-hidden p-0">
+                <button onClick={() => setOpen(isOpen ? null : classId)} className="flex w-full items-center gap-3 p-4 text-left">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+                    <GraduationCap size={20} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-black text-slate-900">{className(classId)}</p>
+                    <p className="text-xs text-slate-500">
+                      {sessions.length} chamada(s) · {faltas} falta(s)
                     </p>
-                    <div className="flex gap-2 text-xs font-bold">
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{s.present} pres.</span>
-                      <span className="rounded-full bg-red-50 px-2.5 py-1 text-red-700">{s.absent} falt.</span>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          ))}
+                  </div>
+                  <ChevronDown size={20} className={cn('shrink-0 text-slate-400 transition', isOpen && 'rotate-180')} />
+                </button>
+
+                {isOpen ? (
+                  <div className="divide-y divide-slate-100 border-t border-slate-100">
+                    {sessions.map((s) => (
+                      <div key={s.id} className="flex items-center gap-3 px-4 py-3">
+                        <p className="flex-1 text-sm font-bold text-slate-700">
+                          {format(parseISO(s.session_date), "EEE, d 'de' MMM", { locale: ptBR })}
+                        </p>
+                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{s.present} pres.</span>
+                        <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">{s.absent} falt.</span>
+                        <button
+                          onClick={() => confirm(`Excluir a chamada de ${format(parseISO(s.session_date), 'dd/MM/yyyy')}?`) && delSession.mutate(s.id)}
+                          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                          aria-label="Excluir chamada"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    ))}
+                    <Link
+                      to="/relatorios"
+                      state={{ classId }}
+                      className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-emerald-700 hover:bg-emerald-50"
+                    >
+                      <BarChart3 size={16} /> Analisar esta turma →
+                    </Link>
+                  </div>
+                ) : null}
+              </Card>
+            );
+          })}
         </div>
       )}
     </>

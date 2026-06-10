@@ -28,6 +28,7 @@ export function ClassesPage() {
     qc.invalidateQueries({ queryKey: ['classes'] });
     qc.invalidateQueries({ queryKey: ['students'] });
     qc.invalidateQueries({ queryKey: ['students-by-class'] });
+    qc.invalidateQueries({ queryKey: ['recent-sessions'] });
     qc.invalidateQueries({ queryKey: ['counts'] });
   };
 

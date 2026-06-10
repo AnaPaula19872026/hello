@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { endOfMonth, endOfYear, format, startOfMonth, startOfYear, subMonths } from 'date-fns';
 import { BarChart3, FileDown, Printer } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button, Card, EmptyState, Field, PageHeader, Select } from '../components/ui';
 import { cn } from '../lib/cn';
 import { downloadXlsx } from '../lib/importSheet';
@@ -21,6 +22,13 @@ export function ReportsPage() {
   const [studentId, setStudentId] = useState('all');
   const [minPct, setMinPct] = useState(75);
   const [onlyBelow, setOnlyBelow] = useState(false);
+
+  // Pré-seleciona a turma ao vir do "Analisar" da tela inicial.
+  const location = useLocation();
+  useEffect(() => {
+    const fromState = (location.state as { classId?: string } | null)?.classId;
+    if (fromState) setClassId(fromState);
+  }, [location.state]);
 
   const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
   const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: listSchools });
@@ -86,8 +94,8 @@ export function ReportsPage() {
         titulo,
         [`Frequência — Turma ${className} — ${fmtBR(from)} a ${fmtBR(to)}`],
         [],
-        ['Aluno', 'Presenças', 'Faltas', 'Atrasos', 'Justificadas', 'Total', '% Presença'],
-        ...freqRows.map((r) => [r.name, r.present, r.absent, r.late, r.justified, r.total, r.pct]),
+        ['Aluno', 'Presenças', 'Faltas', 'Total', '% Presença', 'Dias de falta'],
+        ...freqRows.map((r) => [r.name, r.present, r.absent, r.total, r.pct, r.absentDates.map(fmtBR).join(', ')]),
       ];
       downloadXlsx(`frequencia-${slug(className)}-${from}_a_${to}.xlsx`, aoa, 'Frequência');
     } else {
@@ -249,37 +257,34 @@ export function ReportsPage() {
               <Stat label="Presença média" value={`${freqSummary.avg}%`} />
               <Stat label={`Abaixo de ${minPct}%`} value={freqSummary.risco} danger={freqSummary.risco > 0} />
             </div>
-            <Card className="overflow-x-auto p-0">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
-                  <tr>
-                    <th className="p-3">Aluno</th>
-                    <th className="p-3 text-center">Pres.</th>
-                    <th className="p-3 text-center">Faltas</th>
-                    <th className="p-3 text-center">Atrasos</th>
-                    <th className="p-3 text-center">Just.</th>
-                    <th className="p-3 text-center">% Presença</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {freqRows.map((r) => (
-                    <tr key={r.student_id} className="border-t border-slate-100">
-                      <td className="p-3 font-bold text-slate-800">{r.name}</td>
-                      <td className="p-3 text-center">{r.present}</td>
-                      <td className="p-3 text-center font-bold text-red-600">{r.absent}</td>
-                      <td className="p-3 text-center">{r.late}</td>
-                      <td className="p-3 text-center">{r.justified}</td>
-                      <td className="p-3 text-center">
-                        <span className={cn('font-black', r.pct < minPct ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</span>
-                      </td>
-                    </tr>
-                  ))}
-                  {freqRows.length === 0 ? (
-                    <tr><td colSpan={6} className="p-6 text-center text-slate-400">Nenhum dado no período.</td></tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </Card>
+            {freqRows.length === 0 ? (
+              <Card><p className="text-center text-slate-400">Nenhum dado no período.</p></Card>
+            ) : (
+              <div className="space-y-2">
+                {freqRows.map((r) => (
+                  <Card key={r.student_id} className="p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="min-w-0 flex-1 truncate font-bold text-slate-800">{r.name}</p>
+                      <span className={cn('text-lg font-black', r.pct < minPct ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</span>
+                    </div>
+                    {r.absent === 0 ? (
+                      <p className="mt-1 text-sm font-semibold text-emerald-700">Sem faltas · {r.present}/{r.total} aulas</p>
+                    ) : (
+                      <div className="mt-2">
+                        <p className="text-sm font-bold text-red-600">{r.absent} falta(s):</p>
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {r.absentDates.map((d) => (
+                            <span key={d} className="rounded-lg bg-red-50 px-2 py-1 text-xs font-bold text-red-700">
+                              {fmtDM(d)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            )}
           </>
         )
       ) : notas.isLoading ? (
@@ -324,6 +329,10 @@ export function ReportsPage() {
 
 function fmtBR(iso: string) {
   return iso.split('-').reverse().join('/');
+}
+function fmtDM(iso: string) {
+  const [, m, d] = iso.split('-');
+  return `${d}/${m}`;
 }
 
 function Stat({ label, value, danger }: { label: string; value: number | string; danger?: boolean }) {
