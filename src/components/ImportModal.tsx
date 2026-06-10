@@ -1,6 +1,6 @@
-import { CheckCircle2, Download, FileSpreadsheet, Upload } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Upload } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { downloadTemplate, parseSheet, type ColumnDef, type ParseResult } from '../lib/importSheet';
+import { downloadTemplate, parseSheet, type ColumnDef, type ImportResult, type ParseResult } from '../lib/importSheet';
 import { Button, Modal } from './ui';
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
   title: string;
   columns: ColumnDef[];
   templateFileName: string;
-  importFn: (rows: Record<string, string>[]) => Promise<number>;
+  importFn: (rows: Record<string, string>[]) => Promise<number | ImportResult>;
   onDone?: () => void;
   /** Conteúdo opcional acima do upload (ex.: escolher escola/turma). */
   contextSlot?: ReactNode;
@@ -34,7 +34,7 @@ export function ImportModal({
   const [fileName, setFileName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [done, setDone] = useState<number | null>(null);
+  const [done, setDone] = useState<ImportResult | null>(null);
   const [dragging, setDragging] = useState(false);
 
   function reset() {
@@ -83,8 +83,9 @@ export function ImportModal({
     setBusy(true);
     setError('');
     try {
-      const n = await importFn(parsed.rows);
-      setDone(n);
+      const r = await importFn(parsed.rows);
+      const result: ImportResult = typeof r === 'number' ? { created: r } : r;
+      setDone(result);
       onDone?.();
     } catch (err) {
       setError((err as Error).message);
@@ -93,12 +94,27 @@ export function ImportModal({
     }
   }
 
+  const dups = done?.duplicates ?? [];
+
   return (
     <Modal open={open} onClose={close} title={title}>
       {done !== null ? (
-        <div className="py-4 text-center">
+        <div className="py-2 text-center">
           <CheckCircle2 size={48} className="mx-auto text-emerald-600" />
-          <p className="mt-3 text-lg font-black text-slate-900">{done} cadastrado(s)!</p>
+          <p className="mt-3 text-lg font-black text-slate-900">{done.created} cadastrado(s)!</p>
+          {done.note ? <p className="mt-1 text-sm text-slate-500">{done.note}</p> : null}
+          {dups.length ? (
+            <div className="mt-4 rounded-xl bg-amber-50 p-3 text-left">
+              <p className="flex items-center gap-2 text-sm font-bold text-amber-800">
+                <AlertTriangle size={16} /> {dups.length} já cadastrado(s) — ignorado(s):
+              </p>
+              <div className="mt-2 max-h-40 overflow-y-auto text-xs text-amber-700">
+                {dups.map((d, i) => (
+                  <p key={i}>• {d}</p>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <Button className="mt-5" onClick={close}>
             Concluir
           </Button>

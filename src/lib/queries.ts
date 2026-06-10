@@ -171,10 +171,15 @@ export async function bulkInsertStudents(
   return payload.length;
 }
 
+export interface ImportAllResult {
+  schools: number;
+  classes: number;
+  students: number;
+  duplicates: string[]; // alunos que já estavam cadastrados (ignorados)
+}
+
 /** Importação inteligente: uma planilha cria escolas, turmas e alunos conforme preenchido. */
-export async function bulkImportAll(
-  rows: Record<string, string>[],
-): Promise<{ schools: number; classes: number; students: number }> {
+export async function bulkImportAll(rows: Record<string, string>[]): Promise<ImportAllResult> {
   const [schools, classes, allStudents] = await Promise.all([listSchools(), listClasses(), listStudents()]);
 
   const schoolMap = new Map(schools.map((s) => [s.name.toLowerCase().trim(), s.id]));
@@ -185,6 +190,7 @@ export async function bulkImportAll(
   let cS = 0;
   let cC = 0;
   let cStu = 0;
+  const duplicates: string[] = [];
 
   for (const r of rows) {
     const schoolName = (r.school || '').trim();
@@ -228,8 +234,14 @@ export async function bulkImportAll(
       const reg = (r.registration || '').trim();
       const regKey = `${schoolId}|${reg}`;
       const nameKey = `${classId || ''}|${studentName.toLowerCase()}`;
-      if (reg && regSet.has(regKey)) continue;
-      if (classId && nameSet.has(nameKey)) continue;
+      if (reg && regSet.has(regKey)) {
+        duplicates.push(`${studentName} (matrícula ${reg} já cadastrada)`);
+        continue;
+      }
+      if (classId && nameSet.has(nameKey)) {
+        duplicates.push(`${studentName} (já cadastrado nessa turma)`);
+        continue;
+      }
       const { error } = await supabase.from('students').insert({
         school_id: schoolId,
         class_id: classId ?? null,
@@ -238,14 +250,23 @@ export async function bulkImportAll(
         guardian_name: (r.guardian || '').trim() || null,
         guardian_phone: (r.phone || '').trim() || null,
       });
-      if (error) continue; // pula duplicado/erro de linha sem abortar a importação
+      if (error) {
+        duplicates.push(`${studentName} (já cadastrado)`);
+        continue;
+      }
       if (reg) regSet.add(regKey);
       if (classId) nameSet.add(nameKey);
       cStu++;
     }
   }
 
-  return { schools: cS, classes: cC, students: cStu };
+  return { schools: cS, classes: cC, students: cStu, duplicates };
+}
+
+/** Converte o resultado da importação para o formato exibido no modal. */
+export function importResultToModal(r: ImportAllResult): { created: number; note?: string; duplicates?: string[] } {
+  const extra = [r.schools ? `${r.schools} escola(s)` : '', r.classes ? `${r.classes} turma(s)` : ''].filter(Boolean).join(' · ');
+  return { created: r.students, note: extra ? `Também criou ${extra}.` : undefined, duplicates: r.duplicates };
 }
 
 /* ---------------------------------- Chamadas ----------------------------------- */

@@ -45,6 +45,12 @@ export interface ParseResult {
   errors: string[];
 }
 
+export interface ImportResult {
+  created: number;
+  note?: string;
+  duplicates?: string[];
+}
+
 /** Lê o arquivo (aba com mais dados), mapeia pelas colunas e ignora a linha de exemplo. */
 export async function parseSheet(file: File, columns: ColumnDef[]): Promise<ParseResult> {
   const XLSX = await import('xlsx');

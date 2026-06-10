@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
 import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar } from '../components/ui';
-import { bulkDeleteStudents, bulkImportAll, deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
+import { bulkDeleteStudents, bulkImportAll, importResultToModal, deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
 import { CADASTRO_COLUMNS } from '../lib/importSheet';
 import type { Student } from '../lib/types';
 import { useSelection } from '../lib/useSelection';
@@ -243,7 +243,7 @@ export function StudentsPage() {
         title="Importar cadastros"
         columns={CADASTRO_COLUMNS}
         templateFileName="modelo-cadastro.xlsx"
-        importFn={(rows) => bulkImportAll(rows).then((r) => r.schools + r.classes + r.students)}
+        importFn={(rows) => bulkImportAll(rows).then(importResultToModal)}
         onDone={refresh}
       />
     </>

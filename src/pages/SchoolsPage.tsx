@@ -5,7 +5,7 @@ import { ImportModal } from '../components/ImportModal';
 import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, SelectionBar } from '../components/ui';
 import { fileToCompressedDataUrl } from '../lib/image';
 import { CADASTRO_COLUMNS } from '../lib/importSheet';
-import { bulkDeleteSchools, bulkImportAll, deleteSchool, listSchools, saveSchool } from '../lib/queries';
+import { bulkDeleteSchools, bulkImportAll, importResultToModal, deleteSchool, listSchools, saveSchool } from '../lib/queries';
 import type { School } from '../lib/types';
 import { useSelection } from '../lib/useSelection';
 
@@ -217,7 +217,7 @@ export function SchoolsPage() {
         title="Importar cadastros"
         columns={CADASTRO_COLUMNS}
         templateFileName="modelo-cadastro.xlsx"
-        importFn={(rows) => bulkImportAll(rows).then((r) => r.schools + r.classes + r.students)}
+        importFn={(rows) => bulkImportAll(rows).then(importResultToModal)}
         onDone={refresh}
       />
     </>
