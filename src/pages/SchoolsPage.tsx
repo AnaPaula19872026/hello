@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, FileSpreadsheet, ImagePlus, MapPin, Pencil, Phone, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { ImportModal } from '../components/ImportModal';
-import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, SelectionBar } from '../components/ui';
+import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, SelectionBar, SelectModeButton } from '../components/ui';
 import { fileToCompressedDataUrl } from '../lib/image';
 import { CADASTRO_COLUMNS } from '../lib/importSheet';
 import { bulkDeleteSchools, bulkImportAll, importResultToModal, deleteSchool, listSchools, saveSchool } from '../lib/queries';
@@ -44,9 +44,11 @@ export function SchoolsPage() {
     mutationFn: () => bulkDeleteSchools([...sel.ids]),
     onSuccess: () => {
       refresh();
-      sel.clear();
+      sel.disable();
     },
   });
+  const allSelected = data.length > 0 && data.every((s) => sel.has(s.id));
+  const toggleAll = () => (allSelected ? sel.clear() : sel.setAll(data.map((s) => s.id)));
 
   function openNew() {
     setEditing(null);
@@ -94,7 +96,8 @@ export function SchoolsPage() {
         title="Escolas"
         subtitle="Unidades onde você faz as chamadas."
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <SelectModeButton active={sel.active} onEnable={sel.enable} onCancel={sel.disable} />
             <Button variant="ghost" onClick={() => setImportOpen(true)}>
               <FileSpreadsheet size={18} /> Importar
             </Button>
@@ -114,15 +117,10 @@ export function SchoolsPage() {
         />
       ) : (
         <>
-          <SelectionBar count={sel.size} onClear={sel.clear} onDelete={() => confirm(`Excluir ${sel.size} escola(s)? Turmas e alunos vinculados também serão removidos.`) && bulkRemove.mutate()} busy={bulkRemove.isPending} />
-          <label className="mb-2 flex cursor-pointer items-center gap-2 px-1 text-sm font-bold text-slate-500">
-            <CheckBox checked={data.length > 0 && data.every((s) => sel.has(s.id))} onChange={() => (data.every((s) => sel.has(s.id)) ? sel.clear() : sel.setAll(data.map((s) => s.id)))} />
-            Selecionar todas ({data.length})
-          </label>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={`grid gap-3 sm:grid-cols-2 ${sel.active ? 'pb-24' : ''}`}>
           {data.map((s) => (
             <Card key={s.id} className="flex items-start gap-3">
-              <CheckBox checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} />
+              {sel.active ? <CheckBox checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} /> : null}
               <Logo src={s.logo_url} name={s.name} />
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-base font-black text-slate-900">{s.name}</h3>
@@ -155,6 +153,16 @@ export function SchoolsPage() {
           </div>
         </>
       )}
+
+      <SelectionBar
+        active={sel.active}
+        count={sel.size}
+        allSelected={allSelected}
+        onToggleAll={toggleAll}
+        onCancel={sel.disable}
+        onDelete={() => confirm(`Excluir ${sel.size} escola(s)? Turmas e alunos vinculados também serão removidos.`) && bulkRemove.mutate()}
+        busy={bulkRemove.isPending}
+      />
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Editar escola' : 'Nova escola'}>
         <form onSubmit={onSubmit} className="space-y-4">

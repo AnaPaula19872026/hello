@@ -1,5 +1,5 @@
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Check, CheckSquare, Plus, Trash2, X } from 'lucide-react';
 import { Fragment, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
 import { cn } from '../lib/cn';
 
@@ -115,28 +115,57 @@ export function EmptyState({ icon, title, hint, action }: { icon: ReactNode; tit
   );
 }
 
-/* -------------------------- Barra de seleção múltipla -------------------------- */
+/* -------------------------- Seleção múltipla (modo) ---------------------------- */
+
+/** Botão de cabeçalho que entra/sai do modo de seleção. */
+export function SelectModeButton({ active, onEnable, onCancel }: { active: boolean; onEnable: () => void; onCancel: () => void }) {
+  return active ? (
+    <Button variant="ghost" onClick={onCancel}>
+      <X size={18} /> Cancelar
+    </Button>
+  ) : (
+    <Button variant="ghost" onClick={onEnable}>
+      <CheckSquare size={18} /> Selecionar
+    </Button>
+  );
+}
+
+/** Barra flutuante de ações da seleção (só aparece no modo de seleção). */
 export function SelectionBar({
+  active,
   count,
-  onClear,
+  allSelected,
+  onToggleAll,
   onDelete,
+  onCancel,
   busy,
 }: {
+  active: boolean;
   count: number;
-  onClear: () => void;
+  allSelected: boolean;
+  onToggleAll: () => void;
   onDelete: () => void;
+  onCancel: () => void;
   busy?: boolean;
 }) {
-  if (!count) return null;
+  if (!active) return null;
   return (
-    <div className="sticky top-2 z-20 mb-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-soft">
-      <span className="text-sm font-black text-slate-800">{count} selecionado(s)</span>
-      <button onClick={onClear} className="text-sm font-bold text-slate-500 hover:text-slate-900">
-        Limpar
-      </button>
-      <Button variant="danger" className="ml-auto" onClick={onDelete} disabled={busy}>
-        <Trash2 size={16} /> {busy ? 'Excluindo…' : 'Excluir selecionados'}
-      </Button>
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_30px_rgba(15,23,42,.10)] backdrop-blur lg:pl-72">
+      <div className="mx-auto flex max-w-5xl items-center gap-3 px-1">
+        <button onClick={onToggleAll} className="flex shrink-0 items-center gap-2 text-sm font-bold text-slate-600">
+          <span className={cn('grid h-5 w-5 place-items-center rounded border', allSelected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300')}>
+            {allSelected ? <Check size={14} /> : null}
+          </span>
+          Todos
+        </button>
+        <span className="text-sm font-black text-slate-800">{count} selecionado(s)</span>
+        <button onClick={onCancel} className="ml-auto hidden text-sm font-bold text-slate-500 hover:text-slate-900 sm:block">
+          Cancelar
+        </button>
+        <Button variant="danger" className="ml-auto sm:ml-0" onClick={onDelete} disabled={!count || busy}>
+          <Trash2 size={16} /> {busy ? 'Excluindo…' : count ? `Excluir (${count})` : 'Excluir'}
+        </Button>
+      </div>
     </div>
   );
 }

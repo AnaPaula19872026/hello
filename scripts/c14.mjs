@@ -1,0 +1,18 @@
+import puppeteer from 'puppeteer-core';
+import fs from 'node:fs';
+const session = JSON.parse(fs.readFileSync('/tmp/session.json','utf8'));
+const b = await puppeteer.launch({executablePath:'/usr/bin/google-chrome-stable',headless:'new',args:['--no-sandbox']});
+const p = await b.newPage(); await p.setViewport({width:1280,height:900});
+const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:5173/',{waitUntil:'domcontentloaded'});
+await p.evaluate(([k,v])=>localStorage.setItem(k,v),['sb-rogvgrnkjvxdulkcunuo-auth-token',JSON.stringify(session)]);
+await p.goto('http://localhost:5173/alunos',{waitUntil:'networkidle2'});
+await new Promise(x=>setTimeout(x,1500));
+const before = await p.evaluate(()=>({checkboxes:document.querySelectorAll('input[type=checkbox]').length, temSelecionar:[...document.querySelectorAll('button')].some(b=>/Selecionar/.test(b.textContent))}));
+console.log('ANTES (limpo):', JSON.stringify(before));
+await p.evaluate(()=>{const b=[...document.querySelectorAll('button')].find(x=>/Selecionar/.test(x.textContent)); b&&b.click();});
+await new Promise(x=>setTimeout(x,500));
+const after = await p.evaluate(()=>({checkboxes:document.querySelectorAll('input[type=checkbox]').length, temCancelar:[...document.querySelectorAll('button')].some(b=>/Cancelar/.test(b.textContent)), barraExcluir:[...document.querySelectorAll('button')].some(b=>/Excluir/.test(b.textContent))}));
+console.log('DEPOIS (modo selecao):', JSON.stringify(after));
+console.log('erros:', errs.length?errs.join(' | '):'NENHUM');
+await b.close();

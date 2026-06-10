@@ -3,7 +3,7 @@ import { FileSpreadsheet, Pencil, Phone, Search, Trash2, Users } from 'lucide-re
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
-import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar } from '../components/ui';
+import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar, SelectModeButton } from '../components/ui';
 import { bulkDeleteStudents, bulkImportAll, importResultToModal, deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
 import { CADASTRO_COLUMNS } from '../lib/importSheet';
 import type { Student } from '../lib/types';
@@ -44,7 +44,7 @@ export function StudentsPage() {
     mutationFn: () => bulkDeleteStudents([...sel.ids]),
     onSuccess: () => {
       refresh();
-      sel.clear();
+      sel.disable();
     },
   });
 
@@ -61,6 +61,8 @@ export function StudentsPage() {
   );
 
   const orphans = useMemo(() => students.filter((s) => s.class_id === null).length, [students]);
+  const allSelected = list.length > 0 && list.every((s) => sel.has(s.id));
+  const toggleAll = () => (allSelected ? sel.clear() : sel.setAll(list.map((s) => s.id)));
 
   function openNew() {
     setEditing(null);
@@ -94,7 +96,8 @@ export function StudentsPage() {
         title="Alunos"
         subtitle={`${students.length} aluno(s) cadastrado(s).`}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <SelectModeButton active={sel.active} onEnable={sel.enable} onCancel={sel.disable} />
             <Button variant="ghost" onClick={() => setImportOpen(true)}>
               <FileSpreadsheet size={18} /> Importar
             </Button>
@@ -150,15 +153,10 @@ export function StudentsPage() {
           action={<AddButton onClick={openNew} label="Novo aluno" />}
         />
       ) : (
-        <div className="space-y-2">
-          <SelectionBar count={sel.size} onClear={sel.clear} onDelete={() => confirm(`Excluir ${sel.size} aluno(s)?`) && bulkRemove.mutate()} busy={bulkRemove.isPending} />
-          <label className="flex cursor-pointer items-center gap-2 px-1 text-sm font-bold text-slate-500">
-            <CheckBox checked={list.length > 0 && list.every((s) => sel.has(s.id))} onChange={() => (list.every((s) => sel.has(s.id)) ? sel.clear() : sel.setAll(list.map((s) => s.id)))} />
-            Selecionar todos ({list.length})
-          </label>
+        <div className={`space-y-2 ${sel.active ? 'pb-24' : ''}`}>
           {list.map((s, i) => (
             <Card key={s.id} className="flex items-center justify-between gap-3 p-4">
-              <CheckBox checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} />
+              {sel.active ? <CheckBox checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} /> : null}
               <span className="w-6 shrink-0 text-right text-sm font-bold text-slate-400">{i + 1}</span>
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-base font-bold text-slate-900">{s.full_name}</h3>
@@ -190,6 +188,16 @@ export function StudentsPage() {
       )}
         </>
       )}
+
+      <SelectionBar
+        active={sel.active}
+        count={sel.size}
+        allSelected={allSelected}
+        onToggleAll={toggleAll}
+        onCancel={sel.disable}
+        onDelete={() => confirm(`Excluir ${sel.size} aluno(s)?`) && bulkRemove.mutate()}
+        busy={bulkRemove.isPending}
+      />
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Editar aluno' : 'Novo aluno'}>
         {classes.length === 0 ? (

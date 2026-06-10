@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Award, Save, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Card, CheckBox, EmptyState, PageHeader, Select, SelectionBar } from '../components/ui';
+import { Card, CheckBox, EmptyState, PageHeader, Select, SelectionBar, SelectModeButton } from '../components/ui';
 import { cn } from '../lib/cn';
 import { bulkDeleteGrades, listClasses, listGrades, listStudentsByClass, saveGrades } from '../lib/queries';
 import { MONTHS, SUBJECT } from '../lib/types';
@@ -99,9 +99,11 @@ export function NotasPage() {
     mutationFn: () => bulkDeleteGrades(classId, year, month, [...sel.ids]),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['grades', classId, year] });
-      sel.clear();
+      sel.disable();
     },
   });
+  const allSelected = list.length > 0 && list.every((s) => sel.has(s.id));
+  const toggleAll = () => (allSelected ? sel.clear() : sel.setAll(list.map((s) => s.id)));
 
   if (classes.length === 0) {
     return (
@@ -116,7 +118,11 @@ export function NotasPage() {
 
   return (
     <div className="pb-28">
-      <PageHeader title="Notas" subtitle={`${SUBJECT} • lançamento mensal (0–10)`} />
+      <PageHeader
+        title="Notas"
+        subtitle={`${SUBJECT} • lançamento mensal (0–10)`}
+        action={<SelectModeButton active={sel.active} onEnable={sel.enable} onCancel={sel.disable} />}
+      />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Select value={classId} onChange={(e) => setClassId(e.target.value)}>
@@ -154,22 +160,12 @@ export function NotasPage() {
       ) : students.length === 0 ? (
         <EmptyState icon={<Award size={26} />} title="Turma sem alunos" hint="Cadastre alunos nesta turma para lançar notas." />
       ) : (
-        <div className="space-y-2">
-          <SelectionBar
-            count={sel.size}
-            onClear={sel.clear}
-            onDelete={() => confirm(`Apagar as notas de ${MONTHS[month - 1]}/${year} de ${sel.size} aluno(s)?`) && bulkRemove.mutate()}
-            busy={bulkRemove.isPending}
-          />
-          <label className="flex cursor-pointer items-center gap-2 px-1 text-sm font-bold text-slate-500">
-            <CheckBox checked={list.length > 0 && list.every((s) => sel.has(s.id))} onChange={() => (list.every((s) => sel.has(s.id)) ? sel.clear() : sel.setAll(list.map((s) => s.id)))} />
-            Selecionar todos ({list.length})
-          </label>
+        <div className={`space-y-2 ${sel.active ? 'pb-24' : ''}`}>
           {list.map((s, i) => {
             const m = media[s.id];
             return (
               <Card key={s.id} className="flex items-center justify-between gap-3 p-3">
-                <CheckBox checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} />
+                {sel.active ? <CheckBox checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} /> : null}
                 <span className="w-6 shrink-0 text-right text-sm font-bold text-slate-400">{i + 1}</span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-slate-900">{s.full_name}</p>
@@ -195,7 +191,17 @@ export function NotasPage() {
         </div>
       )}
 
-      {students.length > 0 ? (
+      <SelectionBar
+        active={sel.active}
+        count={sel.size}
+        allSelected={allSelected}
+        onToggleAll={toggleAll}
+        onCancel={sel.disable}
+        onDelete={() => confirm(`Apagar as notas de ${MONTHS[month - 1]}/${year} de ${sel.size} aluno(s)?`) && bulkRemove.mutate()}
+        busy={bulkRemove.isPending}
+      />
+
+      {students.length > 0 && !sel.active ? (
         <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:pl-72">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-1">
             <p className="hidden text-sm font-semibold text-slate-500 sm:block">

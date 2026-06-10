@@ -3,7 +3,7 @@ import { FileSpreadsheet, GraduationCap, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
-import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar } from '../components/ui';
+import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar, SelectModeButton } from '../components/ui';
 import { bulkDeleteClasses, bulkImportAll, importResultToModal, deleteClass, listClasses, listSchools, saveClass } from '../lib/queries';
 import { useSelection } from '../lib/useSelection';
 import { CADASTRO_COLUMNS } from '../lib/importSheet';
@@ -42,9 +42,11 @@ export function ClassesPage() {
     mutationFn: () => bulkDeleteClasses([...sel.ids]),
     onSuccess: () => {
       refresh();
-      sel.clear();
+      sel.disable();
     },
   });
+  const allSelected = classes.length > 0 && classes.every((c) => sel.has(c.id));
+  const toggleAll = () => (allSelected ? sel.clear() : sel.setAll(classes.map((c) => c.id)));
 
   const schoolName = (id: string) => schools.find((s) => s.id === id)?.name ?? '—';
 
@@ -75,7 +77,8 @@ export function ClassesPage() {
         title="Turmas"
         subtitle="Turmas vinculadas a uma escola."
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <SelectModeButton active={sel.active} onEnable={sel.enable} onCancel={sel.disable} />
             <Button variant="ghost" onClick={() => setImportOpen(true)}>
               <FileSpreadsheet size={18} /> Importar
             </Button>
@@ -106,15 +109,10 @@ export function ClassesPage() {
         />
       ) : (
         <>
-          <SelectionBar count={sel.size} onClear={sel.clear} onDelete={() => confirm(`Excluir ${sel.size} turma(s)? Os alunos não são excluídos, ficam sem turma.`) && bulkRemove.mutate()} busy={bulkRemove.isPending} />
-          <label className="mb-2 flex cursor-pointer items-center gap-2 px-1 text-sm font-bold text-slate-500">
-            <CheckBox checked={classes.length > 0 && classes.every((c) => sel.has(c.id))} onChange={() => (classes.every((c) => sel.has(c.id)) ? sel.clear() : sel.setAll(classes.map((c) => c.id)))} />
-            Selecionar todas ({classes.length})
-          </label>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={`grid gap-3 sm:grid-cols-2 ${sel.active ? 'pb-24' : ''}`}>
           {classes.map((c) => (
             <Card key={c.id} className="flex items-start gap-3">
-              <CheckBox checked={sel.has(c.id)} onChange={() => sel.toggle(c.id)} />
+              {sel.active ? <CheckBox checked={sel.has(c.id)} onChange={() => sel.toggle(c.id)} /> : null}
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-base font-black text-slate-900">{c.name}</h3>
                 <p className="mt-1 text-sm text-slate-500">{schoolName(c.school_id)}</p>
@@ -140,6 +138,16 @@ export function ClassesPage() {
           </div>
         </>
       )}
+
+      <SelectionBar
+        active={sel.active}
+        count={sel.size}
+        allSelected={allSelected}
+        onToggleAll={toggleAll}
+        onCancel={sel.disable}
+        onDelete={() => confirm(`Excluir ${sel.size} turma(s)? Os alunos não são excluídos, ficam sem turma.`) && bulkRemove.mutate()}
+        busy={bulkRemove.isPending}
+      />
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Editar turma' : 'Nova turma'}>
         {schools.length === 0 ? (
