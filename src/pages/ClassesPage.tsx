@@ -24,22 +24,29 @@ export function ClassesPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [importSchool, setImportSchool] = useState('');
 
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['classes'] });
+    qc.invalidateQueries({ queryKey: ['students'] });
+    qc.invalidateQueries({ queryKey: ['students-by-class'] });
+    qc.invalidateQueries({ queryKey: ['counts'] });
+  };
+
   const save = useMutation({
     mutationFn: saveClass,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['classes'] });
+      refresh();
       setOpen(false);
     },
   });
   const remove = useMutation({
     mutationFn: deleteClass,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['classes'] }),
+    onSuccess: refresh,
   });
   const sel = useSelection();
   const bulkRemove = useMutation({
     mutationFn: () => bulkDeleteClasses([...sel.ids]),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['classes'] });
+      refresh();
       sel.clear();
     },
   });
@@ -214,7 +221,7 @@ export function ClassesPage() {
           </Field>
         }
         importFn={(rows) => bulkInsertClasses(importSchool, rows as { name: string; shift?: string; year?: string }[])}
-        onDone={() => qc.invalidateQueries({ queryKey: ['classes'] })}
+        onDone={refresh}
       />
     </>
   );

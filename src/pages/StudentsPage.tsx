@@ -27,22 +27,29 @@ export function StudentsPage() {
   const [q, setQ] = useState('');
   const [classFilter, setClassFilter] = useState('all');
 
+  // Atualiza listas dependentes: cadastro, chamada/notas por turma e contadores.
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['students'] });
+    qc.invalidateQueries({ queryKey: ['students-by-class'] });
+    qc.invalidateQueries({ queryKey: ['counts'] });
+  };
+
   const save = useMutation({
     mutationFn: saveStudent,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['students'] });
+      refresh();
       setOpen(false);
     },
   });
   const remove = useMutation({
     mutationFn: deleteStudent,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['students'] }),
+    onSuccess: refresh,
   });
   const sel = useSelection();
   const bulkRemove = useMutation({
     mutationFn: () => bulkDeleteStudents([...sel.ids]),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['students'] });
+      refresh();
       sel.clear();
     },
   });
@@ -256,7 +263,7 @@ export function StudentsPage() {
             rows as { full_name: string; registration?: string; guardian_name?: string; guardian_phone?: string }[],
           );
         }}
-        onDone={() => qc.invalidateQueries({ queryKey: ['students'] })}
+        onDone={refresh}
       />
     </>
   );

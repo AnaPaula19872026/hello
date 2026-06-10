@@ -23,22 +23,31 @@ export function SchoolsPage() {
   const [logo, setLogo] = useState<string | null>(null);
   const [logoErr, setLogoErr] = useState('');
 
+  // Excluir escola cascateia turmas/alunos — atualiza tudo + contadores.
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['schools'] });
+    qc.invalidateQueries({ queryKey: ['classes'] });
+    qc.invalidateQueries({ queryKey: ['students'] });
+    qc.invalidateQueries({ queryKey: ['students-by-class'] });
+    qc.invalidateQueries({ queryKey: ['counts'] });
+  };
+
   const save = useMutation({
     mutationFn: saveSchool,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['schools'] });
+      refresh();
       setOpen(false);
     },
   });
   const remove = useMutation({
     mutationFn: deleteSchool,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['schools'] }),
+    onSuccess: refresh,
   });
   const sel = useSelection();
   const bulkRemove = useMutation({
     mutationFn: () => bulkDeleteSchools([...sel.ids]),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['schools'] });
+      refresh();
       sel.clear();
     },
   });
@@ -213,7 +222,7 @@ export function SchoolsPage() {
         columns={IMPORT_COLUMNS}
         templateFileName="modelo-escolas.xlsx"
         importFn={(rows) => bulkInsertSchools(rows as { name: string; city?: string }[])}
-        onDone={() => qc.invalidateQueries({ queryKey: ['schools'] })}
+        onDone={refresh}
       />
     </>
   );
