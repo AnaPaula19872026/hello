@@ -145,17 +145,18 @@ export function AttendancePage() {
         <EmptyState icon={<ClipboardCheck size={26} />} title="Turma sem alunos" hint="Cadastre alunos nesta turma para fazer a chamada." />
       ) : (
         <div className="space-y-2">
-          {list.map((s) => {
+          {list.map((s, i) => {
             const absent = records[s.id] === 'absent';
             return (
               <button
                 key={s.id}
                 onClick={() => toggle(s.id)}
                 className={cn(
-                  'flex w-full items-center justify-between gap-3 rounded-2xl border p-4 text-left transition active:scale-[.99]',
+                  'flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition active:scale-[.99]',
                   absent ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50/60',
                 )}
               >
+                <span className={cn('w-6 shrink-0 text-right text-sm font-bold', absent ? 'text-red-400' : 'text-slate-400')}>{i + 1}</span>
                 <span className={cn('min-w-0 flex-1 truncate text-base font-bold', absent ? 'text-red-800' : 'text-slate-800')}>
                   {s.full_name}
                 </span>

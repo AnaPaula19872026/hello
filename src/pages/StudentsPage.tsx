@@ -168,9 +168,10 @@ export function StudentsPage() {
             <CheckBox checked={list.length > 0 && list.every((s) => sel.has(s.id))} onChange={() => (list.every((s) => sel.has(s.id)) ? sel.clear() : sel.setAll(list.map((s) => s.id)))} />
             Selecionar todos ({list.length})
           </label>
-          {list.map((s) => (
+          {list.map((s, i) => (
             <Card key={s.id} className="flex items-center justify-between gap-3 p-4">
               <CheckBox checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} />
+              <span className="w-6 shrink-0 text-right text-sm font-bold text-slate-400">{i + 1}</span>
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-base font-bold text-slate-900">{s.full_name}</h3>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">

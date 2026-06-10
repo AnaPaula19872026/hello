@@ -165,11 +165,12 @@ export function NotasPage() {
             <CheckBox checked={list.length > 0 && list.every((s) => sel.has(s.id))} onChange={() => (list.every((s) => sel.has(s.id)) ? sel.clear() : sel.setAll(list.map((s) => s.id)))} />
             Selecionar todos ({list.length})
           </label>
-          {list.map((s) => {
+          {list.map((s, i) => {
             const m = media[s.id];
             return (
               <Card key={s.id} className="flex items-center justify-between gap-3 p-3">
                 <CheckBox checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} />
+                <span className="w-6 shrink-0 text-right text-sm font-bold text-slate-400">{i + 1}</span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-slate-900">{s.full_name}</p>
                   <p className="text-xs text-slate-500">
