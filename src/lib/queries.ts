@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { SUBJECT } from './types';
+import { calcMedia, type GradeActivity } from './types';
 import type {
   AttendanceRecord,
   AttendanceSession,
@@ -353,61 +353,64 @@ export async function listRecentSessions(limit = 10): Promise<RecentSession[]> {
   });
 }
 
-/* ------------------------------------ Notas ------------------------------------ */
-export interface GradeRow {
-  student_id: string;
-  year: number;
-  month: number;
-  score: number | null;
+/* ----------------------------- Notas por trimestre ----------------------------- */
+/** Composição de notas (atividades + valores) de um trimestre/ano. */
+export async function getTermConfig(year: number, term: number): Promise<GradeActivity[]> {
+  const { data, error } = await supabase
+    .from('grade_terms')
+    .select('activities')
+    .eq('year', year)
+    .eq('term', term)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return ((data?.activities as GradeActivity[]) ?? []).filter((a) => a && a.name);
 }
 
-/** Todas as notas de uma turma num ano (para preencher o mês e calcular médias). */
-export async function listGrades(classId: string, year: number): Promise<GradeRow[]> {
+export async function saveTermConfig(year: number, term: number, activities: GradeActivity[]): Promise<void> {
+  const { error } = await supabase
+    .from('grade_terms')
+    .upsert({ year, term, activities, updated_at: new Date().toISOString() }, { onConflict: 'year,term' });
+  if (error) throw new Error(error.message);
+}
+
+export interface TermGradeRow {
+  student_id: string;
+  scores: Record<string, number>;
+}
+export async function listTermGrades(classId: string, year: number, term: number): Promise<TermGradeRow[]> {
   return unwrap(
-    await supabase
-      .from('grades')
-      .select('student_id, year, month, score')
-      .eq('class_id', classId)
-      .eq('subject', SUBJECT)
-      .eq('year', year),
+    await supabase.from('term_grades').select('student_id, scores').eq('class_id', classId).eq('year', year).eq('term', term),
   );
 }
 
-/** Salva as notas de um mês (upsert por aluno). score null apaga a nota daquele mês. */
-export async function saveGrades(
+export async function saveTermGrades(
   classId: string,
   year: number,
-  month: number,
-  rows: { student_id: string; score: number | null }[],
+  term: number,
+  rows: TermGradeRow[],
 ): Promise<void> {
-  const toUpsert = rows.filter((r) => r.score !== null);
-  const toClear = rows.filter((r) => r.score === null).map((r) => r.student_id);
+  const payload = rows.map((r) => ({
+    class_id: classId,
+    student_id: r.student_id,
+    year,
+    term,
+    scores: r.scores,
+    updated_at: new Date().toISOString(),
+  }));
+  if (!payload.length) return;
+  const { error } = await supabase.from('term_grades').upsert(payload, { onConflict: 'student_id,year,term' });
+  if (error) throw new Error(error.message);
+}
 
-  if (toUpsert.length) {
-    const payload = toUpsert.map((r) => ({
-      class_id: classId,
-      student_id: r.student_id,
-      subject: SUBJECT,
-      year,
-      month,
-      score: r.score,
-      updated_at: new Date().toISOString(),
-    }));
-    const { error } = await supabase.from('grades').upsert(payload, { onConflict: 'student_id,subject,year,month' });
-    if (error) throw new Error(error.message);
-  }
-
-  if (toClear.length) {
-    const { error } = await supabase
-      .from('grades')
-      .delete()
-      .eq('class_id', classId)
-      .eq('subject', SUBJECT)
-      .eq('year', year)
-      .eq('month', month)
-      .in('student_id', toClear);
-    if (error) throw new Error(error.message);
-  }
+export async function bulkDeleteTermGrades(classId: string, year: number, term: number, studentIds: string[]): Promise<void> {
+  const { error } = await supabase
+    .from('term_grades')
+    .delete()
+    .eq('class_id', classId)
+    .eq('year', year)
+    .eq('term', term)
+    .in('student_id', studentIds);
+  if (error) throw new Error(error.message);
 }
 
 /* --------------------------------- Relatórios ---------------------------------- */
@@ -487,42 +490,29 @@ export async function getSharedReport(id: string): Promise<ReportPayload | null>
   return (data?.payload as ReportPayload) ?? null;
 }
 
-export interface GradesReportRow {
+export interface TermsReportRow {
   student_id: string;
   name: string;
-  months: (number | null)[]; // 12 posições
-  media: number | null;
+  terms: (number | null)[]; // média de cada trimestre (4 posições)
+  final: number | null; // média anual (média dos trimestres com nota)
 }
 
-export async function reportGrades(classId: string, year: number): Promise<GradesReportRow[]> {
-  const [grades, students] = await Promise.all([listGrades(classId, year), listStudentsByClass(classId)]);
+export async function reportTerms(classId: string, year: number): Promise<TermsReportRow[]> {
+  const [grades, students] = await Promise.all([
+    unwrap<{ student_id: string; term: number; scores: Record<string, number> }[]>(
+      await supabase.from('term_grades').select('student_id, term, scores').eq('class_id', classId).eq('year', year),
+    ),
+    listStudentsByClass(classId),
+  ]);
   return students.map((s) => {
-    const months: (number | null)[] = Array.from({ length: 12 }, (_, i) => {
-      const g = grades.find((x) => x.student_id === s.id && x.month === i + 1);
-      return g?.score != null ? Number(g.score) : null;
+    const terms: (number | null)[] = [1, 2, 3, 4].map((t) => {
+      const g = grades.find((x) => x.student_id === s.id && x.term === t);
+      return g ? calcMedia(g.scores) : null;
     });
-    const got = months.filter((m): m is number => m != null);
-    const media = got.length ? Math.round((got.reduce((a, b) => a + b, 0) / got.length) * 10) / 10 : null;
-    return { student_id: s.id, name: s.full_name, months, media };
+    const got = terms.filter((x): x is number => x != null);
+    const final = got.length ? Math.round((got.reduce((a, b) => a + b, 0) / got.length) * 10) / 10 : null;
+    return { student_id: s.id, name: s.full_name, terms, final };
   });
-}
-
-/** Apaga as notas do mês/ano informado para os alunos selecionados. */
-export async function bulkDeleteGrades(
-  classId: string,
-  year: number,
-  month: number,
-  studentIds: string[],
-): Promise<void> {
-  const { error } = await supabase
-    .from('grades')
-    .delete()
-    .eq('class_id', classId)
-    .eq('subject', SUBJECT)
-    .eq('year', year)
-    .eq('month', month)
-    .in('student_id', studentIds);
-  if (error) throw new Error(error.message);
 }
 
 /* ----------------------------------- Perfil ------------------------------------ */

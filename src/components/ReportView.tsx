@@ -1,5 +1,5 @@
 import { cn } from '../lib/cn';
-import { MONTHS, type ReportPayload } from '../lib/types';
+import type { ReportPayload } from '../lib/types';
 
 const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 function fmtDM(iso: string) {
@@ -111,6 +111,7 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
   const rows = payload.notasRows ?? [];
   if (rows.length === 0) return <p className="text-center text-slate-400">Nenhum dado.</p>;
   const pad = compact ? 'p-1.5' : 'p-2';
+  const TLABEL = ['1º tri', '2º tri', '3º tri', '4º tri'];
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
@@ -118,10 +119,10 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
         <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
           <tr>
             <th className={cn('sticky left-0 bg-slate-50', compact ? 'p-2' : 'p-3')}>Aluno</th>
-            {MONTHS.map((m) => (
-              <th key={m} className={cn('text-center', pad)}>{m.slice(0, 3)}</th>
+            {TLABEL.map((t) => (
+              <th key={t} className={cn('text-center', pad)}>{t}</th>
             ))}
-            <th className={cn('text-center', pad)}>Média</th>
+            <th className={cn('text-center', pad)}>Final</th>
             <th className={cn('text-center', pad)}>Situação</th>
           </tr>
         </thead>
@@ -131,13 +132,15 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
               <td className={cn('sticky left-0 bg-white font-bold text-slate-800', compact ? 'p-2' : 'p-3')}>
                 <span className="mr-1.5 text-slate-400">{i + 1}.</span>{r.name}
               </td>
-              {r.months.map((m, i) => (
-                <td key={i} className={cn('text-center text-slate-600', pad)}>{m != null ? m : '–'}</td>
+              {r.terms.map((m, j) => (
+                <td key={j} className={cn('text-center', pad)}>
+                  {m != null ? <span className={cn('font-bold', m >= 6 ? 'text-emerald-700' : 'text-red-600')}>{m.toFixed(1)}</span> : '–'}
+                </td>
               ))}
               <td className={cn('text-center', pad)}>
-                {r.media != null ? <span className={cn('font-black', r.media >= 6 ? 'text-emerald-700' : 'text-red-600')}>{r.media}</span> : '–'}
+                {r.final != null ? <span className={cn('font-black', r.final >= 6 ? 'text-emerald-700' : 'text-red-600')}>{r.final.toFixed(1)}</span> : '–'}
               </td>
-              <td className={cn('text-center text-xs font-bold', pad)}>{situacao(r.media)}</td>
+              <td className={cn('text-center text-xs font-bold', pad)}>{situacao(r.final)}</td>
             </tr>
           ))}
         </tbody>

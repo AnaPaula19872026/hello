@@ -8,8 +8,8 @@ import { ShareModal } from '../components/ShareModal';
 import { Button, Card, EmptyState, Field, Modal, PageHeader, Select } from '../components/ui';
 import { cn } from '../lib/cn';
 import { downloadXlsx } from '../lib/importSheet';
-import { listClasses, listSchools, listStudentsByClass, reportAttendance, reportGrades } from '../lib/queries';
-import { MONTHS, SUBJECT, type ReportPayload } from '../lib/types';
+import { listClasses, listSchools, listStudentsByClass, reportAttendance, reportTerms } from '../lib/queries';
+import { SUBJECT, type ReportPayload } from '../lib/types';
 
 type Tipo = 'freq' | 'notas';
 const today = new Date();
@@ -54,7 +54,7 @@ export function ReportsPage() {
   });
   const notas = useQuery({
     queryKey: ['rep-notas', classId, year],
-    queryFn: () => reportGrades(classId, year),
+    queryFn: () => reportTerms(classId, year),
     enabled: tipo === 'notas' && !!classId,
   });
 
@@ -118,7 +118,7 @@ export function ReportsPage() {
       period: String(year),
       generatedAt,
       subject: SUBJECT,
-      notasRows: notasRows.map((r) => ({ name: r.name, months: r.months, media: r.media })),
+      notasRows: notasRows.map((r) => ({ name: r.name, terms: r.terms, final: r.final })),
     };
   }, [classId, tipo, school, className, from, to, minPct, freq.data, freqRows, year, notasRows]);
 
@@ -138,8 +138,8 @@ export function ReportsPage() {
         titulo,
         [`Notas (${SUBJECT}) — Turma ${className} — ${year}`],
         [],
-        ['Aluno', ...MONTHS.map((m) => m.slice(0, 3)), 'Média'],
-        ...notasRows.map((r) => [r.name, ...r.months, r.media]),
+        ['Aluno', '1º tri', '2º tri', '3º tri', '4º tri', 'Final'],
+        ...notasRows.map((r) => [r.name, ...r.terms, r.final]),
       ];
       downloadXlsx(`notas-${slug(className)}-${year}.xlsx`, aoa, 'Notas');
     }

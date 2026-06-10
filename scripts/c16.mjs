@@ -1,0 +1,15 @@
+import puppeteer from 'puppeteer-core';
+import fs from 'node:fs';
+const session = JSON.parse(fs.readFileSync('/tmp/session.json','utf8'));
+const b = await puppeteer.launch({executablePath:'/usr/bin/google-chrome-stable',headless:'new',args:['--no-sandbox']});
+const p = await b.newPage(); await p.setViewport({width:1280,height:900});
+const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:5173/',{waitUntil:'domcontentloaded'});
+await p.evaluate(([k,v])=>localStorage.setItem(k,v),['sb-rogvgrnkjvxdulkcunuo-auth-token',JSON.stringify(session)]);
+await p.goto('http://localhost:5173/notas',{waitUntil:'networkidle2'});
+await new Promise(x=>setTimeout(x,1500));
+console.log('h1:', await p.evaluate(()=>document.querySelector('main h1,div h1')?.textContent));
+console.log('trimestres:', await p.evaluate(()=>[...document.querySelectorAll('button')].map(b=>b.textContent.trim()).filter(t=>/trimestre/.test(t))));
+console.log('tem Composicao:', await p.evaluate(()=>[...document.querySelectorAll('button')].some(b=>/Composição/.test(b.textContent))));
+console.log('JS errors:', errs.length?errs.slice(0,5).join(' | '):'NENHUM');
+await b.close();

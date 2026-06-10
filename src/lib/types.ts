@@ -86,8 +86,8 @@ export interface ReportFreqRow {
 }
 export interface ReportNotasRow {
   name: string;
-  months: (number | null)[];
-  media: number | null;
+  terms: (number | null)[]; // média de cada trimestre (4)
+  final: number | null; // média anual
 }
 export interface ReportPayload {
   kind: 'freq' | 'notas';
@@ -111,6 +111,31 @@ export const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ] as const;
+
+/* ---- Notas por trimestre (composição de atividades) ---- */
+export interface GradeActivity {
+  name: string;
+  max: number; // valor máximo da atividade naquele trimestre
+}
+
+/** Composição padrão (coordenação/professor ajusta por trimestre). */
+export const DEFAULT_ACTIVITIES: GradeActivity[] = [
+  { name: 'TESTE', max: 10 },
+  { name: 'E-CERM', max: 10 },
+  { name: 'SIMULADO', max: 1 },
+  { name: 'PROJETO', max: 5 },
+  { name: 'CRÉDITO VARIÁVEL', max: 4 },
+];
+
+export const TERMS = [1, 2, 3, 4] as const;
+export const TERM_LABEL: Record<number, string> = { 1: '1º trimestre', 2: '2º trimestre', 3: '3º trimestre', 4: '4º trimestre' };
+export const MEDIA_APROVACAO = 6;
+export const MEDIA_DIVISOR = 3; // média = soma das notas / 3
+
+export function calcMedia(scores: Record<string, number>): number {
+  const sum = Object.values(scores).reduce((a, b) => a + (Number(b) || 0), 0);
+  return Math.round((sum / MEDIA_DIVISOR) * 10) / 10;
+}
 
 export const STATUS_LABEL: Record<AttendanceStatus, string> = {
   present: 'Presente',
