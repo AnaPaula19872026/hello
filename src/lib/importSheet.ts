@@ -8,6 +8,19 @@ export interface ColumnDef {
   required?: boolean;
 }
 
+/** Planilha única e inteligente: cada linha cria escola + turma + aluno conforme preenchido. */
+export const CADASTRO_COLUMNS: ColumnDef[] = [
+  { key: 'school', label: 'Escola', example: 'E.M. João da Silva', required: true },
+  { key: 'city', label: 'Cidade', example: 'Goiânia' },
+  { key: 'class', label: 'Turma', example: '5º ano A' },
+  { key: 'shift', label: 'Turno', example: 'Manhã' },
+  { key: 'year', label: 'Ano', example: '2026' },
+  { key: 'student', label: 'Aluno', example: 'Maria de Souza' },
+  { key: 'registration', label: 'Matrícula', example: '2026001' },
+  { key: 'guardian', label: 'Responsável', example: 'João de Souza' },
+  { key: 'phone', label: 'Telefone', example: '(62) 90000-0000' },
+];
+
 /** Gera e baixa a planilha modelo: aba "Modelo" (só cabeçalho) + aba "Exemplo". */
 export async function downloadTemplate(fileName: string, columns: ColumnDef[]) {
   const XLSX = await import('xlsx');

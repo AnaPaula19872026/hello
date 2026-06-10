@@ -4,15 +4,10 @@ import { useState } from 'react';
 import { ImportModal } from '../components/ImportModal';
 import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, SelectionBar } from '../components/ui';
 import { fileToCompressedDataUrl } from '../lib/image';
-import type { ColumnDef } from '../lib/importSheet';
-import { bulkDeleteSchools, bulkInsertSchools, deleteSchool, listSchools, saveSchool } from '../lib/queries';
+import { CADASTRO_COLUMNS } from '../lib/importSheet';
+import { bulkDeleteSchools, bulkImportAll, deleteSchool, listSchools, saveSchool } from '../lib/queries';
 import type { School } from '../lib/types';
 import { useSelection } from '../lib/useSelection';
-
-const IMPORT_COLUMNS: ColumnDef[] = [
-  { key: 'name', label: 'Nome', example: 'E.M. João da Silva', required: true },
-  { key: 'city', label: 'Cidade', example: 'Goiânia' },
-];
 
 export function SchoolsPage() {
   const qc = useQueryClient();
@@ -219,10 +214,10 @@ export function SchoolsPage() {
       <ImportModal
         open={importOpen}
         onClose={() => setImportOpen(false)}
-        title="Importar escolas"
-        columns={IMPORT_COLUMNS}
-        templateFileName="modelo-escolas.xlsx"
-        importFn={(rows) => bulkInsertSchools(rows as { name: string; city?: string }[])}
+        title="Importar cadastros"
+        columns={CADASTRO_COLUMNS}
+        templateFileName="modelo-cadastro.xlsx"
+        importFn={(rows) => bulkImportAll(rows).then((r) => r.schools + r.classes + r.students)}
         onDone={refresh}
       />
     </>

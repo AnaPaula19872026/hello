@@ -171,6 +171,83 @@ export async function bulkInsertStudents(
   return payload.length;
 }
 
+/** Importação inteligente: uma planilha cria escolas, turmas e alunos conforme preenchido. */
+export async function bulkImportAll(
+  rows: Record<string, string>[],
+): Promise<{ schools: number; classes: number; students: number }> {
+  const [schools, classes, allStudents] = await Promise.all([listSchools(), listClasses(), listStudents()]);
+
+  const schoolMap = new Map(schools.map((s) => [s.name.toLowerCase().trim(), s.id]));
+  const classMap = new Map(classes.map((c) => [`${c.school_id}|${c.name.toLowerCase().trim()}`, c.id]));
+  const regSet = new Set(allStudents.filter((s) => s.registration).map((s) => `${s.school_id}|${(s.registration || '').trim()}`));
+  const nameSet = new Set(allStudents.filter((s) => s.class_id).map((s) => `${s.class_id}|${s.full_name.toLowerCase().trim()}`));
+
+  let cS = 0;
+  let cC = 0;
+  let cStu = 0;
+
+  for (const r of rows) {
+    const schoolName = (r.school || '').trim();
+    if (!schoolName) continue;
+
+    // Escola
+    const sKey = schoolName.toLowerCase();
+    let schoolId = schoolMap.get(sKey);
+    if (!schoolId) {
+      const ins = unwrap<{ id: string }>(
+        await supabase.from('schools').insert({ name: schoolName, city: (r.city || '').trim() || null }).select('id').single(),
+      );
+      schoolId = ins.id;
+      schoolMap.set(sKey, schoolId);
+      cS++;
+    }
+
+    // Turma
+    const className = (r.class || '').trim();
+    let classId: string | undefined;
+    if (className) {
+      const cKey = `${schoolId}|${className.toLowerCase()}`;
+      classId = classMap.get(cKey);
+      if (!classId) {
+        const ins = unwrap<{ id: string }>(
+          await supabase
+            .from('classes')
+            .insert({ school_id: schoolId, name: className, shift: (r.shift || '').trim() || 'Manhã', year: r.year ? Number(r.year) : null })
+            .select('id')
+            .single(),
+        );
+        classId = ins.id;
+        classMap.set(cKey, classId);
+        cC++;
+      }
+    }
+
+    // Aluno
+    const studentName = (r.student || '').trim();
+    if (studentName) {
+      const reg = (r.registration || '').trim();
+      const regKey = `${schoolId}|${reg}`;
+      const nameKey = `${classId || ''}|${studentName.toLowerCase()}`;
+      if (reg && regSet.has(regKey)) continue;
+      if (classId && nameSet.has(nameKey)) continue;
+      const { error } = await supabase.from('students').insert({
+        school_id: schoolId,
+        class_id: classId ?? null,
+        full_name: studentName,
+        registration: reg || null,
+        guardian_name: (r.guardian || '').trim() || null,
+        guardian_phone: (r.phone || '').trim() || null,
+      });
+      if (error) continue; // pula duplicado/erro de linha sem abortar a importação
+      if (reg) regSet.add(regKey);
+      if (classId) nameSet.add(nameKey);
+      cStu++;
+    }
+  }
+
+  return { schools: cS, classes: cC, students: cStu };
+}
+
 /* ---------------------------------- Chamadas ----------------------------------- */
 export async function getSession(classId: string, date: string): Promise<AttendanceSession | null> {
   const { data, error } = await supabase

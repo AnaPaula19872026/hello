@@ -4,16 +4,10 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
 import { AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar } from '../components/ui';
-import { bulkDeleteClasses, bulkInsertClasses, deleteClass, listClasses, listSchools, saveClass } from '../lib/queries';
+import { bulkDeleteClasses, bulkImportAll, deleteClass, listClasses, listSchools, saveClass } from '../lib/queries';
 import { useSelection } from '../lib/useSelection';
-import type { ColumnDef } from '../lib/importSheet';
+import { CADASTRO_COLUMNS } from '../lib/importSheet';
 import { SHIFTS, type ClassRoom } from '../lib/types';
-
-const IMPORT_COLUMNS: ColumnDef[] = [
-  { key: 'name', label: 'Turma', example: '5º ano A', required: true },
-  { key: 'shift', label: 'Turno', example: 'Manhã' },
-  { key: 'year', label: 'Ano', example: '2026' },
-];
 
 export function ClassesPage() {
   const qc = useQueryClient();
@@ -22,10 +16,10 @@ export function ClassesPage() {
   const [editing, setEditing] = useState<ClassRoom | null>(null);
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [importSchool, setImportSchool] = useState('');
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['classes'] });
+    qc.invalidateQueries({ queryKey: ['schools'] });
     qc.invalidateQueries({ queryKey: ['students'] });
     qc.invalidateQueries({ queryKey: ['students-by-class'] });
     qc.invalidateQueries({ queryKey: ['recent-sessions'] });
@@ -82,13 +76,7 @@ export function ClassesPage() {
         subtitle="Turmas vinculadas a uma escola."
         action={
           <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setImportSchool(schools[0]?.id ?? '');
-                setImportOpen(true);
-              }}
-            >
+            <Button variant="ghost" onClick={() => setImportOpen(true)}>
               <FileSpreadsheet size={18} /> Importar
             </Button>
             <AddButton onClick={openNew} label="Nova turma" />
@@ -205,23 +193,10 @@ export function ClassesPage() {
       <ImportModal
         open={importOpen}
         onClose={() => setImportOpen(false)}
-        title="Importar turmas"
-        columns={IMPORT_COLUMNS}
-        templateFileName="modelo-turmas.xlsx"
-        ready={!!importSchool}
-        notReadyHint={schools.length ? 'Selecione a escola das turmas.' : 'Cadastre uma escola primeiro.'}
-        contextSlot={
-          <Field label="Escola das turmas">
-            <Select value={importSchool} onChange={(e) => setImportSchool(e.target.value)}>
-              {schools.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        }
-        importFn={(rows) => bulkInsertClasses(importSchool, rows as { name: string; shift?: string; year?: string }[])}
+        title="Importar cadastros"
+        columns={CADASTRO_COLUMNS}
+        templateFileName="modelo-cadastro.xlsx"
+        importFn={(rows) => bulkImportAll(rows).then((r) => r.schools + r.classes + r.students)}
         onDone={refresh}
       />
     </>
