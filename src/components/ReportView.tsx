@@ -64,7 +64,7 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
             {rows.map((r, i) => (
               <tr key={r.name} className="border-t border-slate-100">
                 <td className="p-2.5 font-bold text-slate-800">
-                  <span className="mr-1.5 text-slate-400">{i + 1}.</span>{r.name}
+                  <span className="mr-2 inline-block w-6 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>{r.name}
                 </td>
                 <td className="p-2.5 text-center">
                   <span className={cn('font-black', r.pct < minPct ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</span>
@@ -85,7 +85,7 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
         <div key={r.name} className="rounded-2xl border border-slate-200 bg-white p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="min-w-0 flex-1 truncate font-bold text-slate-800">
-              <span className="mr-1.5 text-slate-400">{i + 1}.</span>{r.name}
+              <span className="mr-2 inline-block w-6 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>{r.name}
             </p>
             <span className={cn('text-lg font-black', r.pct < minPct ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</span>
           </div>
@@ -132,7 +132,7 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
               return (
                 <tr key={r.name} className="border-t border-slate-100">
                   <td className={cn('sticky left-0 bg-white font-bold text-slate-800', compact ? 'p-2' : 'p-3')}>
-                    <span className="mr-1.5 text-slate-400">{i + 1}.</span>{r.name}
+                    <span className="mr-2 inline-block w-6 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>{r.name}
                   </td>
                   <td className={cn('text-center', pad)}>
                     {m != null ? <span className={cn('text-base font-black', m >= 6 ? 'text-emerald-700' : 'text-red-600')}>{m.toFixed(1)}</span> : '–'}
@@ -164,7 +164,7 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
           {rows.map((r, i) => (
             <tr key={r.name} className="border-t border-slate-100">
               <td className={cn('sticky left-0 bg-white font-bold text-slate-800', compact ? 'p-2' : 'p-3')}>
-                <span className="mr-1.5 text-slate-400">{i + 1}.</span>{r.name}
+                <span className="mr-2 inline-block w-6 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>{r.name}
               </td>
               {r.terms.map((m, j) => (
                 <td key={j} className={cn('text-center', pad)}>
