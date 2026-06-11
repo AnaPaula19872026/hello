@@ -56,6 +56,41 @@ export interface Profile {
   avatar_url: string | null;
   calendar_url: string | null;
   role: 'user' | 'master';
+  is_superadmin: boolean;
+  active_org_id: string | null;
+}
+
+/* ------------------------- SaaS multi-tenant (Fase 1) ------------------------- */
+export type AppRole = 'superadmin' | 'diretor' | 'coordenador' | 'professor' | 'secretaria' | 'marketing' | 'cpd';
+
+export const ROLE_LABEL: Record<AppRole, string> = {
+  superadmin: 'Superadmin',
+  diretor: 'Diretor(a)',
+  coordenador: 'Coordenação',
+  professor: 'Professor(a)',
+  secretaria: 'Secretaria',
+  marketing: 'Marketing / Comunicação',
+  cpd: 'CPD / Suporte',
+};
+
+/** Papéis que um diretor/coordenador pode atribuir ao convidar (sem superadmin). */
+export const ASSIGNABLE_ROLES: AppRole[] = ['diretor', 'coordenador', 'professor', 'secretaria', 'marketing', 'cpd'];
+
+export interface Organization {
+  id: string;
+  name: string;
+  plan: string;
+  is_demo: boolean;
+  active: boolean;
+  created_at?: string;
+}
+
+export interface Membership {
+  id: string;
+  user_id: string;
+  org_id: string;
+  role: AppRole;
+  created_at?: string;
 }
 
 export interface Grade {
