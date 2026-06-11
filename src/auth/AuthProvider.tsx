@@ -92,19 +92,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshContext();
   }, [refreshContext]);
 
-  // Atualiza papel/organização quando o usuário volta para a aba (ex.: o Administrador
-  // mudou a permissão dele em outra sessão — reflete sem precisar relogar).
+  // Atualiza papel/organização quando o usuário volta para a aba e periodicamente
+  // (o Administrador pode ter mudado a permissão em outra sessão — reflete sem relogar).
   useEffect(() => {
+    if (!userId) return;
     function onFocus() {
       if (document.visibilityState === 'visible') refreshContext();
     }
     window.addEventListener('visibilitychange', onFocus);
     window.addEventListener('focus', onFocus);
+    const interval = setInterval(refreshContext, 45_000);
     return () => {
       window.removeEventListener('visibilitychange', onFocus);
       window.removeEventListener('focus', onFocus);
+      clearInterval(interval);
     };
-  }, [refreshContext]);
+  }, [refreshContext, userId]);
 
   const switchOrg = useCallback(
     async (orgId: string) => {
