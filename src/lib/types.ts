@@ -64,7 +64,7 @@ export interface Profile {
 export type AppRole = 'superadmin' | 'diretor' | 'coordenador' | 'professor' | 'secretaria' | 'marketing' | 'cpd';
 
 export const ROLE_LABEL: Record<AppRole, string> = {
-  superadmin: 'Superadmin',
+  superadmin: 'Administrador',
   diretor: 'Diretor(a)',
   coordenador: 'Coordenação',
   professor: 'Professor(a)',
