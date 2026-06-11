@@ -19,9 +19,22 @@ function unwrap<T>(res: { data: T | null; error: { message: string } | null }): 
   return res.data as T;
 }
 
+/**
+ * Escopa a consulta à organização ativa. Necessário porque o superadmin enxerga
+ * TODAS as organizações pela RLS; sem isto, a área de trabalho misturaria dados
+ * de clientes diferentes. Usuário comum já é limitado pela RLS, mas o filtro é
+ * inofensivo (ele só participa da própria organização).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function scoped<T>(q: T): T {
+  const org = getActiveOrgId();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return org ? ((q as any).eq('org_id', org) as T) : q;
+}
+
 /* ----------------------------------- Escolas ----------------------------------- */
 export async function listSchools(): Promise<School[]> {
-  return unwrap(await supabase.from('schools').select('*').order('name'));
+  return unwrap(await scoped(supabase.from('schools').select('*')).order('name'));
 }
 export async function saveSchool(input: Partial<School> & { name: string }): Promise<School> {
   const row = {
@@ -54,7 +67,7 @@ export async function bulkInsertSchools(rows: { name: string; city?: string }[])
 
 /* ----------------------------------- Turmas ------------------------------------ */
 export async function listClasses(): Promise<ClassRoom[]> {
-  return unwrap(await supabase.from('classes').select('*').order('name'));
+  return unwrap(await scoped(supabase.from('classes').select('*')).order('name'));
 }
 export async function saveClass(input: Partial<ClassRoom> & { name: string; school_id: string }): Promise<ClassRoom> {
   const row = {
@@ -91,7 +104,7 @@ export async function bulkInsertClasses(
 
 /* ----------------------------------- Alunos ------------------------------------ */
 export async function listStudents(): Promise<Student[]> {
-  return unwrap(await supabase.from('students').select('*').order('full_name'));
+  return unwrap(await scoped(supabase.from('students').select('*')).order('full_name'));
 }
 export async function listStudentsByClass(classId: string): Promise<Student[]> {
   return unwrap(
@@ -333,9 +346,7 @@ export interface RecentSession {
 
 export async function listRecentSessions(limit = 10): Promise<RecentSession[]> {
   const sessions = unwrap<{ id: string; class_id: string; session_date: string }[]>(
-    await supabase
-      .from('attendance_sessions')
-      .select('id, class_id, session_date')
+    await scoped(supabase.from('attendance_sessions').select('id, class_id, session_date'))
       .order('session_date', { ascending: false })
       .limit(limit),
   );
@@ -598,9 +609,9 @@ export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
 /* --------------------------------- Dashboard ----------------------------------- */
 export async function dashboardCounts() {
   const [schools, classes, students] = await Promise.all([
-    supabase.from('schools').select('id', { count: 'exact', head: true }),
-    supabase.from('classes').select('id', { count: 'exact', head: true }),
-    supabase.from('students').select('id', { count: 'exact', head: true }),
+    scoped(supabase.from('schools').select('id', { count: 'exact', head: true })),
+    scoped(supabase.from('classes').select('id', { count: 'exact', head: true })),
+    scoped(supabase.from('students').select('id', { count: 'exact', head: true })),
   ]);
   return {
     schools: schools.count ?? 0,

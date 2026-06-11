@@ -1,4 +1,5 @@
 import type { Session, User } from '@supabase/supabase-js';
+import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { setActiveOrgIdRef } from '../lib/org';
 import { listMyMemberships, listOrganizations, setActiveOrg } from '../lib/queries';
@@ -37,6 +38,7 @@ const AuthContext = createContext<AuthState>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -94,8 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (orgId: string) => {
       await setActiveOrg(orgId);
       await refreshContext();
+      // A organização ativa mudou: descarta o cache para recarregar os dados da nova organização.
+      await queryClient.invalidateQueries();
     },
-    [refreshContext],
+    [refreshContext, queryClient],
   );
 
   const activeOrgId = profile?.active_org_id ?? memberships[0]?.org_id ?? null;
