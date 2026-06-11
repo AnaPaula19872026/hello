@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, ImagePlus, KeyRound, LogOut, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
+import { ROLE_LABEL } from '../lib/types';
 import { Button, Card, Field, Input, PageHeader } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { fileToCompressedDataUrl } from '../lib/image';
@@ -10,7 +11,7 @@ import { signOut, supabase } from '../lib/supabase';
 
 export function SettingsPage() {
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { data: profile } = useQuery({
     queryKey: ['profile', user?.id],
     queryFn: () => getProfile(user!.id),
@@ -77,9 +78,9 @@ export function SettingsPage() {
         title="Configurações"
         subtitle="Seus dados, senha e calendário."
         action={
-          profile?.role === 'master' ? (
+          role ? (
             <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-300">
-              Administrador master
+              {ROLE_LABEL[role]}
             </span>
           ) : undefined
         }

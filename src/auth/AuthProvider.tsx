@@ -92,6 +92,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshContext();
   }, [refreshContext]);
 
+  // Atualiza papel/organização quando o usuário volta para a aba (ex.: o Administrador
+  // mudou a permissão dele em outra sessão — reflete sem precisar relogar).
+  useEffect(() => {
+    function onFocus() {
+      if (document.visibilityState === 'visible') refreshContext();
+    }
+    window.addEventListener('visibilitychange', onFocus);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('visibilitychange', onFocus);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [refreshContext]);
+
   const switchOrg = useCallback(
     async (orgId: string) => {
       await setActiveOrg(orgId);
