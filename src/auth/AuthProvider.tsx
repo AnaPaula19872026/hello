@@ -100,11 +100,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const activeOrgId = profile?.active_org_id ?? memberships[0]?.org_id ?? null;
   const isSuperadmin = !!profile?.is_superadmin;
-  // Papel na organização ativa. Fallback: superadmin; ou, durante a transição
-  // (perfil sem vínculo ainda — ex.: antes da migração), assume diretor para não travar o app.
-  const role: AppRole | null =
-    memberships.find((m) => m.org_id === activeOrgId)?.role ??
-    (isSuperadmin ? 'superadmin' : memberships.length === 0 && profile ? 'diretor' : null);
+  // Superadmin é flag GLOBAL do sistema e tem prioridade sobre o vínculo da organização
+  // (ele pode ser 'diretor' numa org e ainda assim enxergar o painel de superadmin).
+  // Fallback (transição/antes da migração — perfil sem vínculo): assume diretor para não travar.
+  const role: AppRole | null = isSuperadmin
+    ? 'superadmin'
+    : memberships.find((m) => m.org_id === activeOrgId)?.role ?? (memberships.length === 0 && profile ? 'diretor' : null);
 
   return (
     <AuthContext.Provider
