@@ -26,11 +26,13 @@ export default defineConfig({
       },
       workbox: {
         navigateFallbackDenylist: [/^\/api/],
+        cleanupOutdatedCaches: true,
+        // NÃO cachear chamadas do Supabase: papel/permissão precisa ser sempre fresco
+        // (o cache estava servindo o papel antigo do usuário). Sempre rede.
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.origin.includes('supabase'),
-            handler: 'NetworkFirst',
-            options: { cacheName: 'supabase', networkTimeoutSeconds: 5 },
+            handler: 'NetworkOnly',
           },
         ],
       },
