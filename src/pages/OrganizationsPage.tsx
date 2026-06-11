@@ -18,12 +18,16 @@ export function OrganizationsPage() {
   const [membersOf, setMembersOf] = useState<Organization | null>(null);
 
   const create = useMutation({
-    mutationFn: () => createOrganization(name.trim()),
+    mutationFn: async () => {
+      const id = await createOrganization(name.trim());
+      await switchOrg(id); // entra direto na nova organização (já vem com a escola principal)
+      return id;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['organizations'] });
       setNewOpen(false);
       setName('');
-      successToast('Organização criada com sucesso');
+      successToast('Organização criada — você já está dentro dela');
     },
   });
 
