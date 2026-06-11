@@ -581,6 +581,18 @@ export async function setActiveOrg(orgId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Troca o papel de um membro existente. */
+export async function setMemberRole(orgId: string, userId: string, role: AppRole): Promise<void> {
+  const { error } = await supabase.rpc('set_member_role', { p_org: orgId, p_user: userId, p_role: role });
+  if (error) throw new Error(error.message);
+}
+
+/** Remove o vínculo do membro com a organização (não apaga a conta). */
+export async function removeMember(orgId: string, userId: string): Promise<void> {
+  const { error } = await supabase.rpc('remove_member', { p_org: orgId, p_user: userId });
+  if (error) throw new Error(error.message);
+}
+
 export interface OrgMember {
   user_id: string;
   role: AppRole;

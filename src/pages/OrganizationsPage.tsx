@@ -5,8 +5,9 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
 import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
-import { addMember, createOrganization, listOrganizations, listOrgMembers } from '../lib/queries';
+import { addMember, createOrganization, listOrganizations, listOrgMembers, removeMember, setMemberRole } from '../lib/queries';
 import { ASSIGNABLE_ROLES, ROLE_LABEL, type AppRole, type Organization } from '../lib/types';
+import { Trash2 } from 'lucide-react';
 
 export function OrganizationsPage() {
   const { isSuperadmin, activeOrgId, switchOrg, ctxLoading } = useAuth();
@@ -112,12 +113,28 @@ function MembersModal({ org, onClose }: { org: Organization; onClose: () => void
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<AppRole>('professor');
 
+  const refreshMembers = () => qc.invalidateQueries({ queryKey: ['org-members', org.id] });
+
   const add = useMutation({
     mutationFn: () => addMember(org.id, email.trim(), role),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['org-members', org.id] });
+      refreshMembers();
       setEmail('');
       successToast('Membro adicionado com sucesso');
+    },
+  });
+  const changeRole = useMutation({
+    mutationFn: ({ userId, newRole }: { userId: string; newRole: AppRole }) => setMemberRole(org.id, userId, newRole),
+    onSuccess: () => {
+      refreshMembers();
+      successToast('Papel atualizado com sucesso');
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (userId: string) => removeMember(org.id, userId),
+    onSuccess: () => {
+      refreshMembers();
+      successToast('Membro removido com sucesso');
     },
   });
 
@@ -152,12 +169,31 @@ function MembersModal({ org, onClose }: { org: Organization; onClose: () => void
           ) : (
             <div className="overflow-hidden rounded-2xl border border-slate-200">
               {members.map((m) => (
-                <div key={m.user_id} className="flex items-center justify-between gap-3 border-b border-slate-100 p-3 last:border-0">
-                  <div className="min-w-0">
+                <div key={m.user_id} className="flex items-center gap-3 border-b border-slate-100 p-3 last:border-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-slate-800">{m.full_name || m.email || m.user_id}</p>
                     {m.email ? <p className="truncate text-xs text-slate-400">{m.email}</p> : null}
                   </div>
-                  <span className="shrink-0 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{ROLE_LABEL[m.role]}</span>
+                  <Select
+                    value={m.role}
+                    onChange={(e) => changeRole.mutate({ userId: m.user_id, newRole: e.target.value as AppRole })}
+                    className="w-40 shrink-0 py-2 text-xs"
+                  >
+                    {ASSIGNABLE_ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {ROLE_LABEL[r]}
+                      </option>
+                    ))}
+                  </Select>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Remover ${m.full_name || m.email} desta organização?`)) remove.mutate(m.user_id);
+                    }}
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                    aria-label="Remover membro"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               ))}
             </div>
