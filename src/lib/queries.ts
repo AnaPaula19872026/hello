@@ -1,9 +1,13 @@
 import { supabase } from './supabase';
 import { calcMedia, type GradeActivity } from './types';
+import { getActiveOrgId } from './org';
 import type {
+  AppRole,
   AttendanceRecord,
   AttendanceSession,
   ClassRoom,
+  Membership,
+  Organization,
   Profile,
   ReportPayload,
   School,
@@ -356,20 +360,21 @@ export async function listRecentSessions(limit = 10): Promise<RecentSession[]> {
 /* ----------------------------- Notas por trimestre ----------------------------- */
 /** Composição de notas (atividades + valores) de um trimestre/ano. */
 export async function getTermConfig(year: number, term: number): Promise<GradeActivity[]> {
-  const { data, error } = await supabase
-    .from('grade_terms')
-    .select('activities')
-    .eq('year', year)
-    .eq('term', term)
-    .maybeSingle();
+  // org_id incluso: cada organização tem sua própria composição (RLS já limita,
+  // mas superadmin enxerga várias — filtra pela organização ativa).
+  let q = supabase.from('grade_terms').select('activities').eq('year', year).eq('term', term);
+  const org = getActiveOrgId();
+  if (org) q = q.eq('org_id', org);
+  const { data, error } = await q.maybeSingle();
   if (error) throw new Error(error.message);
   return ((data?.activities as GradeActivity[]) ?? []).filter((a) => a && a.name);
 }
 
 export async function saveTermConfig(year: number, term: number, activities: GradeActivity[]): Promise<void> {
-  const { error } = await supabase
-    .from('grade_terms')
-    .upsert({ year, term, activities, updated_at: new Date().toISOString() }, { onConflict: 'year,term' });
+  const org = getActiveOrgId();
+  const row: Record<string, unknown> = { year, term, activities, updated_at: new Date().toISOString() };
+  if (org) row.org_id = org;
+  const { error } = await supabase.from('grade_terms').upsert(row, { onConflict: 'org_id,year,term' });
   if (error) throw new Error(error.message);
 }
 
@@ -534,6 +539,60 @@ export async function updateProfile(userId: string, input: Partial<Profile>): Pr
       .select()
       .single(),
   );
+}
+
+/* ------------------------ Organizações / membros (SaaS) ------------------------ */
+export async function listMyMemberships(): Promise<Membership[]> {
+  return unwrap(await supabase.from('memberships').select('*'));
+}
+
+/** Organizações que o usuário enxerga (membro) ou todas (superadmin). */
+export async function listOrganizations(): Promise<Organization[]> {
+  return unwrap(await supabase.from('organizations').select('*').order('created_at'));
+}
+
+/** Cria uma organização nova (cliente). Só superadmin. Devolve o id. */
+export async function createOrganization(name: string, isDemo = false): Promise<string> {
+  const { data, error } = await supabase.rpc('create_org', { p_name: name, p_is_demo: isDemo });
+  if (error) throw new Error(error.message);
+  return data as string;
+}
+
+/** Adiciona/atualiza um membro por e-mail (a conta precisa já existir). */
+export async function addMember(orgId: string, email: string, role: AppRole): Promise<void> {
+  const { error } = await supabase.rpc('add_member', { p_org: orgId, p_email: email, p_role: role });
+  if (error) throw new Error(error.message);
+}
+
+/** Define a organização ativa do usuário (para onde vão os novos cadastros). */
+export async function setActiveOrg(orgId: string): Promise<void> {
+  const { error } = await supabase.rpc('set_active_org', { p_org: orgId });
+  if (error) throw new Error(error.message);
+}
+
+export interface OrgMember {
+  user_id: string;
+  role: AppRole;
+  full_name: string | null;
+  email: string | null;
+}
+/** Lista membros de uma organização com nome/e-mail (superadmin/diretor). */
+export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
+  const memberships = unwrap<{ user_id: string; role: AppRole }[]>(
+    await supabase.from('memberships').select('user_id, role').eq('org_id', orgId),
+  );
+  if (!memberships.length) return [];
+  const ids = memberships.map((m) => m.user_id);
+  const profiles = unwrap<{ id: string; full_name: string | null; email: string | null }[]>(
+    await supabase.from('profiles').select('id, full_name, email').in('id', ids),
+  );
+  const byId = new Map(profiles.map((p) => [p.id, p]));
+  return memberships.map((m) => ({
+    user_id: m.user_id,
+    role: m.role,
+    full_name: byId.get(m.user_id)?.full_name ?? null,
+    email: byId.get(m.user_id)?.email ?? null,
+  }));
 }
 
 /* --------------------------------- Dashboard ----------------------------------- */

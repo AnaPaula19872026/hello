@@ -1,9 +1,13 @@
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Play } from 'lucide-react';
 import { useState } from 'react';
 import { Button, Field, Input } from '../components/ui';
 import { supabase } from '../lib/supabase';
 
 type Mode = 'login' | 'signup';
+
+// Conta de demonstração (criar no Supabase → Auth com este e-mail/senha).
+const DEMO_EMAIL = 'demo@hello.app';
+const DEMO_PASSWORD = 'demonstracao123';
 
 export function LoginPage() {
   const [mode, setMode] = useState<Mode>('login');
@@ -31,6 +35,14 @@ export function LoginPage() {
       else if (data.session) setMsg({ type: 'ok', text: 'Conta criada! Entrando…' });
       else setMsg({ type: 'ok', text: 'Conta criada. Confirme o e-mail (se a confirmação estiver ativa) e entre.' });
     }
+    setLoading(false);
+  }
+
+  async function demoLogin() {
+    setLoading(true);
+    setMsg(null);
+    const { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
+    if (error) setMsg({ type: 'error', text: 'Conta de demonstração ainda não configurada. Crie o usuário demo@hello.app no Supabase.' });
     setLoading(false);
   }
 
@@ -123,6 +135,12 @@ export function LoginPage() {
             >
               {mode === 'login' ? 'Criar conta' : 'Já tenho conta'}
             </button>
+          </div>
+
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <Button type="button" variant="ghost" onClick={demoLogin} disabled={loading} className="w-full">
+              <Play size={16} /> Entrar em modo demonstração
+            </Button>
           </div>
 
           {/* Login com Google desativado por enquanto — reativar depois de configurar o OAuth. */}

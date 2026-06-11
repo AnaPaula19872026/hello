@@ -9,6 +9,7 @@ import { ClassesPage } from '../pages/ClassesPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { LoginPage } from '../pages/LoginPage';
 import { NotasPage } from '../pages/NotasPage';
+import { OrganizationsPage } from '../pages/OrganizationsPage';
 import { ReportsPage } from '../pages/ReportsPage';
 import { SchoolsPage } from '../pages/SchoolsPage';
 import { SettingsPage } from '../pages/SettingsPage';
@@ -43,6 +44,7 @@ function Protected() {
         <Route path="/escolas" element={<SchoolsPage />} />
         <Route path="/turmas" element={<ClassesPage />} />
         <Route path="/alunos" element={<StudentsPage />} />
+        <Route path="/organizacoes" element={<OrganizationsPage />} />
         <Route path="/configuracoes" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
