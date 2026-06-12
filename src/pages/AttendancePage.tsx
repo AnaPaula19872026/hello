@@ -6,6 +6,7 @@ import { Card, EmptyState, PageHeader, Select } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { getRecords, getSession, listClasses, listStudentsByClass, saveAttendance } from '../lib/queries';
+import { usePersistentState } from '../lib/usePersistentState';
 import type { AttendanceStatus } from '../lib/types';
 
 export function AttendancePage() {
@@ -13,14 +14,15 @@ export function AttendancePage() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
 
-  const [classId, setClassId] = useState('');
-  const [date, setDate] = useState(today);
+  const [classId, setClassId] = usePersistentState('hello:attendance:classId', '');
+  const [date, setDate] = usePersistentState('hello:attendance:date', today);
   const [q, setQ] = useState('');
   const [records, setRecords] = useState<Record<string, AttendanceStatus>>({});
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (!classId && classes.length) setClassId(classes[0].id);
+    if (!classes.length) return;
+    if (!classId || !classes.some((c) => c.id === classId)) setClassId(classes[0].id);
   }, [classes, classId]);
 
   const { data: students = [], isLoading } = useQuery({

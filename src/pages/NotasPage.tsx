@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
+import { usePersistentState } from '../lib/usePersistentState';
 import {
   getTermConfig,
   getSavedTermConfig,
@@ -20,9 +21,9 @@ import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TER
 export function NotasPage() {
   const qc = useQueryClient();
   const now = new Date();
-  const [classId, setClassId] = useState('');
-  const [term, setTerm] = useState(1);
-  const [year, setYear] = useState(now.getFullYear());
+  const [classId, setClassId] = usePersistentState('hello:notas:classId', '');
+  const [term, setTerm] = usePersistentState('hello:notas:term', 1);
+  const [year, setYear] = usePersistentState('hello:notas:year', now.getFullYear());
   const [q, setQ] = useState('');
   const [scores, setScores] = useState<Record<string, Record<string, string>>>({});
   const [saved, setSaved] = useState(false);
@@ -30,7 +31,8 @@ export function NotasPage() {
 
   const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
   useEffect(() => {
-    if (!classId && classes.length) setClassId(classes[0].id);
+    if (!classes.length) return;
+    if (!classId || !classes.some((c) => c.id === classId)) setClassId(classes[0].id);
   }, [classes, classId]);
 
   const { data: activities = [] } = useQuery({
