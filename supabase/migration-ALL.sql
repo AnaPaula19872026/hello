@@ -4,6 +4,7 @@
 -- BANCO NOVO: rode antes o schema.sql (tabelas base) e DEPOIS este arquivo.
 -- BANCO EXISTENTE (produção): rode só este — idempotente e seguro
 --   (create if not exists / or replace / drop policy if exists). NÃO apaga dados.
+-- Administrador (master/superadmin) do sistema: SOMENTE minitecnico@gmail.com.
 -- ============================================================================
 
 
@@ -32,9 +33,11 @@ select u.id,
 from auth.users u
 on conflict (id) do nothing;
 
--- 4. Define os dois administradores master
-update public.profiles set role = 'master'
-where email in ('minitecnico@gmail.com', 'anapaulalimaprofa@gmail.com');
+-- 4. Apenas minitecnico é Administrador (master) do sistema.
+update public.profiles set role = 'master' where lower(email) = 'minitecnico@gmail.com';
+-- Rebaixa qualquer outro master legado (ex.: Ana) para usuário comum.
+update public.profiles set role = 'user'
+where role = 'master' and lower(email) is distinct from 'minitecnico@gmail.com';
 
 -- 5. Recria as políticas: master vê/edita tudo; demais, só o próprio
 drop policy if exists "profiles self" on public.profiles;
