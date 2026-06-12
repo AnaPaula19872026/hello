@@ -418,7 +418,7 @@ export interface TermGradeRow {
 }
 export async function listTermGrades(classId: string, year: number, term: number): Promise<TermGradeRow[]> {
   return unwrap(
-    await supabase.from('term_grades').select('student_id, scores, updated_at').eq('class_id', classId).eq('year', year).eq('term', term),
+    await scoped(supabase.from('term_grades').select('student_id, scores, updated_at')).eq('class_id', classId).eq('year', year).eq('term', term),
   );
 }
 
@@ -428,6 +428,7 @@ export async function saveTermGrades(
   term: number,
   rows: TermGradeRow[],
 ): Promise<void> {
+  const org = getActiveOrgId();
   const payload = rows.map((r) => ({
     class_id: classId,
     student_id: r.student_id,
@@ -435,6 +436,7 @@ export async function saveTermGrades(
     term,
     scores: r.scores,
     updated_at: new Date().toISOString(),
+    ...(org ? { org_id: org } : {}),
   }));
   if (!payload.length) return;
   const { error } = await supabase.from('term_grades').upsert(payload, { onConflict: 'student_id,year,term' });
@@ -539,7 +541,7 @@ export interface TermsReportRow {
 export async function reportTerms(classId: string, year: number): Promise<TermsReportRow[]> {
   const [grades, students] = await Promise.all([
     unwrap<{ student_id: string; term: number; scores: Record<string, number> }[]>(
-      await supabase.from('term_grades').select('student_id, term, scores').eq('class_id', classId).eq('year', year),
+      await scoped(supabase.from('term_grades').select('student_id, term, scores')).eq('class_id', classId).eq('year', year),
     ),
     listStudentsByClass(classId),
   ]);

@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Award, Lock, Pencil, Plus, Save, Search, Sliders, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../auth/AuthProvider';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
@@ -20,6 +21,7 @@ import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TER
 
 export function NotasPage() {
   const qc = useQueryClient();
+  const { activeOrgId, ctxLoading } = useAuth();
   const now = new Date();
   const [classId, setClassId] = usePersistentState('hello:notas:classId', '');
   const [term, setTerm] = usePersistentState('hello:notas:term', 1);
@@ -29,29 +31,37 @@ export function NotasPage() {
   const [saved, setSaved] = useState(false);
   const [editingGrades, setEditingGrades] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
+  const orgReady = !ctxLoading && !!activeOrgId;
 
-  const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
+  const { data: classes = [] } = useQuery({ queryKey: ['classes', activeOrgId], queryFn: listClasses, enabled: orgReady });
   useEffect(() => {
+    if (!orgReady) return;
     if (!classes.length) return;
     if (!classId || !classes.some((c) => c.id === classId)) setClassId(classes[0].id);
-  }, [classes, classId]);
+  }, [classes, classId, orgReady]);
 
   const { data: activities = [] } = useQuery({
-    queryKey: ['term-config', year, term],
+    queryKey: ['term-config', activeOrgId, year, term],
     queryFn: () => getTermConfig(year, term),
+    enabled: orgReady,
   });
   const orderedActivities = useMemo(() => orderGradeActivities(activities), [activities]);
 
   const { data: students = [], isLoading } = useQuery({
-    queryKey: ['students-by-class', classId],
+    queryKey: ['students-by-class', activeOrgId, classId],
     queryFn: () => listStudentsByClass(classId),
-    enabled: !!classId,
+    enabled: orgReady && !!classId,
   });
 
-  const { data: termGrades = [] } = useQuery({
-    queryKey: ['term-grades', classId, year, term],
+  const {
+    data: termGrades = [],
+    isLoading: gradesLoading,
+    isError: gradesIsError,
+    error: gradesError,
+  } = useQuery({
+    queryKey: ['term-grades', activeOrgId, classId, year, term],
     queryFn: () => listTermGrades(classId, year, term),
-    enabled: !!classId,
+    enabled: orgReady && !!classId,
   });
 
   const studentsSig = students.map((s) => s.id).join(',');
@@ -77,9 +87,10 @@ export function NotasPage() {
 
   // Preenche inputs com as notas salvas.
   useEffect(() => {
+    if (!orgReady || isLoading || gradesLoading) return;
     resetScoresFromSaved();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studentsSig, gradesSig, orderedActivities.map((a) => a.name).join(',')]);
+  }, [orgReady, isLoading, gradesLoading, studentsSig, gradesSig, orderedActivities.map((a) => a.name).join(',')]);
 
   function mediaOf(id: string): number | null {
     const row = scores[id];
@@ -122,12 +133,21 @@ export function NotasPage() {
     onSuccess: () => {
       setSaved(true);
       setEditingGrades(false);
-      qc.invalidateQueries({ queryKey: ['term-grades', classId, year, term] });
+      qc.invalidateQueries({ queryKey: ['term-grades', activeOrgId, classId, year, term] });
       successToast('Notas salvas com sucesso');
     },
   });
 
   const years = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
+
+  if (!orgReady) {
+    return (
+      <>
+        <PageHeader title="Notas" subtitle="Carregando organização ativa..." />
+        <p className="text-sm font-semibold text-slate-500">Preparando os dados da escola.</p>
+      </>
+    );
+  }
 
   if (classes.length === 0) {
     return (
@@ -197,6 +217,14 @@ export function NotasPage() {
 
           {isLoading ? (
             <p className="text-sm text-slate-500">Carregando…</p>
+          ) : gradesIsError ? (
+            <EmptyState
+              icon={<Award size={26} />}
+              title="Não foi possível carregar as notas"
+              hint={(gradesError as Error).message}
+            />
+          ) : gradesLoading ? (
+            <p className="text-sm text-slate-500">Carregando notas salvas...</p>
           ) : students.length === 0 ? (
             <EmptyState icon={<Award size={26} />} title="Turma sem alunos" hint="Cadastre alunos nesta turma para lançar notas." />
           ) : (
@@ -327,7 +355,7 @@ export function NotasPage() {
         term={term}
         year={year}
         initial={activities}
-        onSaved={() => qc.invalidateQueries({ queryKey: ['term-config', year, term] })}
+        onSaved={() => qc.invalidateQueries({ queryKey: ['term-config', activeOrgId, year, term] })}
       />
     </div>
   );
