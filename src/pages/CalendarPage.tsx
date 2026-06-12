@@ -12,15 +12,17 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, ChevronLeft, ChevronRight, Mail, Paperclip, Pencil, Plus, Trash2, UploadCloud, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Mail, Paperclip, Pencil, Plus, Trash2, UploadCloud, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { AttachmentChips } from '../components/Attachments';
 import { successToast } from '../components/Feedback';
 import { Button, Card, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { cn } from '../lib/cn';
+import { downloadCalendarTemplate, parseCalendarFile, type ParsedEvent } from '../lib/importCalendar';
 import { canManageCalendar } from '../lib/permissions';
 import {
+  bulkCreateEvents,
   deleteEvent,
   listEvents,
   listOrgPeople,
@@ -61,28 +63,34 @@ export function CalendarPage() {
   const canManage = canManageCalendar(role);
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
-  const [selected, setSelected] = useState(today);
+  const [dayModal, setDayModal] = useState<Date | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [composeDate, setComposeDate] = useState<Date>(today);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<EventWithMeta | null>(null);
 
-  const { data: events = [], isLoading } = useQuery({ queryKey: ['cal-events'], queryFn: listEvents });
+  const { data: events = [] } = useQuery({ queryKey: ['cal-events'], queryFn: listEvents });
 
   const dayEvents = (d: Date) => events.filter((e) => inEvent(d, e));
-  const selectedEvents = dayEvents(selected);
 
-  // Ano letivo: fev (1) a nov (10) — mostra todos os meses de uma vez.
-  const months = useMemo(() => {
+  // Ano letivo fev (1) a nov (10), agrupado em trimestres (3 meses por linha).
+  const groups = useMemo(() => {
     const [a, b] = SCHOOL_YEAR_MONTHS;
     const arr: Date[] = [];
     for (let m = a; m <= b; m++) arr.push(new Date(year, m, 1));
-    return arr;
+    const labels = ['1º Trimestre', '2º Trimestre', '3º Trimestre', 'Encerramento'];
+    const out: { label: string; months: Date[] }[] = [];
+    for (let i = 0; i < arr.length; i += 3) out.push({ label: labels[i / 3] ?? '', months: arr.slice(i, i + 3) });
+    return out;
   }, [year]);
 
-  function openNew() {
+  function openNew(d: Date) {
     setEditing(null);
+    setComposeDate(d);
     setComposeOpen(true);
   }
   function openEdit(e: EventWithMeta) {
+    setDayModal(null);
     setEditing(e);
     setComposeOpen(true);
   }
@@ -92,59 +100,213 @@ export function CalendarPage() {
       <PageHeader
         title="Calendário"
         subtitle="Ano letivo inteiro — eventos, atividades, gincanas e semana de provas."
-        action={canManage ? <Button onClick={openNew}><Plus size={18} /> Novo evento</Button> : undefined}
+        action={
+          canManage ? (
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setImportOpen(true)}>
+                <FileSpreadsheet size={18} /> Importar
+              </Button>
+              <Button onClick={() => openNew(today)}>
+                <Plus size={18} /> Novo evento
+              </Button>
+            </div>
+          ) : undefined
+        }
       />
 
-      {/* Ano letivo completo (fev–nov) */}
       <Card className="mb-4">
-        <div className="mb-3 flex items-center justify-center gap-4">
+        <div className="mb-4 flex items-center justify-center gap-4">
           <button onClick={() => setYear(year - 1)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 hover:bg-slate-200">
             <ChevronLeft size={18} />
           </button>
-          <h2 className="text-base font-black text-slate-900">Ano letivo {year}</h2>
+          <h2 className="text-lg font-black text-slate-900">Ano letivo {year}</h2>
           <button onClick={() => setYear(year + 1)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 hover:bg-slate-200">
             <ChevronRight size={18} />
           </button>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {months.map((m) => (
-            <MiniMonth key={m.toISOString()} monthDate={m} dayEvents={dayEvents} selected={selected} onSelect={setSelected} />
+
+        <div className="space-y-5">
+          {groups.map((g, i) => (
+            <div key={i}>
+              {g.label ? <p className="mb-2 text-xs font-black uppercase tracking-wide text-emerald-700">{g.label}</p> : null}
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {g.months.map((m) => (
+                  <MiniMonth key={m.toISOString()} monthDate={m} dayEvents={dayEvents} onSelect={setDayModal} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Legenda */}
+        <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-100 pt-4">
+          {EVENT_CATEGORIES.map((c) => (
+            <span key={c.key} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600">
+              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: c.color }} /> {c.label}
+            </span>
           ))}
         </div>
       </Card>
 
-      {/* Eventos do dia selecionado */}
-      <h3 className="mb-2 text-sm font-black uppercase tracking-wide text-slate-500">
-        {format(selected, "EEEE, d 'de' MMMM", { locale: ptBR })}
-      </h3>
-      {isLoading ? (
-        <p className="text-slate-400">Carregando…</p>
-      ) : selectedEvents.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
-          Nenhum evento neste dia.
-        </p>
-      ) : (
-        <div className="space-y-3">
-          {selectedEvents.map((e) => (
-            <EventCard key={e.id} event={e} canManage={canManage} onEdit={() => openEdit(e)} />
-          ))}
-        </div>
-      )}
-
-      {composeOpen ? <ComposeModal event={editing} onClose={() => setComposeOpen(false)} defaultDate={selected} /> : null}
+      {dayModal ? (
+        <DayModal
+          date={dayModal}
+          events={dayEvents(dayModal)}
+          canManage={canManage}
+          onClose={() => setDayModal(null)}
+          onNew={() => openNew(dayModal)}
+          onEdit={openEdit}
+        />
+      ) : null}
+      {composeOpen ? <ComposeModal event={editing} onClose={() => setComposeOpen(false)} defaultDate={composeDate} /> : null}
+      {importOpen ? <CalImportModal onClose={() => setImportOpen(false)} /> : null}
     </>
+  );
+}
+
+function DayModal({
+  date,
+  events,
+  canManage,
+  onClose,
+  onNew,
+  onEdit,
+}: {
+  date: Date;
+  events: EventWithMeta[];
+  canManage: boolean;
+  onClose: () => void;
+  onNew: () => void;
+  onEdit: (e: EventWithMeta) => void;
+}) {
+  return (
+    <Modal open onClose={onClose} title={format(date, "EEEE, d 'de' MMMM", { locale: ptBR })} size="xl">
+      <div className="space-y-3">
+        {events.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-400">Nenhum evento neste dia.</p>
+        ) : (
+          events.map((e) => <EventCard key={e.id} event={e} canManage={canManage} onEdit={() => onEdit(e)} />)
+        )}
+        {canManage ? (
+          <Button variant="soft" className="w-full" onClick={onNew}>
+            <Plus size={16} /> Novo evento neste dia
+          </Button>
+        ) : null}
+      </div>
+    </Modal>
+  );
+}
+
+function CalImportModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [parsed, setParsed] = useState<ParsedEvent[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+
+  async function handleFile(file?: File | null) {
+    if (!file) return;
+    setErr('');
+    setBusy(true);
+    try {
+      const rows = await parseCalendarFile(file);
+      if (!rows.length) setErr('Nenhum evento reconhecido. Confira o modelo (Data e Título são obrigatórios).');
+      setParsed(rows);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const importMut = useMutation({
+    mutationFn: () => bulkCreateEvents(parsed ?? []),
+    onSuccess: (n) => {
+      qc.invalidateQueries({ queryKey: ['cal-events'] });
+      onClose();
+      successToast(`${n} evento(s) importado(s)`);
+    },
+  });
+
+  return (
+    <Modal open onClose={onClose} title="Importar calendário" size="xl">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-500">
+          Suba um <b>.xlsx</b>/<b>.csv</b> (modelo abaixo) ou um <b>.ics</b> (exportado de outra agenda). O sistema lê o arquivo, identifica
+          os dias com eventos e cria tudo no calendário.
+        </p>
+        <Button variant="ghost" onClick={() => downloadCalendarTemplate()}>
+          <Download size={16} /> Baixar planilha-modelo
+        </Button>
+
+        <label
+          htmlFor="cal-import"
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+            handleFile(e.dataTransfer.files?.[0]);
+          }}
+          className={cn(
+            'flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-8 text-center transition',
+            dragOver ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100',
+          )}
+        >
+          <UploadCloud size={24} className="text-slate-400" />
+          <p className="text-sm font-bold text-slate-600">Clique ou arraste a planilha / .ics</p>
+          <p className="text-xs text-slate-400">.xlsx, .csv, .ics</p>
+          <input
+            id="cal-import"
+            type="file"
+            accept=".xlsx,.xls,.csv,.ics"
+            className="hidden"
+            onChange={(e) => {
+              handleFile(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+        </label>
+
+        {busy ? <p className="text-sm text-slate-500">Lendo arquivo…</p> : null}
+        {err ? <p className="text-sm font-semibold text-red-600">{err}</p> : null}
+
+        {parsed && parsed.length > 0 ? (
+          <div>
+            <p className="mb-2 text-sm font-bold text-slate-700">{parsed.length} evento(s) encontrado(s):</p>
+            <div className="max-h-52 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2">
+              {parsed.slice(0, 50).map((e, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: eventColor(e.category) }} />
+                  <span className="w-20 shrink-0 font-bold text-slate-500">{e.event_date.slice(8, 10)}/{e.event_date.slice(5, 7)}</span>
+                  <span className="truncate font-bold text-slate-800">{e.title}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+              <Button onClick={() => importMut.mutate()} disabled={importMut.isPending}>
+                {importMut.isPending ? 'Importando…' : `Importar ${parsed.length}`}
+              </Button>
+            </div>
+            {importMut.isError ? <p className="text-sm font-semibold text-red-600">{(importMut.error as Error).message}</p> : null}
+          </div>
+        ) : null}
+      </div>
+    </Modal>
   );
 }
 
 function MiniMonth({
   monthDate,
   dayEvents,
-  selected,
   onSelect,
 }: {
   monthDate: Date;
   dayEvents: (d: Date) => EventWithMeta[];
-  selected: Date;
   onSelect: (d: Date) => void;
 }) {
   const days = eachDayOfInterval({
@@ -153,38 +315,37 @@ function MiniMonth({
   });
   const today = new Date();
   return (
-    <div className="rounded-xl border border-slate-200 p-2">
-      <p className="mb-1 text-center text-xs font-black capitalize text-slate-700">{format(monthDate, 'MMMM', { locale: ptBR })}</p>
-      <div className="grid grid-cols-7 text-center text-[9px] font-bold uppercase text-slate-400">
+    <div className="rounded-2xl border border-slate-200 p-3">
+      <p className="mb-2 text-center text-sm font-black capitalize text-slate-800">{format(monthDate, 'MMMM', { locale: ptBR })}</p>
+      <div className="grid grid-cols-7 text-center text-[10px] font-bold uppercase text-slate-400">
         {WD.map((w) => (
-          <div key={w}>{w[0]}</div>
+          <div key={w} className="pb-1">{w[0]}</div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-0.5">
+      <div className="grid grid-cols-7 gap-1">
         {days.map((d) => {
           const out = !isSameMonth(d, monthDate);
           const evs = out ? [] : dayEvents(d);
-          const isSel = isSameDay(d, selected);
           const isToday = isSameDay(d, today);
+          const has = evs.length > 0;
+          const color = has ? eventColor(evs[0].category) : undefined;
           return (
             <button
               key={d.toISOString()}
               onClick={() => !out && onSelect(d)}
               disabled={out}
+              title={has ? evs.map((e) => e.title).join(', ') : undefined}
               className={cn(
-                'relative grid h-7 place-items-center rounded text-[11px] transition',
-                out ? 'text-transparent' : 'text-slate-700 hover:bg-slate-100',
-                isSel && !out && 'bg-emerald-100 font-black ring-1 ring-emerald-400',
-                isToday && !out && !isSel && 'font-black text-emerald-700',
+                'relative grid h-10 place-items-center rounded-lg text-sm transition',
+                out ? 'text-transparent' : 'text-slate-700 hover:ring-2 hover:ring-emerald-300',
+                has && !out && 'font-black text-white',
+                isToday && !out && !has && 'font-black text-emerald-700 ring-1 ring-emerald-400',
               )}
+              style={has && !out ? { backgroundColor: color } : undefined}
             >
               {format(d, 'd')}
-              {evs.length ? (
-                <span className="absolute bottom-0.5 flex gap-0.5">
-                  {evs.slice(0, 3).map((e) => (
-                    <span key={e.id} className="h-1 w-1 rounded-full" style={{ backgroundColor: eventColor(e.category) }} />
-                  ))}
-                </span>
+              {evs.length > 1 ? (
+                <span className="absolute bottom-0.5 right-1 text-[9px] font-black text-white/90">+{evs.length - 1}</span>
               ) : null}
             </button>
           );

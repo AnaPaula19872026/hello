@@ -885,6 +885,24 @@ export async function deleteEvent(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Cria vários eventos de uma vez (importação de planilha/ICS). Devolve a quantidade. */
+export async function bulkCreateEvents(
+  events: { title: string; description: string; category: string; event_date: string; end_date: string | null }[],
+): Promise<number> {
+  if (!events.length) return 0;
+  const rows = events.map((e) => ({
+    title: e.title,
+    description: e.description,
+    category: e.category,
+    event_date: e.event_date,
+    end_date: e.end_date || null,
+    audience: 'all' as const,
+  }));
+  const { error } = await supabase.from('calendar_events').insert(rows);
+  if (error) throw new Error(error.message);
+  return rows.length;
+}
+
 export async function uploadEventAttachment(eventId: string, file: File): Promise<void> {
   const org = getActiveOrgId();
   const safe = file.name.replace(/[^\w.\-]+/g, '_');
