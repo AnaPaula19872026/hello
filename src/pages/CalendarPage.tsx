@@ -397,22 +397,23 @@ function CalendarUploadCenter({ canManage }: { canManage: boolean }) {
     return map;
   }, [uploads]);
 
-  const ready = uploads.length;
+  const ready = CALENDAR_UPLOAD_SLOTS.filter((slot) => (bySlot.get(slot.slot) ?? []).length > 0).length;
   return (
-    <Card className="mb-5">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+    <section className="mb-6">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
             <FileText size={22} />
           </span>
           <div>
-            <h2 className="text-lg font-black text-slate-900">Calendários prontos</h2>
-            <p className="mt-0.5 max-w-2xl text-sm font-medium text-slate-500">
-              Anexe o calendário anual e os de cada trimestre. Todos os perfis autorizados visualizam no próprio login.
+            <p className="text-xs font-black uppercase tracking-wide text-emerald-700">Centro de uploads</p>
+            <h2 className="mt-0.5 text-xl font-black text-slate-950">Calendários prontos</h2>
+            <p className="mt-1 max-w-2xl text-sm font-medium leading-relaxed text-slate-500">
+              Anexe o calendário anual e os trimestres em cards separados. Os perfis autorizados visualizam tudo no próprio login.
             </p>
           </div>
         </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{ready}/4 enviados</span>
+        <span className="w-fit rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600">{ready}/4 enviados</span>
       </div>
 
       {isError ? (
@@ -421,7 +422,7 @@ function CalendarUploadCenter({ canManage }: { canManage: boolean }) {
         </p>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {CALENDAR_UPLOAD_SLOTS.map((slot) => (
           <CalendarUploadSlotCard
             key={slot.slot}
@@ -434,7 +435,7 @@ function CalendarUploadCenter({ canManage }: { canManage: boolean }) {
           />
         ))}
       </div>
-    </Card>
+    </section>
   );
 }
 
@@ -453,105 +454,127 @@ function CalendarUploadSlotCard({
   onUpload: (file: File) => void;
   onDelete: (item: CalendarUpload) => void;
 }) {
-  const replaceRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
   const Icon = meta.icon;
-  const filled = uploads.length > 0;
+  const latest = uploads[0];
+  const filled = !!latest;
+
+  function sendFile(file?: File | null) {
+    if (file) onUpload(file);
+  }
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg">
-      <span className="h-1.5 w-full" style={{ backgroundColor: meta.color }} />
+    <article
+      onDragOver={(e) => {
+        if (!canManage) return;
+        e.preventDefault();
+        setDragOver(true);
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget === e.target) setDragOver(false);
+      }}
+      onDrop={(e) => {
+        if (!canManage) return;
+        e.preventDefault();
+        setDragOver(false);
+        sendFile(e.dataTransfer.files?.[0]);
+      }}
+      className={cn(
+        'group flex min-h-[260px] flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
+        dragOver ? 'border-emerald-400 ring-4 ring-emerald-100' : 'border-slate-200',
+      )}
+    >
       <div className="flex flex-1 flex-col p-4">
-        {/* Cabeçalho */}
-        <div className="flex items-start gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: meta.soft, color: meta.color }}>
-            <Icon size={22} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate font-black text-slate-900">{meta.title}</h3>
-            <p className="mt-0.5 line-clamp-2 text-xs font-medium text-slate-500">{meta.description}</p>
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl ring-1 ring-black/5" style={{ backgroundColor: meta.soft, color: meta.color }}>
+              <Icon size={21} />
+            </span>
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-black text-slate-950">{meta.title}</h3>
+              <p className="mt-0.5 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{meta.description}</p>
+            </div>
           </div>
-          <span
-            className={cn(
-              'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black uppercase',
-              filled ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700',
-            )}
-          >
-            {filled ? <CheckCircle2 size={12} /> : <Clock size={12} />}
-            {filled ? 'Disponível' : 'Pendente'}
+          <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase', filled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400')}>
+            {filled ? 'Anexado' : 'Vazio'}
           </span>
         </div>
 
-        {/* Corpo */}
-        <div className="mt-4 flex-1">
-          {filled ? (
-            <div className="space-y-2">
-              {uploads.map((item) => (
-                <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-                  <div className="flex items-start gap-2">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-slate-500 shadow-sm">
-                      <FileText size={16} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-black text-slate-800">{item.name}</p>
-                      <p className="text-xs font-bold text-slate-400">
-                        {format(parseISO(item.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </p>
-                    </div>
-                    {canManage ? (
-                      <button
-                        onClick={() => onDelete(item)}
-                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
-                        aria-label="Excluir calendário"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    ) : null}
-                  </div>
-                  <AttachmentChips attachments={[item]} />
-                </div>
-              ))}
+        {latest ? (
+          <div className="flex flex-1 flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-3 flex min-w-0 items-start gap-2">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-slate-500 shadow-sm">
+                <FileText size={17} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-black text-slate-900">{latest.name}</p>
+                <p className="mt-0.5 text-[11px] font-bold text-slate-400">
+                  Enviado em {format(parseISO(latest.created_at), 'dd/MM/yyyy', { locale: ptBR })}
+                </p>
+              </div>
             </div>
-          ) : canManage ? (
-            <Dropzone
-              accept={CAL_UPLOAD_ACCEPT}
-              multiple={false}
-              title="Arraste o calendário aqui"
-              hint="ou clique para procurar"
-              onFiles={(files) => files?.[0] && onUpload(files[0])}
-            />
-          ) : (
-            <div className="grid place-items-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center">
-              <CalendarDays size={20} className="mb-1 text-slate-300" />
-              <p className="text-xs font-bold text-slate-400">Ainda não disponibilizado</p>
-            </div>
-          )}
-        </div>
 
-        {/* Rodapé: trocar (quando já tem arquivo) */}
-        {filled && canManage ? (
+            <div className="flex items-center gap-2">
+              {latest.url ? (
+                <a
+                  href={latest.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download={latest.name}
+                  className="inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-3 text-xs font-black text-white transition hover:bg-slate-800"
+                >
+                  <Download size={15} /> Abrir
+                </a>
+              ) : null}
+              {canManage ? (
+                <button
+                  onClick={() => onDelete(latest)}
+                  disabled={busy}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-red-50 text-red-600 transition hover:bg-red-100 disabled:opacity-60"
+                  aria-label="Excluir calendário"
+                >
+                  <Trash2 size={15} />
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => canManage && inputRef.current?.click()}
+            disabled={!canManage || busy}
+            className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center transition hover:border-emerald-300 hover:bg-emerald-50/40 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50"
+          >
+            <Paperclip size={20} className="mb-2 text-slate-300" />
+            <p className="text-sm font-black text-slate-500">{canManage ? 'Enviar arquivo' : 'Sem arquivo'}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-400">{canManage ? 'Clique ou arraste para anexar' : 'Ainda não disponibilizado'}</p>
+          </button>
+        )}
+
+        {canManage ? (
           <div className="mt-3 border-t border-slate-100 pt-3">
             <button
-              onClick={() => replaceRef.current?.click()}
+              onClick={() => inputRef.current?.click()}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 text-xs font-black text-slate-500 hover:text-emerald-700 disabled:opacity-50"
+              className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-white text-xs font-black text-slate-600 ring-1 ring-slate-200 transition hover:text-emerald-700 hover:ring-emerald-200 disabled:opacity-50"
             >
-              <RefreshCw size={14} /> {busy ? 'Enviando…' : 'Enviar outro / substituir'}
+              <RefreshCw size={14} /> {busy ? 'Enviando...' : filled ? 'Substituir arquivo' : 'Procurar arquivo'}
             </button>
             <input
-              ref={replaceRef}
+              ref={inputRef}
               type="file"
               accept={CAL_UPLOAD_ACCEPT}
               className="hidden"
               onChange={(e) => {
-                const f = e.target.files?.[0];
+                sendFile(e.target.files?.[0]);
                 e.target.value = '';
-                if (f) onUpload(f);
               }}
             />
           </div>
         ) : null}
       </div>
-    </div>
+    </article>
   );
 }
 
