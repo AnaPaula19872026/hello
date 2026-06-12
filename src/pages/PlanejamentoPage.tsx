@@ -418,8 +418,7 @@ function ComposeModal({ plan, onClose }: { plan: PlanWithMeta | null; onClose: (
 
         <Field label="Anexos (plano em PDF/DOCX, materiais…)">
           <Dropzone
-            accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.rtf,.odt,.pages,.key,.numbers,.heic,.heif"
-            hint="PDF, DOC/DOCX, PPTX, imagens…"
+            hint="PDF, Word, Excel, PowerPoint, imagens, ZIP… (até 50 MB)"
             onFiles={addFiles}
           />
           {files.length > 0 ? (

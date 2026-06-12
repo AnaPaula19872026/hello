@@ -1,8 +1,16 @@
 const MB = 1024 * 1024;
 
 export const MAX_SHEET_FILE_SIZE = 5 * MB;
-export const MAX_UPLOAD_FILE_SIZE = 20 * MB;
+export const MAX_UPLOAD_FILE_SIZE = 50 * MB;
 export const MAX_IMPORT_ROWS = 5000;
+
+// Bloqueamos só executáveis/scripts perigosos; todo o resto é aceito
+// (Office, PDF, imagens, áudio, vídeo, zip, formatos Apple…). Suporte amplo.
+const BLOCKED_UPLOAD_EXT = new Set([
+  'exe', 'msi', 'bat', 'cmd', 'com', 'scr', 'pif', 'cpl', 'jar',
+  'js', 'jse', 'vbs', 'vbe', 'ps1', 'psm1', 'sh', 'app', 'apk',
+  'dll', 'sys', 'reg', 'lnk', 'hta', 'wsf', 'wsh', 'gadget',
+]);
 
 export function fileExtension(name: string): string {
   const idx = name.lastIndexOf('.');
@@ -23,31 +31,8 @@ export function assertCalendarImportFile(file: File): void {
 
 export function assertUploadFile(file: File): void {
   const ext = fileExtension(file.name);
-  const allowed = new Set([
-    'csv',
-    'doc',
-    'docx',
-    'gif',
-    'heic',
-    'heif',
-    'jpg',
-    'jpeg',
-    'key',
-    'numbers',
-    'odt',
-    'pages',
-    'pdf',
-    'png',
-    'ppt',
-    'pptx',
-    'rtf',
-    'txt',
-    'webp',
-    'xls',
-    'xlsx',
-  ]);
-  if (!allowed.has(ext)) throw new Error('Tipo de arquivo não permitido.');
-  if (file.size > MAX_UPLOAD_FILE_SIZE) throw new Error('Arquivo muito grande. Envie arquivos de até 20 MB.');
+  if (BLOCKED_UPLOAD_EXT.has(ext)) throw new Error('Por segurança, arquivos executáveis não são aceitos.');
+  if (file.size > MAX_UPLOAD_FILE_SIZE) throw new Error('Arquivo muito grande. Envie arquivos de até 50 MB.');
 }
 
 export function assertImportRowLimit(total: number): void {

@@ -1043,8 +1043,7 @@ function ComposeModal({ event, onClose, defaultDate }: { event: EventWithMeta | 
 
         <Field label="Anexos (calendário pronto, regulamento, etc.)">
           <Dropzone
-            accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.rtf,.odt,.pages,.key,.numbers,.heic,.heif"
-            hint="PDF, DOC/DOCX, PPTX, XLSX, PNG, JPG, HEIC, Pages, Keynote…"
+            hint="PDF, Word, Excel, PowerPoint, imagens, ZIP… (até 50 MB)"
             onFiles={addFiles}
           />
           {files.length > 0 ? (

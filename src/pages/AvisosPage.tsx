@@ -305,7 +305,6 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
               id="aviso-files"
               type="file"
               multiple
-              accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.rtf,.odt,.pages,.key,.numbers,.heic,.heif"
               className="hidden"
               onChange={(e) => {
                 addFiles(e.target.files);
