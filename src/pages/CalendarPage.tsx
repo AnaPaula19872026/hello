@@ -12,10 +12,11 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Mail, Paperclip, Pencil, Plus, Trash2, UploadCloud, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Mail, Paperclip, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { AttachmentChips } from '../components/Attachments';
+import { Dropzone } from '../components/Dropzone';
 import { successToast } from '../components/Feedback';
 import { Button, Card, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { cn } from '../lib/cn';
@@ -38,6 +39,7 @@ import {
   SCHOOL_YEAR_MONTHS,
   eventCatLabel,
   eventColor,
+  eventSoftColor,
   type AppRole,
   type EventAudience,
 } from '../lib/types';
@@ -57,6 +59,12 @@ function rangeLabel(e: EventWithMeta) {
 function shareText(e: EventWithMeta) {
   return `📅 ${eventCatLabel(e.category)}: ${e.title}\n🗓️ ${rangeLabel(e)}${e.description ? `\n\n${e.description}` : ''}`;
 }
+function audienceLabel(e: EventWithMeta) {
+  if (e.audience === 'all') return 'Todos os envolvidos';
+  if (e.audience === 'role' && e.target_role) return ROLE_LABEL[e.target_role as AppRole] ?? 'Perfil específico';
+  if (e.audience === 'user') return 'Pessoa específica';
+  return 'Todos os envolvidos';
+}
 
 export function CalendarPage() {
   const { role } = useAuth();
@@ -72,6 +80,7 @@ export function CalendarPage() {
   const { data: events = [] } = useQuery({ queryKey: ['cal-events'], queryFn: listEvents });
 
   const dayEvents = (d: Date) => events.filter((e) => inEvent(d, e));
+  const yearEvents = useMemo(() => events.filter((e) => e.event_date.startsWith(String(year))), [events, year]);
 
   // Ano letivo fev (1) a nov (10), agrupado em trimestres (3 meses por linha).
   const groups = useMemo(() => {
@@ -125,6 +134,21 @@ export function CalendarPage() {
           </button>
         </div>
 
+        <div className="mb-5 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+          <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Legenda no calendário</p>
+          <div className="flex flex-wrap gap-2">
+            {EVENT_CATEGORIES.map((c) => (
+              <span
+                key={c.key}
+                className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-black"
+                style={{ backgroundColor: eventSoftColor(c.key), borderColor: `${c.color}33`, color: c.color }}
+              >
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.color }} /> {c.label}
+              </span>
+            ))}
+          </div>
+        </div>
+
         <div className="space-y-5">
           {groups.map((g, i) => (
             <div key={i}>
@@ -138,15 +162,37 @@ export function CalendarPage() {
           ))}
         </div>
 
-        {/* Legenda */}
-        <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-100 pt-4">
-          {EVENT_CATEGORIES.map((c) => (
-            <span key={c.key} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600">
-              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: c.color }} /> {c.label}
-            </span>
+      </Card>
+
+      {/* Lista de eventos do ano (nomes visíveis a todos) */}
+      <h3 className="mb-2 text-sm font-black uppercase tracking-wide text-slate-500">Eventos de {year}</h3>
+      {yearEvents.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
+          Nenhum evento neste ano ainda.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {yearEvents.map((e) => (
+            <button
+              key={e.id}
+              onClick={() => setDayModal(day(e.event_date))}
+              className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-emerald-300 hover:bg-emerald-50/40"
+            >
+              <span className="grid h-10 w-12 shrink-0 place-items-center rounded-lg text-center text-xs font-black text-white" style={{ backgroundColor: eventColor(e.category) }}>
+                {e.event_date.slice(8, 10)}/{e.event_date.slice(5, 7)}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-bold text-slate-800">{e.title}</span>
+                <span className="block text-xs font-bold text-slate-400">
+                  {eventCatLabel(e.category)}
+                  {e.attachments.length ? ` · ${e.attachments.length} anexo(s)` : ''}
+                </span>
+              </span>
+              {e.attachments.length ? <Paperclip size={15} className="shrink-0 text-slate-400" /> : null}
+            </button>
           ))}
         </div>
-      </Card>
+      )}
 
       {dayModal ? (
         <DayModal
@@ -202,7 +248,6 @@ function CalImportModal({ onClose }: { onClose: () => void }) {
   const [parsed, setParsed] = useState<ParsedEvent[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const [dragOver, setDragOver] = useState(false);
 
   async function handleFile(file?: File | null) {
     if (!file) return;
@@ -233,43 +278,19 @@ function CalImportModal({ onClose }: { onClose: () => void }) {
       <div className="space-y-4">
         <p className="text-sm text-slate-500">
           Suba um <b>.xlsx</b>/<b>.csv</b> (modelo abaixo) ou um <b>.ics</b> (exportado de outra agenda). O sistema lê o arquivo, identifica
-          os dias com eventos e cria tudo no calendário.
+          os dias com eventos e cria tudo no calendário para todos os envolvidos por padrão.
         </p>
         <Button variant="ghost" onClick={() => downloadCalendarTemplate()}>
           <Download size={16} /> Baixar planilha-modelo
         </Button>
 
-        <label
-          htmlFor="cal-import"
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            handleFile(e.dataTransfer.files?.[0]);
-          }}
-          className={cn(
-            'flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-8 text-center transition',
-            dragOver ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100',
-          )}
-        >
-          <UploadCloud size={24} className="text-slate-400" />
-          <p className="text-sm font-bold text-slate-600">Clique ou arraste a planilha / .ics</p>
-          <p className="text-xs text-slate-400">.xlsx, .csv, .ics</p>
-          <input
-            id="cal-import"
-            type="file"
-            accept=".xlsx,.xls,.csv,.ics"
-            className="hidden"
-            onChange={(e) => {
-              handleFile(e.target.files?.[0]);
-              e.target.value = '';
-            }}
-          />
-        </label>
+        <Dropzone
+          accept=".xlsx,.xls,.csv,.ics"
+          multiple={false}
+          title="Arraste e solte aqui, ou clique em Procurar arquivo"
+          hint="Planilha .xlsx/.csv ou agenda .ics"
+          onFiles={(l) => handleFile(l?.[0])}
+        />
 
         {busy ? <p className="text-sm text-slate-500">Lendo arquivo…</p> : null}
         {err ? <p className="text-sm font-semibold text-red-600">{err}</p> : null}
@@ -315,7 +336,7 @@ function MiniMonth({
   });
   const today = new Date();
   return (
-    <div className="rounded-2xl border border-slate-200 p-3">
+    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
       <p className="mb-2 text-center text-sm font-black capitalize text-slate-800">{format(monthDate, 'MMMM', { locale: ptBR })}</p>
       <div className="grid grid-cols-7 text-center text-[10px] font-bold uppercase text-slate-400">
         {WD.map((w) => (
@@ -334,19 +355,32 @@ function MiniMonth({
               key={d.toISOString()}
               onClick={() => !out && onSelect(d)}
               disabled={out}
-              title={has ? evs.map((e) => e.title).join(', ') : undefined}
+              title={has ? evs.map((e) => `${eventCatLabel(e.category)}: ${e.title}`).join(', ') : undefined}
               className={cn(
-                'relative grid h-10 place-items-center rounded-lg text-sm transition',
-                out ? 'text-transparent' : 'text-slate-700 hover:ring-2 hover:ring-emerald-300',
-                has && !out && 'font-black text-white',
-                isToday && !out && !has && 'font-black text-emerald-700 ring-1 ring-emerald-400',
+                'relative flex min-h-20 flex-col rounded-lg border p-1 text-left text-xs transition',
+                out ? 'border-transparent text-transparent' : 'border-slate-100 bg-slate-50 text-slate-700 hover:ring-2 hover:ring-emerald-300',
+                has && !out && 'bg-white',
+                isToday && !out && 'border-emerald-400 ring-1 ring-emerald-300',
               )}
-              style={has && !out ? { backgroundColor: color } : undefined}
             >
-              {format(d, 'd')}
-              {evs.length > 1 ? (
-                <span className="absolute bottom-0.5 right-1 text-[9px] font-black text-white/90">+{evs.length - 1}</span>
-              ) : null}
+              <span
+                className={cn('mb-1 grid h-5 w-5 place-items-center rounded-md text-[11px] font-black', has ? 'text-white' : 'text-slate-500')}
+                style={has ? { backgroundColor: color } : undefined}
+              >
+                {format(d, 'd')}
+              </span>
+              <span className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
+                {evs.slice(0, 2).map((e) => (
+                  <span
+                    key={e.id}
+                    className="truncate rounded px-1 py-0.5 text-[9px] font-black leading-tight"
+                    style={{ backgroundColor: eventSoftColor(e.category), color: eventColor(e.category) }}
+                  >
+                    {eventCatLabel(e.category)} · {e.title}
+                  </span>
+                ))}
+                {evs.length > 2 ? <span className="px-1 text-[9px] font-black text-slate-400">+{evs.length - 2} evento(s)</span> : null}
+              </span>
             </button>
           );
         })}
@@ -383,6 +417,7 @@ function EventCard({ event: e, canManage, onEdit }: { event: EventWithMeta; canM
           <p className="mt-0.5 text-xs font-bold text-slate-500">
             {rangeLabel(e)}
             {e.authorName ? ` · por ${e.authorName}` : ''}
+            {` · ${audienceLabel(e)}`}
           </p>
           {e.description ? <p className="mt-1.5 whitespace-pre-wrap text-sm text-slate-600">{e.description}</p> : null}
           <AttachmentChips attachments={e.attachments} />
@@ -434,7 +469,6 @@ function ComposeModal({ event, onClose, defaultDate }: { event: EventWithMeta | 
   const [targetRole, setTargetRole] = useState<AppRole>((event?.target_role as AppRole) ?? 'professor');
   const [targetUser, setTargetUser] = useState(event?.target_user ?? '');
   const [files, setFiles] = useState<File[]>([]);
-  const [dragOver, setDragOver] = useState(false);
 
   const { data: people = [] } = useQuery({ queryKey: ['org-people'], queryFn: listOrgPeople });
 
@@ -500,7 +534,7 @@ function ComposeModal({ event, onClose, defaultDate }: { event: EventWithMeta | 
 
         <Field label="Para">
           <div className="grid grid-cols-3 gap-2">
-            {([['all', 'Todos'], ['role', 'Por papel'], ['user', 'Pessoa']] as const).map(([v, l]) => (
+            {([['all', 'Todos'], ['role', 'Por perfil'], ['user', 'Pessoa']] as const).map(([v, l]) => (
               <button
                 key={v}
                 onClick={() => setAudience(v)}
@@ -510,6 +544,11 @@ function ComposeModal({ event, onClose, defaultDate }: { event: EventWithMeta | 
               </button>
             ))}
           </div>
+          {audience === 'all' ? (
+            <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
+              Aparece para todos os logins envolvidos nesta organização: professores, secretaria, coordenação, direção, marketing e suporte.
+            </p>
+          ) : null}
         </Field>
         {audience === 'role' ? (
           <Field label="Papel">
@@ -532,25 +571,11 @@ function ComposeModal({ event, onClose, defaultDate }: { event: EventWithMeta | 
         ) : null}
 
         <Field label="Anexos (calendário pronto, regulamento, etc.)">
-          <label
-            htmlFor="ev-files"
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
-            className={cn('flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-6 text-center transition', dragOver ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100')}
-          >
-            <UploadCloud size={22} className="text-slate-400" />
-            <p className="text-sm font-bold text-slate-600">Clique ou arraste os arquivos aqui</p>
-            <p className="text-xs text-slate-400">PDF, DOC/DOCX, PPTX, XLSX, PNG, JPG, HEIC, Pages, Keynote…</p>
-            <input
-              id="ev-files"
-              type="file"
-              multiple
-              accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.rtf,.odt,.pages,.key,.numbers,.heic,.heif"
-              className="hidden"
-              onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }}
-            />
-          </label>
+          <Dropzone
+            accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.rtf,.odt,.pages,.key,.numbers,.heic,.heif"
+            hint="PDF, DOC/DOCX, PPTX, XLSX, PNG, JPG, HEIC, Pages, Keynote…"
+            onFiles={addFiles}
+          />
           {files.length > 0 ? (
             <div className="mt-2 space-y-1.5">
               {files.map((f, i) => (

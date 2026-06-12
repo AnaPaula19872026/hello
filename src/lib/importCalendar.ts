@@ -50,13 +50,28 @@ export async function downloadCalendarTemplate() {
   const XLSX = await import('xlsx');
   const rows = [
     ['Data', 'Título', 'Categoria', 'Descrição', 'Até (opcional)'],
-    ['2026-02-10', 'Início das aulas', 'Evento', 'Volta às aulas', ''],
-    ['2026-03-20', 'Gincana cultural', 'Gincana', 'Atividades no pátio', '2026-03-21'],
-    ['2026-06-15', 'Semana de provas', 'Semana de provas', '1º trimestre', '2026-06-19'],
+    ['12/06/2026', 'Evento pedagógico', 'Evento', 'Use sempre o padrão brasileiro dd/mm/aaaa.', ''],
+    ['20/03/2026', 'Gincana cultural', 'Gincana', 'Atividades no pátio', '21/03/2026'],
+    ['15/06/2026', 'Semana de provas', 'Semana de provas', '1º trimestre', '19/06/2026'],
   ];
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{ wch: 14 }, { wch: 30 }, { wch: 18 }, { wch: 30 }, { wch: 16 }];
+  ws['A2'].z = 'dd/mm/yyyy';
+  ws['A3'].z = 'dd/mm/yyyy';
+  ws['A4'].z = 'dd/mm/yyyy';
+  ws['E3'].z = 'dd/mm/yyyy';
+  ws['E4'].z = 'dd/mm/yyyy';
+  ws['!cols'] = [{ wch: 14 }, { wch: 30 }, { wch: 20 }, { wch: 46 }, { wch: 16 }];
+  ws['!autofilter'] = { ref: 'A1:E4' };
   const wb = XLSX.utils.book_new();
+  const info = XLSX.utils.aoa_to_sheet([
+    ['PLANILHA PADRÃO - CALENDÁRIO'],
+    ['Use datas no formato brasileiro: 12/06/2026.'],
+    ['Não use formato americano como 06/12/2026 para 12 de junho.'],
+    ['Categorias aceitas: Evento, Atividade, Gincana, Semana de provas, Reunião, Outro.'],
+    ['Eventos importados ficam visíveis para todos os perfis envolvidos por padrão.'],
+  ]);
+  info['!cols'] = [{ wch: 90 }];
+  XLSX.utils.book_append_sheet(wb, info, 'Instruções');
   XLSX.utils.book_append_sheet(wb, ws, 'Calendario');
   XLSX.writeFile(wb, 'modelo-calendario.xlsx');
 }
@@ -72,28 +87,31 @@ async function parseSheet(file: File): Promise<ParsedEvent[]> {
   const XLSX = await import('xlsx');
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array', cellDates: true });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
   const out: ParsedEvent[] = [];
-  for (const r of rows) {
-    // aceita cabeçalhos em pt (Data/Título/...) de forma flexível
-    const get = (keys: string[]) => {
-      for (const k of Object.keys(r)) {
-        const kk = k.toLowerCase().trim();
-        if (keys.some((t) => kk.startsWith(t))) return r[k];
-      }
-      return '';
-    };
-    const date = parseDate(get(['data', 'date', 'dia', 'início', 'inicio']));
-    const title = String(get(['título', 'titulo', 'evento', 'nome', 'title']) ?? '').trim();
-    if (!date || !title) continue;
-    out.push({
-      title,
-      description: String(get(['descri', 'detalhe', 'obs']) ?? '').trim(),
-      category: matchCategory(get(['categoria', 'tipo', 'category'])),
-      event_date: date,
-      end_date: parseDate(get(['até', 'ate', 'fim', 'término', 'termino', 'end'])),
-    });
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+    for (const r of rows) {
+      // aceita cabeçalhos em pt (Data/Título/...) de forma flexível
+      const get = (keys: string[]) => {
+        for (const k of Object.keys(r)) {
+          const kk = k.toLowerCase().trim();
+          if (keys.some((t) => kk.startsWith(t))) return r[k];
+        }
+        return '';
+      };
+      const date = parseDate(get(['data', 'date', 'dia', 'início', 'inicio']));
+      const title = String(get(['título', 'titulo', 'evento', 'nome', 'title']) ?? '').trim();
+      if (!date || !title) continue;
+      out.push({
+        title,
+        description: String(get(['descri', 'detalhe', 'obs']) ?? '').trim(),
+        category: matchCategory(get(['categoria', 'tipo', 'category'])),
+        event_date: date,
+        end_date: parseDate(get(['até', 'ate', 'fim', 'término', 'termino', 'end'])),
+      });
+    }
+    if (out.length) break;
   }
   return out;
 }

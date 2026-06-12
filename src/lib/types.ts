@@ -130,15 +130,26 @@ export interface NoticeAttachment {
 export type EventAudience = 'all' | 'role' | 'user';
 
 export const EVENT_CATEGORIES: { key: string; label: string; color: string }[] = [
-  { key: 'evento', label: 'Evento', color: '#0ea5e9' },
-  { key: 'atividade', label: 'Atividade', color: '#10b981' },
-  { key: 'gincana', label: 'Gincana', color: '#f59e0b' },
-  { key: 'prova', label: 'Semana de provas', color: '#ef4444' },
-  { key: 'reuniao', label: 'Reunião', color: '#8b5cf6' },
-  { key: 'outro', label: 'Outro', color: '#64748b' },
+  { key: 'evento', label: 'Evento', color: '#2563eb' },
+  { key: 'atividade', label: 'Atividade', color: '#059669' },
+  { key: 'gincana', label: 'Gincana', color: '#d97706' },
+  { key: 'prova', label: 'Semana de provas', color: '#dc2626' },
+  { key: 'reuniao', label: 'Reunião', color: '#7c3aed' },
+  { key: 'outro', label: 'Outro', color: '#475569' },
 ];
 export const eventColor = (cat: string) => EVENT_CATEGORIES.find((c) => c.key === cat)?.color ?? '#64748b';
 export const eventCatLabel = (cat: string) => EVENT_CATEGORIES.find((c) => c.key === cat)?.label ?? cat;
+export const eventSoftColor = (cat: string) => {
+  const map: Record<string, string> = {
+    evento: '#eff6ff',
+    atividade: '#ecfdf5',
+    gincana: '#fffbeb',
+    prova: '#fef2f2',
+    reuniao: '#f5f3ff',
+    outro: '#f8fafc',
+  };
+  return map[cat] ?? '#f8fafc';
+};
 
 export interface CalendarEvent {
   id: string;
