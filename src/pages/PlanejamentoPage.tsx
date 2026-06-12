@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { BookOpen, Check, Paperclip, Pencil, Plus, Send, Trash2, Undo2, X } from 'lucide-react';
-import { useState } from 'react';
+import { BookOpen, Check, MessageSquare, Paperclip, Pencil, Plus, Send, Trash2, Undo2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { AttachmentChips } from '../components/Attachments';
 import { Dropzone } from '../components/Dropzone';
@@ -15,8 +15,10 @@ import {
   listClasses,
   listMyPlans,
   listOrgPlans,
+  listPlanMessages,
   reviewPlan,
   savePlan,
+  sendPlanMessage,
   submitPlan,
   uploadPlanAttachment,
   type PlanInput,
@@ -175,6 +177,7 @@ function ParaRevisar() {
 
 function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?: React.ReactNode; showAuthor?: boolean }) {
   const st = PLAN_STATUS[p.status];
+  const [chatOpen, setChatOpen] = useState(false);
   return (
     <Card>
       <div className="flex items-start justify-between gap-3">
@@ -189,6 +192,13 @@ function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?
             {p.week_start ? `Semana de ${format(parseISO(p.week_start), 'dd/MM/yyyy')}` : 'Sem data'}
           </p>
         </div>
+        <button
+          onClick={() => setChatOpen(true)}
+          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-emerald-50 hover:text-emerald-700"
+          title="Abrir conversa com a coordenação"
+        >
+          <MessageSquare size={15} /> Conversa
+        </button>
       </div>
       {p.content ? <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{p.content}</p> : null}
       <AttachmentChips attachments={p.attachments} />
@@ -199,7 +209,104 @@ function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?
         </div>
       ) : null}
       {footer ? <div className="mt-3 border-t border-slate-100 pt-3">{footer}</div> : null}
+      {chatOpen ? <ChatModal plan={p} onClose={() => setChatOpen(false)} /> : null}
     </Card>
+  );
+}
+
+/** Chat interno por planejamento — coordenação ⇄ professor, com auto-atualização. */
+function ChatModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  const uid = user!.id;
+  const [body, setBody] = useState('');
+  const endRef = useRef<HTMLDivElement>(null);
+  const key = ['plan-messages', plan.id];
+
+  const { data: messages = [], isLoading } = useQuery({
+    queryKey: key,
+    queryFn: () => listPlanMessages(plan.id),
+    refetchInterval: 8000, // quase em tempo real, sem peso de websocket
+    retry: false,
+  });
+
+  const send = useMutation({
+    mutationFn: () => sendPlanMessage(plan.id, body),
+    onSuccess: () => {
+      setBody('');
+      qc.invalidateQueries({ queryKey: key });
+    },
+  });
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  function submit() {
+    if (body.trim() && !send.isPending) send.mutate();
+  }
+
+  return (
+    <Modal open onClose={onClose} title={`Conversa — ${plan.title}`}>
+      <div className="flex h-[60vh] flex-col">
+        <div className="-mx-1 flex-1 space-y-2 overflow-y-auto px-1">
+          {isLoading ? (
+            <p className="py-8 text-center text-sm text-slate-400">Carregando…</p>
+          ) : messages.length === 0 ? (
+            <div className="grid h-full place-items-center text-center">
+              <div>
+                <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-slate-100 text-slate-400">
+                  <MessageSquare size={22} />
+                </div>
+                <p className="text-sm font-bold text-slate-600">Nenhuma mensagem ainda</p>
+                <p className="mt-1 text-xs text-slate-400">Tire dúvidas ou peça ajustes diretamente aqui.</p>
+              </div>
+            </div>
+          ) : (
+            messages.map((m) => {
+              const mine = m.author_id === uid;
+              return (
+                <div key={m.id} className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
+                  <div
+                    className={cn(
+                      'max-w-[85%] rounded-2xl px-3.5 py-2 text-sm shadow-sm',
+                      mine ? 'rounded-br-md bg-emerald-600 text-white' : 'rounded-bl-md bg-slate-100 text-slate-800',
+                    )}
+                  >
+                    {!mine ? <p className="mb-0.5 text-[11px] font-black opacity-70">{m.authorName ?? 'Usuário'}</p> : null}
+                    <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                  </div>
+                  <span className="mt-0.5 px-1 text-[10px] font-bold text-slate-400">
+                    {format(parseISO(m.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                  </span>
+                </div>
+              );
+            })
+          )}
+          <div ref={endRef} />
+        </div>
+
+        <div className="mt-3 flex items-end gap-2 border-t border-slate-100 pt-3">
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            rows={1}
+            autoFocus
+            placeholder="Escreva uma mensagem…  (Enter envia, Shift+Enter quebra linha)"
+            className="max-h-28 min-h-11 flex-1 resize-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          />
+          <Button onClick={submit} disabled={!body.trim() || send.isPending} className="shrink-0">
+            <Send size={16} /> Enviar
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

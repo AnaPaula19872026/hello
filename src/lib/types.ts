@@ -211,6 +211,15 @@ export interface PlanAttachment {
   url?: string;
 }
 
+export interface PlanMessage {
+  id: string;
+  plan_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  authorName: string | null;
+}
+
 export type CalendarUploadSlot = 'annual' | 'term1' | 'term2' | 'term3';
 
 export interface CalendarUpload {

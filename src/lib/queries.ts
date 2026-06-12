@@ -21,6 +21,7 @@ import type {
   Organization,
   OrgPerson,
   PlanAttachment,
+  PlanMessage,
   PlanStatus,
   Profile,
   ReportPayload,
@@ -1193,6 +1194,29 @@ export async function listOrgPlans(status?: PlanStatus): Promise<PlanWithMeta[]>
   if (status) q = q.eq('status', status);
   const plans = unwrap<LessonPlan[]>(await q.order('updated_at', { ascending: false }));
   return enrichPlans(plans);
+}
+
+/* --------- Chat interno do planejamento (coordenação ⇄ professor) --------- */
+
+/** Mensagens da thread de um planejamento, em ordem cronológica, com o nome do autor. */
+export async function listPlanMessages(planId: string): Promise<PlanMessage[]> {
+  const rows = unwrap<Omit<PlanMessage, 'authorName'>[]>(
+    await supabase
+      .from('lesson_plan_messages')
+      .select('id, plan_id, author_id, body, created_at')
+      .eq('plan_id', planId)
+      .order('created_at', { ascending: true }),
+  );
+  if (!rows.length) return [];
+  const people = await listOrgPeople().catch(() => []);
+  const nameById = new Map(people.map((p) => [p.user_id, p.full_name] as const));
+  return rows.map((r) => ({ ...r, authorName: nameById.get(r.author_id) ?? null }));
+}
+
+/** Envia uma mensagem na thread do planejamento (author_id/org_id vêm de defaults no banco). */
+export async function sendPlanMessage(planId: string, body: string): Promise<void> {
+  const { error } = await supabase.from('lesson_plan_messages').insert({ plan_id: planId, body: body.trim() });
+  if (error) throw error;
 }
 
 /* --------------------------------- Dashboard ----------------------------------- */
