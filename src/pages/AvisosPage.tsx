@@ -116,7 +116,11 @@ function Recebidos({ uid }: { uid: string }) {
             {!n.read ? <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" /> : null}
             <div className="min-w-0 flex-1">
               <p className="font-black text-slate-900">{n.title}</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{n.body}</p>
+              <p className="mt-0.5 text-xs font-bold text-emerald-700">
+                De: {n.authorName || 'Usuário'}
+                {n.authorRole ? ` · ${ROLE_LABEL[n.authorRole]}` : ''}
+              </p>
+              <p className="mt-1.5 whitespace-pre-wrap text-sm text-slate-600">{n.body}</p>
               <AttachmentChips attachments={n.attachments} />
               <p className="mt-2 text-xs font-bold text-slate-400">{fmt(n.created_at)}</p>
             </div>

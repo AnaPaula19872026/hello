@@ -703,6 +703,8 @@ export async function markNoticeRead(id: string): Promise<void> {
 export interface ReceivedNotice extends Notice {
   read: boolean;
   attachments: NoticeAttachment[];
+  authorName: string | null;
+  authorRole: AppRole | null;
 }
 /** Avisos recebidos pelo usuário (exclui os que ele mesmo enviou), com status de leitura. */
 export async function listReceivedNotices(userId: string): Promise<ReceivedNotice[]> {
@@ -715,7 +717,16 @@ export async function listReceivedNotices(userId: string): Promise<ReceivedNotic
   );
   const readSet = new Set(reads.map((r) => r.notice_id));
   const atts = await attachmentsByNotice(mine.map((n) => n.id));
-  return mine.map((n) => ({ ...n, read: readSet.has(n.id), attachments: atts.get(n.id) ?? [] }));
+  // Resolve o nome de quem enviou (RLS de profiles não deixa ler colegas; usa org_people).
+  const people = await listOrgPeople().catch(() => []);
+  const byId = new Map(people.map((p) => [p.user_id, p]));
+  return mine.map((n) => ({
+    ...n,
+    read: readSet.has(n.id),
+    attachments: atts.get(n.id) ?? [],
+    authorName: byId.get(n.author_id)?.full_name ?? null,
+    authorRole: byId.get(n.author_id)?.role ?? null,
+  }));
 }
 
 export interface SentNotice extends Notice {
