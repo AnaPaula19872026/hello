@@ -6,6 +6,7 @@ import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import {
   getTermConfig,
+  getSavedTermConfig,
   listClasses,
   listStudentsByClass,
   listTermGrades,
@@ -288,10 +289,16 @@ function ComposicaoModal({
   }, [open, initial]);
 
   const clone = useMutation({
-    mutationFn: () => getTermConfig(year, term - 1),
-    onSuccess: (previous) => {
+    mutationFn: async () => {
+      for (let sourceTerm = term - 1; sourceTerm >= 1; sourceTerm--) {
+        const previous = await getSavedTermConfig(year, sourceTerm);
+        if (previous.length) return { sourceTerm, previous };
+      }
+      throw new Error('Nenhuma composição salva em trimestre anterior.');
+    },
+    onSuccess: ({ sourceTerm, previous }) => {
       setItems(orderGradeActivities(previous.map((a) => ({ ...a }))));
-      successToast(`Composição clonada do ${TERM_LABEL[term - 1]}`);
+      successToast(`Composição clonada do ${TERM_LABEL[sourceTerm]}`);
     },
   });
 
@@ -345,11 +352,11 @@ function ComposicaoModal({
             <div>
               <p className="text-sm font-black text-slate-800">Reaproveitar composição</p>
               <p className="text-xs font-semibold text-slate-500">
-                Clone o descritivo e os valores do trimestre anterior para evitar redigitar tudo.
+                Clone o descritivo e os valores do trimestre anterior salvo para evitar redigitar tudo.
               </p>
             </div>
             <Button variant="soft" onClick={() => clone.mutate()} disabled={!cloneEnabled || clone.isPending}>
-              {clone.isPending ? 'Clonando…' : cloneEnabled ? `Clonar ${TERM_LABEL[term - 1]}` : 'Sem trimestre anterior'}
+              {clone.isPending ? 'Clonando…' : cloneEnabled ? 'Clonar anterior salvo' : 'Sem trimestre anterior'}
             </Button>
           </div>
           {clone.isError ? <p className="mt-2 text-xs font-semibold text-red-600">{(clone.error as Error).message}</p> : null}

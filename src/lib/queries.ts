@@ -394,6 +394,15 @@ export async function getTermConfig(year: number, term: number): Promise<GradeAc
   return withRecoveryActivity(((data?.activities as GradeActivity[]) ?? []).filter((a) => a && a.name));
 }
 
+export async function getSavedTermConfig(year: number, term: number): Promise<GradeActivity[]> {
+  let q = supabase.from('grade_terms').select('activities').eq('year', year).eq('term', term);
+  const org = getActiveOrgId();
+  if (org) q = q.eq('org_id', org);
+  const { data, error } = await q.maybeSingle();
+  if (error) throw new Error(error.message);
+  return ((data?.activities as GradeActivity[]) ?? []).filter((a) => a && a.name);
+}
+
 export async function saveTermConfig(year: number, term: number, activities: GradeActivity[]): Promise<void> {
   const org = getActiveOrgId();
   const row: Record<string, unknown> = { year, term, activities, updated_at: new Date().toISOString() };
