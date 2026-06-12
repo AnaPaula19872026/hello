@@ -316,6 +316,30 @@ function ComposicaoModal({
           Defina as atividades e quanto cada uma vale neste trimestre. A nota {RECOVERY_ACTIVITY_NAME} é coringa: substitui a menor nota do aluno somente quando for maior.
         </p>
 
+        <div className="grid gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-sm sm:grid-cols-3">
+          <div>
+            <p className="font-black text-emerald-900">Atividades</p>
+            <p className="mt-1 text-xs font-semibold text-emerald-700">
+              Cada rótulo vira uma coluna de nota. O campo valor define o máximo permitido naquela atividade.
+            </p>
+          </div>
+          <div>
+            <p className="font-black text-emerald-900">Média</p>
+            <p className="mt-1 text-xs font-semibold text-emerald-700">
+              O sistema soma as notas válidas e divide por 3, mantendo a regra atual da escola.
+            </p>
+          </div>
+          <div>
+            <p className="font-black text-emerald-900">{RECOVERY_ACTIVITY_NAME}</p>
+            <p className="mt-1 text-xs font-semibold text-emerald-700">
+              Não soma como nota extra. Ela troca a menor nota somente se a recuperação for maior.
+            </p>
+          </div>
+          <p className="rounded-lg bg-white/80 p-2 text-xs font-bold text-slate-600 sm:col-span-3">
+            Exemplo: notas 8, 6 e 5 com recuperação 7 viram 8, 6 e 7. Se a recuperação for 4, nada muda.
+          </p>
+        </div>
+
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
