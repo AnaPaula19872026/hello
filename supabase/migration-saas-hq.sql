@@ -74,6 +74,9 @@ begin
 end $$;
 
 -- 4) Painel de clientes lista apenas BASES DE CLIENTE (exclui a HQ) -----------
+-- DROP necessário: a função já existe com outro retorno (Postgres não deixa
+-- trocar as colunas de saída com CREATE OR REPLACE).
+drop function if exists public.org_admin_list();
 create or replace function public.org_admin_list()
 returns table(
   id uuid, name text, plan text, is_demo boolean, active boolean, created_at timestamptz,
