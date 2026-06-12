@@ -283,7 +283,16 @@ export function isRecoveryActivity(name: string): boolean {
 }
 
 export function withRecoveryActivity(activities: GradeActivity[]): GradeActivity[] {
-  return activities.some((activity) => isRecoveryActivity(activity.name)) ? activities : [...activities, RECOVERY_ACTIVITY];
+  const next = activities.some((activity) => isRecoveryActivity(activity.name)) ? activities : [...activities, RECOVERY_ACTIVITY];
+  return orderGradeActivities(next);
+}
+
+export function orderGradeActivities(activities: GradeActivity[]): GradeActivity[] {
+  return [...activities].sort((a, b) => {
+    if (isRecoveryActivity(a.name)) return 1;
+    if (isRecoveryActivity(b.name)) return -1;
+    return 0;
+  });
 }
 
 // Ano letivo: fevereiro a novembro, dividido em 3 trimestres.

@@ -12,7 +12,7 @@ import {
   saveTermConfig,
   saveTermGrades,
 } from '../lib/queries';
-import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, calcMedia, isRecoveryActivity, type GradeActivity } from '../lib/types';
+import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, calcMedia, isRecoveryActivity, orderGradeActivities, type GradeActivity } from '../lib/types';
 
 export function NotasPage() {
   const qc = useQueryClient();
@@ -34,6 +34,7 @@ export function NotasPage() {
     queryKey: ['term-config', year, term],
     queryFn: () => getTermConfig(year, term),
   });
+  const orderedActivities = useMemo(() => orderGradeActivities(activities), [activities]);
 
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students-by-class', classId],
@@ -56,7 +57,7 @@ export function NotasPage() {
     students.forEach((s) => {
       const g = termGrades.find((x) => x.student_id === s.id);
       const row: Record<string, string> = {};
-      activities.forEach((a) => {
+      orderedActivities.forEach((a) => {
         const v = g?.scores?.[a.name];
         row[a.name] = v != null ? String(v) : '';
       });
@@ -65,14 +66,14 @@ export function NotasPage() {
     setScores(map);
     setSaved(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studentsSig, gradesSig, activities.map((a) => a.name).join(',')]);
+  }, [studentsSig, gradesSig, orderedActivities.map((a) => a.name).join(',')]);
 
   function mediaOf(id: string): number | null {
     const row = scores[id];
     if (!row) return null;
     const nums: Record<string, number> = {};
     let has = false;
-    activities.forEach((a) => {
+    orderedActivities.forEach((a) => {
       if (row[a.name] !== '' && row[a.name] != null) {
         nums[a.name] = Number(row[a.name]);
         if (!isRecoveryActivity(a.name)) has = true;
@@ -96,7 +97,7 @@ export function NotasPage() {
         .map((s) => {
           const row = scores[s.id] || {};
           const obj: Record<string, number> = {};
-          activities.forEach((a) => {
+          orderedActivities.forEach((a) => {
             if (row[a.name] !== '' && row[a.name] != null) obj[a.name] = Number(row[a.name]);
           });
           return { student_id: s.id, scores: obj };
@@ -163,7 +164,7 @@ export function NotasPage() {
         </Select>
       </div>
 
-      {activities.length === 0 ? (
+      {orderedActivities.length === 0 ? (
         <EmptyState
           icon={<Sliders size={26} />}
           title="Configure a composição deste trimestre"
@@ -189,7 +190,7 @@ export function NotasPage() {
                 <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
                   <tr>
                     <th className="sticky left-0 bg-slate-50 p-3">Aluno</th>
-                    {activities.map((a) => (
+                    {orderedActivities.map((a) => (
                       <th key={a.name} className="p-2 text-center">
                         {a.name}
                         <span className="block text-[10px] font-bold text-slate-400">0–{a.max}</span>
@@ -207,7 +208,7 @@ export function NotasPage() {
                         <td className="sticky left-0 bg-white p-3 font-bold text-slate-800">
                           <span className="mr-1.5 text-slate-400">{i + 1}.</span>{s.full_name}
                         </td>
-                        {activities.map((a) => (
+                        {orderedActivities.map((a) => (
                           <td key={a.name} className="p-1.5 text-center">
                             <input
                               inputMode="decimal"
@@ -235,7 +236,7 @@ export function NotasPage() {
         </>
       )}
 
-      {students.length > 0 && activities.length > 0 ? (
+      {students.length > 0 && orderedActivities.length > 0 ? (
         <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:pl-72">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-1">
             <p className="hidden text-sm font-semibold text-slate-500 sm:block">{saved ? '✓ Notas salvas' : `${TERM_LABEL[term]} • ${year}`}</p>
@@ -280,17 +281,26 @@ function ComposicaoModal({
   onSaved: () => void;
 }) {
   const [items, setItems] = useState<GradeActivity[]>([]);
+  const cloneEnabled = term > 1;
 
   useEffect(() => {
-    if (open) setItems(initial.length ? initial.map((a) => ({ ...a })) : DEFAULT_ACTIVITIES.map((a) => ({ ...a })));
+    if (open) setItems(orderGradeActivities(initial.length ? initial.map((a) => ({ ...a })) : DEFAULT_ACTIVITIES.map((a) => ({ ...a }))));
   }, [open, initial]);
+
+  const clone = useMutation({
+    mutationFn: () => getTermConfig(year, term - 1),
+    onSuccess: (previous) => {
+      setItems(orderGradeActivities(previous.map((a) => ({ ...a }))));
+      successToast(`Composição clonada do ${TERM_LABEL[term - 1]}`);
+    },
+  });
 
   const save = useMutation({
     mutationFn: () =>
       saveTermConfig(
         year,
         term,
-        items.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), max: Number(a.max) || 0 })),
+        orderGradeActivities(items.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), max: Number(a.max) || 0 }))),
       ),
     onSuccess: () => {
       onSaved();
@@ -305,6 +315,21 @@ function ComposicaoModal({
         <p className="text-sm text-slate-500">
           Defina as atividades e quanto cada uma vale neste trimestre. A nota {RECOVERY_ACTIVITY_NAME} é coringa: substitui a menor nota do aluno somente quando for maior.
         </p>
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-black text-slate-800">Reaproveitar composição</p>
+              <p className="text-xs font-semibold text-slate-500">
+                Clone o descritivo e os valores do trimestre anterior para evitar redigitar tudo.
+              </p>
+            </div>
+            <Button variant="soft" onClick={() => clone.mutate()} disabled={!cloneEnabled || clone.isPending}>
+              {clone.isPending ? 'Clonando…' : cloneEnabled ? `Clonar ${TERM_LABEL[term - 1]}` : 'Sem trimestre anterior'}
+            </Button>
+          </div>
+          {clone.isError ? <p className="mt-2 text-xs font-semibold text-red-600">{(clone.error as Error).message}</p> : null}
+        </div>
 
         <div className="space-y-2">
           {items.map((a, i) => (
