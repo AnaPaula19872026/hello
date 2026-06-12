@@ -12,7 +12,7 @@ import {
   saveTermConfig,
   saveTermGrades,
 } from '../lib/queries';
-import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, TERMS, TERM_LABEL, calcMedia, type GradeActivity } from '../lib/types';
+import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, calcMedia, isRecoveryActivity, type GradeActivity } from '../lib/types';
 
 export function NotasPage() {
   const qc = useQueryClient();
@@ -75,7 +75,7 @@ export function NotasPage() {
     activities.forEach((a) => {
       if (row[a.name] !== '' && row[a.name] != null) {
         nums[a.name] = Number(row[a.name]);
-        has = true;
+        if (!isRecoveryActivity(a.name)) has = true;
       }
     });
     return has ? calcMedia(nums) : null;
@@ -126,7 +126,7 @@ export function NotasPage() {
     <div className="pb-28">
       <PageHeader
         title="Notas"
-        subtitle={`${TERM_LABEL[term]} • ${year} • média ${MEDIA_APROVACAO} (soma ÷ 3)`}
+        subtitle={`${TERM_LABEL[term]} • ${year} • média ${MEDIA_APROVACAO} (recuperação substitui a menor nota quando melhora a média)`}
         action={
           <Button variant="ghost" onClick={() => setConfigOpen(true)}>
             <Sliders size={18} /> Composição de notas
@@ -193,6 +193,7 @@ export function NotasPage() {
                       <th key={a.name} className="p-2 text-center">
                         {a.name}
                         <span className="block text-[10px] font-bold text-slate-400">0–{a.max}</span>
+                        {isRecoveryActivity(a.name) ? <span className="block text-[10px] font-black text-amber-600">substitui menor</span> : null}
                       </th>
                     ))}
                     <th className="p-3 text-center">Média</th>
@@ -302,7 +303,7 @@ function ComposicaoModal({
     <Modal open={open} onClose={onClose} title={`Composição — ${TERM_LABEL[term]} / ${year}`}>
       <div className="space-y-4">
         <p className="text-sm text-slate-500">
-          Defina as atividades e quanto cada uma vale neste trimestre. A média é a soma das notas dividida por 3.
+          Defina as atividades e quanto cada uma vale neste trimestre. A nota {RECOVERY_ACTIVITY_NAME} é coringa: substitui a menor nota do aluno somente quando for maior.
         </p>
 
         <div className="space-y-2">
@@ -313,6 +314,7 @@ function ComposicaoModal({
                 onChange={(e) => setItems((p) => p.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
                 placeholder="Nome da atividade"
                 className="flex-1"
+                disabled={isRecoveryActivity(a.name)}
               />
               <Input
                 value={String(a.max)}
@@ -325,6 +327,7 @@ function ComposicaoModal({
               />
               <button
                 onClick={() => setItems((p) => p.filter((_, j) => j !== i))}
+                disabled={isRecoveryActivity(a.name)}
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
                 aria-label="Remover"
               >

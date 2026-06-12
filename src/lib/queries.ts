@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { calcMedia, type GradeActivity } from './types';
+import { calcMedia, withRecoveryActivity, type GradeActivity } from './types';
 import { getActiveOrgId } from './org';
 import type {
   AppRole,
@@ -391,7 +391,7 @@ export async function getTermConfig(year: number, term: number): Promise<GradeAc
   if (org) q = q.eq('org_id', org);
   const { data, error } = await q.maybeSingle();
   if (error) throw new Error(error.message);
-  return ((data?.activities as GradeActivity[]) ?? []).filter((a) => a && a.name);
+  return withRecoveryActivity(((data?.activities as GradeActivity[]) ?? []).filter((a) => a && a.name));
 }
 
 export async function saveTermConfig(year: number, term: number, activities: GradeActivity[]): Promise<void> {

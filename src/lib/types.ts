@@ -265,6 +265,9 @@ export interface GradeActivity {
   max: number; // valor máximo da atividade naquele trimestre
 }
 
+export const RECOVERY_ACTIVITY_NAME = 'RECUPERAÇÃO';
+export const RECOVERY_ACTIVITY: GradeActivity = { name: RECOVERY_ACTIVITY_NAME, max: 10 };
+
 /** Composição padrão (coordenação/professor ajusta por trimestre). */
 export const DEFAULT_ACTIVITIES: GradeActivity[] = [
   { name: 'TESTE', max: 10 },
@@ -272,7 +275,16 @@ export const DEFAULT_ACTIVITIES: GradeActivity[] = [
   { name: 'SIMULADO', max: 1 },
   { name: 'PROJETO', max: 5 },
   { name: 'CRÉDITO VARIÁVEL', max: 4 },
+  RECOVERY_ACTIVITY,
 ];
+
+export function isRecoveryActivity(name: string): boolean {
+  return name.trim().normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase() === 'RECUPERACAO';
+}
+
+export function withRecoveryActivity(activities: GradeActivity[]): GradeActivity[] {
+  return activities.some((activity) => isRecoveryActivity(activity.name)) ? activities : [...activities, RECOVERY_ACTIVITY];
+}
 
 // Ano letivo: fevereiro a novembro, dividido em 3 trimestres.
 export const TERMS = [1, 2, 3] as const;
@@ -285,7 +297,20 @@ export const MEDIA_APROVACAO = 6;
 export const MEDIA_DIVISOR = 3; // média = soma das notas / 3
 
 export function calcMedia(scores: Record<string, number>): number {
-  const sum = Object.values(scores).reduce((a, b) => a + (Number(b) || 0), 0);
+  const regular = Object.entries(scores)
+    .filter(([name, value]) => !isRecoveryActivity(name) && Number.isFinite(Number(value)))
+    .map(([, value]) => Number(value) || 0);
+  if (!regular.length) return 0;
+
+  const recovery = Object.entries(scores).find(([name]) => isRecoveryActivity(name))?.[1];
+  const adjusted = [...regular];
+  if (recovery != null && Number.isFinite(Number(recovery))) {
+    const recoveryValue = Number(recovery) || 0;
+    const lowestIndex = adjusted.indexOf(Math.min(...adjusted));
+    if (lowestIndex >= 0 && recoveryValue > adjusted[lowestIndex]) adjusted[lowestIndex] = recoveryValue;
+  }
+
+  const sum = adjusted.reduce((a, b) => a + b, 0);
   return Math.round((sum / MEDIA_DIVISOR) * 10) / 10;
 }
 
