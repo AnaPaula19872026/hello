@@ -126,6 +126,44 @@ export interface NoticeAttachment {
   url?: string; // URL assinada (temporária) para baixar/pré-visualizar
 }
 
+/* ----------------------------- Calendário (Fase 4) ---------------------------- */
+export type EventAudience = 'all' | 'role' | 'user';
+
+export const EVENT_CATEGORIES: { key: string; label: string; color: string }[] = [
+  { key: 'evento', label: 'Evento', color: '#0ea5e9' },
+  { key: 'atividade', label: 'Atividade', color: '#10b981' },
+  { key: 'gincana', label: 'Gincana', color: '#f59e0b' },
+  { key: 'prova', label: 'Semana de provas', color: '#ef4444' },
+  { key: 'reuniao', label: 'Reunião', color: '#8b5cf6' },
+  { key: 'outro', label: 'Outro', color: '#64748b' },
+];
+export const eventColor = (cat: string) => EVENT_CATEGORIES.find((c) => c.key === cat)?.color ?? '#64748b';
+export const eventCatLabel = (cat: string) => EVENT_CATEGORIES.find((c) => c.key === cat)?.label ?? cat;
+
+export interface CalendarEvent {
+  id: string;
+  org_id: string;
+  author_id: string;
+  title: string;
+  description: string;
+  category: string;
+  event_date: string; // yyyy-mm-dd
+  end_date: string | null;
+  audience: EventAudience;
+  target_role: AppRole | null;
+  target_user: string | null;
+  created_at: string;
+}
+
+export interface EventAttachment {
+  id: string;
+  event_id: string;
+  name: string;
+  path: string;
+  mime: string | null;
+  url?: string;
+}
+
 export interface Grade {
   id?: string;
   class_id: string;

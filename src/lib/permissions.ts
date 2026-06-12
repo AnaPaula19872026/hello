@@ -80,3 +80,8 @@ export function canManageOrg(role: AppRole | null): boolean {
 export function canSendNotice(role: AppRole | null): boolean {
   return role === 'superadmin' || role === 'diretor' || role === 'coordenador' || role === 'marketing';
 }
+
+/** Quem pode criar/editar eventos do calendário (deve casar com a RLS). */
+export function canManageCalendar(role: AppRole | null): boolean {
+  return role === 'superadmin' || role === 'diretor' || role === 'coordenador';
+}

@@ -6,6 +6,9 @@ import type {
   AttendanceRecord,
   AttendanceSession,
   ClassRoom,
+  CalendarEvent,
+  EventAttachment,
+  EventAudience,
   Membership,
   Notice,
   NoticeAttachment,
@@ -842,6 +845,90 @@ export async function listSentNotices(userId: string): Promise<SentNotice[]> {
 export async function unreadNoticeCount(userId: string): Promise<number> {
   const received = await listReceivedNotices(userId);
   return received.filter((n) => !n.read).length;
+}
+
+/* ----------------------------- Calendário (Fase 4) ---------------------------- */
+export interface EventInput {
+  id?: string;
+  title: string;
+  description: string;
+  category: string;
+  event_date: string;
+  end_date?: string | null;
+  audience: EventAudience;
+  target_role?: AppRole | null;
+  target_user?: string | null;
+}
+
+export async function saveEvent(input: EventInput): Promise<string> {
+  const row = {
+    title: input.title,
+    description: input.description,
+    category: input.category,
+    event_date: input.event_date,
+    end_date: input.end_date || null,
+    audience: input.audience,
+    target_role: input.audience === 'role' ? input.target_role ?? null : null,
+    target_user: input.audience === 'user' ? input.target_user ?? null : null,
+  };
+  if (input.id) {
+    const { error } = await supabase.from('calendar_events').update(row).eq('id', input.id);
+    if (error) throw new Error(error.message);
+    return input.id;
+  }
+  const data = unwrap<{ id: string }>(await supabase.from('calendar_events').insert(row).select('id').single());
+  return data.id;
+}
+
+export async function deleteEvent(id: string): Promise<void> {
+  const { error } = await supabase.from('calendar_events').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function uploadEventAttachment(eventId: string, file: File): Promise<void> {
+  const org = getActiveOrgId();
+  const safe = file.name.replace(/[^\w.\-]+/g, '_');
+  const path = `${org}/${eventId}/${Date.now()}_${safe}`;
+  const up = await supabase.storage.from('calendario').upload(path, file, { upsert: false });
+  if (up.error) throw new Error(up.error.message);
+  const { error } = await supabase.from('event_attachments').insert({ event_id: eventId, name: file.name, path, mime: file.type });
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteEventAttachment(att: EventAttachment): Promise<void> {
+  await supabase.storage.from('calendario').remove([att.path]);
+  const { error } = await supabase.from('event_attachments').delete().eq('id', att.id);
+  if (error) throw new Error(error.message);
+}
+
+export interface EventWithMeta extends CalendarEvent {
+  attachments: EventAttachment[];
+  authorName: string | null;
+}
+/** Eventos visíveis (do mês/visão), com anexos (URL assinada) e nome do autor. */
+export async function listEvents(): Promise<EventWithMeta[]> {
+  const events = unwrap<CalendarEvent[]>(
+    await scoped(supabase.from('calendar_events').select('*')).order('event_date', { ascending: true }),
+  );
+  if (!events.length) return [];
+  const ids = events.map((e) => e.id);
+  const atts = unwrap<EventAttachment[]>(
+    await supabase.from('event_attachments').select('id, event_id, name, path, mime').in('event_id', ids),
+  );
+  if (atts.length) {
+    const { data: signed } = await supabase.storage.from('calendario').createSignedUrls(atts.map((a) => a.path), 3600);
+    const urlByPath = new Map((signed ?? []).map((s) => [s.path ?? '', s.signedUrl] as const));
+    for (const a of atts) a.url = urlByPath.get(a.path);
+  }
+  const byEvent = new Map<string, EventAttachment[]>();
+  for (const a of atts) {
+    const l = byEvent.get(a.event_id) ?? [];
+    l.push(a);
+    byEvent.set(a.event_id, l);
+  }
+  const people = await listOrgPeople().catch(() => []);
+  const nameById = new Map(people.map((p) => [p.user_id, p.full_name] as const));
+  return events.map((e) => ({ ...e, attachments: byEvent.get(e.id) ?? [], authorName: nameById.get(e.author_id) ?? null }));
 }
 
 /* --------------------------------- Dashboard ----------------------------------- */
