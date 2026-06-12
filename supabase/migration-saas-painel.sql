@@ -5,6 +5,9 @@
 -- Rodar no Supabase → SQL Editor.
 -- ============================================================================
 
+-- DROP antes: a função pode já existir com outro retorno (Postgres não troca as
+-- colunas de saída com CREATE OR REPLACE). Idempotente e seguro.
+drop function if exists public.org_admin_list();
 create or replace function public.org_admin_list()
 returns table(
   id uuid, name text, plan text, is_demo boolean, active boolean, created_at timestamptz,
