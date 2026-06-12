@@ -289,12 +289,13 @@ function ComposicaoModal({
   }, [open, initial]);
 
   const clone = useMutation({
-    mutationFn: async () => {
-      for (let sourceTerm = term - 1; sourceTerm >= 1; sourceTerm--) {
-        const previous = await getSavedTermConfig(year, sourceTerm);
-        if (previous.length) return { sourceTerm, previous };
+    mutationFn: async (sourceTerm?: number) => {
+      const sourceTerms = sourceTerm ? [sourceTerm] : Array.from({ length: term - 1 }, (_, i) => term - 1 - i);
+      for (const candidate of sourceTerms) {
+        const previous = await getSavedTermConfig(year, candidate);
+        if (previous.length) return { sourceTerm: candidate, previous };
       }
-      throw new Error('Nenhuma composição salva em trimestre anterior.');
+      throw new Error(sourceTerm ? `${TERM_LABEL[sourceTerm]} ainda não tem composição salva.` : 'Nenhuma composição salva em trimestre anterior.');
     },
     onSuccess: ({ sourceTerm, previous }) => {
       setItems(orderGradeActivities(previous.map((a) => ({ ...a }))));
@@ -355,9 +356,17 @@ function ComposicaoModal({
                 Clone o descritivo e os valores do trimestre anterior salvo para evitar redigitar tudo.
               </p>
             </div>
-            <Button variant="soft" onClick={() => clone.mutate()} disabled={!cloneEnabled || clone.isPending}>
-              {clone.isPending ? 'Clonando…' : cloneEnabled ? 'Clonar anterior salvo' : 'Sem trimestre anterior'}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {cloneEnabled ? (
+                Array.from({ length: term - 1 }, (_, i) => i + 1).map((sourceTerm) => (
+                  <Button key={sourceTerm} variant="soft" onClick={() => clone.mutate(sourceTerm)} disabled={clone.isPending}>
+                    {clone.isPending ? 'Clonando…' : `Clonar ${TERM_LABEL[sourceTerm]}`}
+                  </Button>
+                ))
+              ) : (
+                <Button variant="soft" disabled>Sem trimestre anterior</Button>
+              )}
+            </div>
           </div>
           {clone.isError ? <p className="mt-2 text-xs font-semibold text-red-600">{(clone.error as Error).message}</p> : null}
         </div>
