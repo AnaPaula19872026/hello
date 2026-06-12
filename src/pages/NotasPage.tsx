@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Award, Plus, Save, Search, Sliders, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
@@ -50,7 +52,8 @@ export function NotasPage() {
   });
 
   const studentsSig = students.map((s) => s.id).join(',');
-  const gradesSig = termGrades.map((g) => `${g.student_id}:${JSON.stringify(g.scores)}`).join('|');
+  const gradesSig = termGrades.map((g) => `${g.student_id}:${JSON.stringify(g.scores)}:${g.updated_at ?? ''}`).join('|');
+  const gradeByStudent = useMemo(() => new Map(termGrades.map((g) => [g.student_id, g])), [termGrades]);
 
   // Preenche inputs com as notas salvas.
   useEffect(() => {
@@ -199,11 +202,13 @@ export function NotasPage() {
                       </th>
                     ))}
                     <th className="p-3 text-center">Média</th>
+                    <th className="p-3 text-center">Lançado em</th>
                   </tr>
                 </thead>
                 <tbody>
                   {list.map((s, i) => {
                     const m = mediaOf(s.id);
+                    const launchedAt = gradeByStudent.get(s.id)?.updated_at;
                     return (
                       <tr key={s.id} className="border-t border-slate-100">
                         <td className="sticky left-0 bg-white p-3 font-bold text-slate-800">
@@ -223,6 +228,15 @@ export function NotasPage() {
                         <td className="p-3 text-center">
                           {m != null ? (
                             <span className={cn('text-lg font-black', m >= MEDIA_APROVACAO ? 'text-emerald-700' : 'text-red-600')}>{m.toFixed(1)}</span>
+                          ) : (
+                            <span className="text-slate-400">–</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          {launchedAt ? (
+                            <span className="text-xs font-bold text-slate-500">
+                              {format(new Date(launchedAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                            </span>
                           ) : (
                             <span className="text-slate-400">–</span>
                           )}

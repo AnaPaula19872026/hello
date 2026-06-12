@@ -414,10 +414,11 @@ export async function saveTermConfig(year: number, term: number, activities: Gra
 export interface TermGradeRow {
   student_id: string;
   scores: Record<string, number>;
+  updated_at?: string | null;
 }
 export async function listTermGrades(classId: string, year: number, term: number): Promise<TermGradeRow[]> {
   return unwrap(
-    await supabase.from('term_grades').select('student_id, scores').eq('class_id', classId).eq('year', year).eq('term', term),
+    await supabase.from('term_grades').select('student_id, scores, updated_at').eq('class_id', classId).eq('year', year).eq('term', term),
   );
 }
 
