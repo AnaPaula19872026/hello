@@ -579,10 +579,38 @@ export interface OrgAdmin {
   plan: string;
   is_demo: boolean;
   active: boolean;
+  cnpj: string | null;
+  logo_url: string | null;
   created_at: string;
   schools: number;
   students: number;
   members: number;
+}
+
+/** Atualiza dados do cliente (nome, CNPJ, logo). Renomear propaga em todo o sistema. */
+export async function updateOrganization(
+  id: string,
+  input: { name?: string; cnpj?: string | null; logo_url?: string | null; plan?: string },
+): Promise<void> {
+  const { error } = await supabase.from('organizations').update(input).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/* ----------------------- Centro de permissões (overrides) --------------------- */
+export interface PermissionSetting {
+  role: AppRole;
+  module: string;
+  allowed: boolean;
+}
+export async function listPermissionSettings(): Promise<PermissionSetting[]> {
+  return unwrap(await supabase.from('permission_settings').select('role, module, allowed'));
+}
+/** Define (upsert) uma permissão papel × módulo. */
+export async function savePermissionSetting(role: AppRole, module: string, allowed: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('permission_settings')
+    .upsert({ role, module, allowed }, { onConflict: 'role,module' });
+  if (error) throw new Error(error.message);
 }
 /** Lista de clientes com métricas (só superadmin). */
 export async function listOrgAdmin(): Promise<OrgAdmin[]> {

@@ -12,6 +12,7 @@ import {
   Menu,
   Network,
   Settings,
+  ShieldCheck,
   Users,
   X,
 } from 'lucide-react';
@@ -51,10 +52,15 @@ const groups: { title?: string; items: NavItem[] }[] = [
     title: 'Administração',
     items: [
       { label: 'Organizações', to: '/organizacoes', icon: <Network size={18} />, module: 'organizacoes' },
+      { label: 'Permissões', to: '/permissoes', icon: <ShieldCheck size={18} />, module: 'permissoes' },
       { label: 'Configurações', to: '/configuracoes', icon: <Settings size={18} />, module: 'configuracoes' },
     ],
   },
 ];
+
+// Na HQ (Administração Geral) o superadmin vê só as ferramentas de gestão — não
+// os módulos de escola (que são das bases dos clientes).
+const HQ_MODULES = new Set<ModuleKey>(['dashboard', 'organizacoes', 'permissoes', 'configuracoes']);
 
 function OrgSwitcher() {
   const { organizations, activeOrgId, switchOrg, isSuperadmin, memberships } = useAuth();
@@ -81,7 +87,7 @@ function OrgSwitcher() {
 }
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { user, profile, role, activeOrgId, organizations } = useAuth();
+  const { user, profile, role, activeOrgId, organizations, isHq } = useAuth();
   const name = profile?.full_name || user?.user_metadata?.full_name || user?.email || 'Usuária';
   const avatar = profile?.avatar_url || (user?.user_metadata?.avatar_url as string | undefined);
   const orgName = organizations.find((o) => o.id === activeOrgId)?.name;
@@ -93,7 +99,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   });
 
   const visibleGroups = groups
-    .map((g) => ({ ...g, items: g.items.filter((it) => can(role, it.module)) }))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((it) => can(role, it.module) && (!isHq || HQ_MODULES.has(it.module))),
+    }))
     .filter((g) => g.items.length > 0);
 
   return (

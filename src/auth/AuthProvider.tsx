@@ -2,7 +2,8 @@ import type { Session, User } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { setActiveOrgIdRef } from '../lib/org';
-import { listMyMemberships, listOrganizations, setActiveOrg } from '../lib/queries';
+import { setPermissionOverrides } from '../lib/permissions';
+import { listMyMemberships, listOrganizations, listPermissionSettings, setActiveOrg } from '../lib/queries';
 import { supabase } from '../lib/supabase';
 import type { AppRole, Membership, Organization, Profile } from '../lib/types';
 
@@ -17,6 +18,7 @@ interface AuthState {
   activeOrgId: string | null;
   role: AppRole | null; // papel na organização ativa
   isSuperadmin: boolean;
+  isHq: boolean; // organização ativa é a HQ (Administração Geral)
   ctxLoading: boolean;
   switchOrg: (orgId: string) => Promise<void>;
   refreshContext: () => Promise<void>;
@@ -32,6 +34,7 @@ const AuthContext = createContext<AuthState>({
   activeOrgId: null,
   role: null,
   isSuperadmin: false,
+  isHq: false,
   ctxLoading: true,
   switchOrg: async () => {},
   refreshContext: async () => {},
@@ -74,11 +77,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       if (!silent) setCtxLoading(true);
       try {
-        const [{ data: prof }, mems, orgs] = await Promise.all([
+        const [{ data: prof }, mems, orgs, perms] = await Promise.all([
           supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
           listMyMemberships(userId).catch(() => [] as Membership[]),
           listOrganizations().catch(() => [] as Organization[]),
+          listPermissionSettings().catch(() => []),
         ]);
+        // Aplica os overrides do Centro de Permissões.
+        setPermissionOverrides(Object.fromEntries(perms.map((pp) => [`${pp.role}|${pp.module}`, pp.allowed])));
         const p = (prof as Profile) ?? null;
         setProfile(p);
         setMemberships(mems);
@@ -131,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const role: AppRole | null = isSuperadmin
     ? 'superadmin'
     : memberships.find((m) => m.org_id === activeOrgId)?.role ?? null;
+  const isHq = organizations.find((o) => o.id === activeOrgId)?.kind === 'hq';
 
   return (
     <AuthContext.Provider
@@ -144,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         activeOrgId,
         role,
         isSuperadmin,
+        isHq,
         ctxLoading,
         switchOrg,
         refreshContext,

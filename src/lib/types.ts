@@ -82,6 +82,9 @@ export interface Organization {
   plan: string;
   is_demo: boolean;
   active: boolean;
+  kind?: 'hq' | 'client';
+  cnpj?: string | null;
+  logo_url?: string | null;
   created_at?: string;
 }
 

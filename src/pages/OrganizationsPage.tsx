@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, GraduationCap, LogIn, Network, Plus, Power, Search, Trash2, UserPlus, Users } from 'lucide-react';
+import { Building2, GraduationCap, ImagePlus, LogIn, Network, Pencil, Plus, Power, Search, Trash2, UserPlus, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
 import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { cn } from '../lib/cn';
+import { fileToCompressedDataUrl } from '../lib/image';
 import {
   addMember,
   createOrganization,
@@ -14,6 +15,7 @@ import {
   removeMember,
   setMemberRole,
   setOrgActive,
+  updateOrganization,
   type OrgAdmin,
 } from '../lib/queries';
 import { ASSIGNABLE_ROLES, ROLE_LABEL, type AppRole } from '../lib/types';
@@ -29,6 +31,7 @@ export function OrganizationsPage() {
   const [newOpen, setNewOpen] = useState(false);
   const [name, setName] = useState('');
   const [membersOf, setMembersOf] = useState<OrgAdmin | null>(null);
+  const [editOf, setEditOf] = useState<OrgAdmin | null>(null);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('todas');
 
@@ -123,9 +126,13 @@ export function OrganizationsPage() {
           {list.map((o) => (
             <Card key={o.id} className="flex flex-col gap-3">
               <div className="flex items-start gap-3">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
-                  <Building2 size={22} />
-                </div>
+                {o.logo_url ? (
+                  <img src={o.logo_url} alt="" className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1" />
+                ) : (
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+                    <Building2 size={22} />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="truncate font-black text-slate-900">{o.name}</p>
@@ -133,8 +140,15 @@ export function OrganizationsPage() {
                       <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-700">atual</span>
                     ) : null}
                   </div>
-                  <p className="mt-0.5 text-xs font-bold text-slate-400">{o.is_demo ? 'Demonstração' : o.plan}</p>
+                  <p className="mt-0.5 truncate text-xs font-bold text-slate-500">{o.cnpj || (o.is_demo ? 'Demonstração' : 'CNPJ não informado')}</p>
                 </div>
+                <button
+                  onClick={() => setEditOf(o)}
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  aria-label="Editar"
+                >
+                  <Pencil size={15} />
+                </button>
                 <span
                   className={cn(
                     'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black uppercase',
@@ -200,7 +214,83 @@ export function OrganizationsPage() {
       </Modal>
 
       {membersOf ? <MembersModal org={membersOf} onClose={() => setMembersOf(null)} /> : null}
+      {editOf ? <EditOrgModal org={editOf} onClose={() => setEditOf(null)} /> : null}
     </>
+  );
+}
+
+function EditOrgModal({ org, onClose }: { org: OrgAdmin; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { refreshContext } = useAuth();
+  const [name, setName] = useState(org.name);
+  const [cnpj, setCnpj] = useState(org.cnpj ?? '');
+  const [logo, setLogo] = useState<string | null>(org.logo_url ?? null);
+  const [err, setErr] = useState('');
+
+  async function onLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setErr('');
+    try {
+      setLogo(await fileToCompressedDataUrl(file, 256, 0.8, false));
+    } catch (x) {
+      setErr((x as Error).message);
+    }
+  }
+
+  const save = useMutation({
+    mutationFn: () => updateOrganization(org.id, { name: name.trim(), cnpj: cnpj.trim() || null, logo_url: logo }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['org-admin'] });
+      await qc.invalidateQueries({ queryKey: ['organizations'] });
+      await refreshContext(); // propaga o novo nome no menu/sistema
+      onClose();
+      successToast('Organização atualizada com sucesso');
+    },
+  });
+
+  return (
+    <Modal open onClose={onClose} title="Editar organização">
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          {logo ? (
+            <img src={logo} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1" />
+          ) : (
+            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-400">
+              <Building2 size={24} />
+            </div>
+          )}
+          <div className="flex flex-col gap-2">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200">
+              <ImagePlus size={16} /> {logo ? 'Trocar logo' : 'Enviar logo'}
+              <input type="file" accept="image/*" className="hidden" onChange={onLogo} />
+            </label>
+            {logo ? (
+              <button onClick={() => setLogo(null)} className="text-left text-xs font-bold text-red-600">
+                Remover logo
+              </button>
+            ) : null}
+          </div>
+        </div>
+        <Field label="Nome">
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="CNPJ">
+          <Input value={cnpj} onChange={(e) => setCnpj(e.target.value)} placeholder="00.000.000/0000-00" />
+        </Field>
+        {err ? <p className="text-sm font-semibold text-red-600">{err}</p> : null}
+        {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={() => save.mutate()} disabled={!name.trim() || save.isPending}>
+            {save.isPending ? 'Salvando…' : 'Salvar'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

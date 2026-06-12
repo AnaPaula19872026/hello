@@ -15,9 +15,22 @@ export type ModuleKey =
   | 'alunos'
   | 'configuracoes'
   | 'avisos'
+  | 'permissoes'
   | 'organizacoes';
 
 const ALL_ROLES: AppRole[] = ['diretor', 'coordenador', 'professor', 'secretaria', 'marketing', 'cpd'];
+
+/** Módulos configuráveis no Centro de Permissões (exclui os exclusivos do superadmin). */
+export const CONFIGURABLE_MODULES: { key: ModuleKey; label: string }[] = [
+  { key: 'chamadas', label: 'Chamadas' },
+  { key: 'notas', label: 'Notas' },
+  { key: 'relatorios', label: 'Relatórios' },
+  { key: 'avisos', label: 'Avisos' },
+  { key: 'calendario', label: 'Calendário' },
+  { key: 'escolas', label: 'Escolas' },
+  { key: 'turmas', label: 'Turmas' },
+  { key: 'alunos', label: 'Alunos' },
+];
 
 const ACCESS: Record<ModuleKey, AppRole[]> = {
   dashboard: ALL_ROLES,
@@ -30,14 +43,32 @@ const ACCESS: Record<ModuleKey, AppRole[]> = {
   alunos: ['diretor', 'coordenador', 'secretaria'],
   configuracoes: ALL_ROLES,
   avisos: ALL_ROLES, // todos recebem avisos
+  permissoes: [], // só superadmin
   organizacoes: [], // só superadmin
 };
 
-/** O papel pode acessar o módulo? superadmin sempre pode. */
+// Overrides definidos no Centro de Permissões (carregados do banco pelo AuthProvider).
+// Chave: `${role}|${module}` -> allowed.
+let overrides: Record<string, boolean> = {};
+export function setPermissionOverrides(map: Record<string, boolean>) {
+  overrides = map;
+}
+export function permKey(role: AppRole, module: ModuleKey) {
+  return `${role}|${module}`;
+}
+
+/** Padrão do código (usado quando não há override no banco). */
+export function defaultAllowed(role: AppRole, module: ModuleKey): boolean {
+  return ACCESS[module].includes(role);
+}
+
+/** O papel pode acessar o módulo? superadmin sempre pode; overrides do banco vencem o padrão. */
 export function can(role: AppRole | null, module: ModuleKey): boolean {
   if (role === 'superadmin') return true;
   if (!role) return false;
-  return ACCESS[module].includes(role);
+  const ov = overrides[permKey(role, module)];
+  if (ov !== undefined) return ov;
+  return defaultAllowed(role, module);
 }
 
 /** Quem pode gerenciar membros/organização (convidar, etc.). */
