@@ -39,8 +39,59 @@ export function ReportView({ payload, compact = false }: { payload: ReportPayloa
         </div>
       </div>
 
+      <ReportSummary payload={payload} minPct={minPct} />
+
       {kind === 'freq' ? <FreqBody payload={payload} compact={compact} minPct={minPct} /> : <NotasBody payload={payload} compact={compact} />}
     </div>
+  );
+}
+
+function SummaryGrid({ stats }: { stats: { label: string; value: React.ReactNode; color?: string; box?: string }[] }) {
+  return (
+    <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 print:grid-cols-4">
+      {stats.map((s, i) => (
+        <div key={i} className={cn('rounded-2xl border border-slate-200 bg-white p-3 text-center print:shadow-none', s.box)}>
+          <p className={cn('text-2xl font-black text-slate-900', s.color)}>{s.value}</p>
+          <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{s.label}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ReportSummary({ payload, minPct }: { payload: ReportPayload; minPct: number }) {
+  if (payload.kind === 'freq') {
+    const rows = payload.freqRows ?? [];
+    if (!rows.length) return null;
+    const presMed = Math.round((rows.reduce((a, r) => a + r.pct, 0) / rows.length) * 10) / 10;
+    const faltas = rows.reduce((a, r) => a + r.absent, 0);
+    return (
+      <SummaryGrid
+        stats={[
+          { label: 'Alunos', value: rows.length },
+          { label: 'Presença média', value: `${presMed}%`, color: presMed < minPct ? 'text-amber-600' : 'text-emerald-700', box: 'border-emerald-200 bg-emerald-50' },
+          { label: 'Total de faltas', value: faltas, color: 'text-red-600', box: 'border-red-200 bg-red-50' },
+          { label: 'Aulas no período', value: payload.sessions ?? '–' },
+        ]}
+      />
+    );
+  }
+  const rows = payload.notasRows ?? [];
+  if (!rows.length) return null;
+  const t = payload.notasTerm ?? 0;
+  const vals = rows.map((r) => (t >= 1 && t <= 3 ? r.terms[t - 1] : r.final)).filter((x): x is number => x != null);
+  const turma = vals.length ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null;
+  const aprov = vals.filter((v) => v >= 6).length;
+  const pct = vals.length ? Math.round((aprov / vals.length) * 100) : 0;
+  return (
+    <SummaryGrid
+      stats={[
+        { label: 'Alunos', value: rows.length },
+        { label: 'Média da turma', value: turma != null ? turma.toFixed(1) : '–', color: turma != null && turma >= 6 ? 'text-emerald-700' : 'text-red-600' },
+        { label: `Aprovados · ${pct}%`, value: aprov, color: 'text-emerald-700', box: 'border-emerald-200 bg-emerald-50' },
+        { label: 'Em recuperação', value: vals.length - aprov, color: 'text-red-600', box: 'border-red-200 bg-red-50' },
+      ]}
+    />
   );
 }
 
