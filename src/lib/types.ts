@@ -190,6 +190,20 @@ export interface CalendarUpload {
   url?: string;
 }
 
+export type HolidayScope = 'national' | 'state' | 'city';
+
+export interface CalendarHoliday {
+  id: string;
+  org_id?: string;
+  title: string;
+  date: string;
+  scope: HolidayScope;
+  state?: string | null;
+  city?: string | null;
+  source?: string | null;
+  created_at?: string;
+}
+
 export interface Grade {
   id?: string;
   class_id: string;

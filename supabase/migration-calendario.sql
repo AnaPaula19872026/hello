@@ -44,9 +44,24 @@ create table if not exists public.calendar_uploads (
 );
 create index if not exists idx_calendar_uploads_org_slot on public.calendar_uploads(org_id, slot, created_at desc);
 
+create table if not exists public.calendar_holidays (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null default public.default_org() references public.organizations(id) on delete cascade,
+  title text not null,
+  date date not null,
+  scope text not null default 'city' check (scope in ('national','state','city')),
+  state text,
+  city text,
+  source text default 'Cadastro manual',
+  created_by uuid default auth.uid() references auth.users(id) on delete set null,
+  created_at timestamptz default now()
+);
+create index if not exists idx_calendar_holidays_org_date on public.calendar_holidays(org_id, date);
+
 alter table public.calendar_events enable row level security;
 alter table public.event_attachments enable row level security;
 alter table public.calendar_uploads enable row level security;
+alter table public.calendar_holidays enable row level security;
 
 -- Visibilidade segue o público-alvo; superadmin só na organização ativa.
 drop policy if exists "events read" on public.calendar_events;
@@ -107,6 +122,33 @@ create policy "calendar uploads insert" on public.calendar_uploads for insert wi
 drop policy if exists "calendar uploads delete" on public.calendar_uploads;
 create policy "calendar uploads delete" on public.calendar_uploads for delete using (
   uploaded_by = auth.uid()
+  or public.org_role(org_id) = 'diretor'
+  or (public.is_superadmin() and org_id = public.current_active_org())
+);
+
+-- Feriados locais: todos veem; direção/coordenação/admin mantêm feriados estaduais/municipais.
+drop policy if exists "calendar holidays read" on public.calendar_holidays;
+create policy "calendar holidays read" on public.calendar_holidays for select using (
+  org_id in (select public.member_orgs())
+  or (public.is_superadmin() and org_id = public.current_active_org())
+);
+drop policy if exists "calendar holidays insert" on public.calendar_holidays;
+create policy "calendar holidays insert" on public.calendar_holidays for insert with check (
+  created_by = auth.uid()
+  and (
+    (org_id in (select public.member_orgs()) and public.org_role(org_id) in ('diretor','coordenador'))
+    or (public.is_superadmin() and org_id = public.current_active_org())
+  )
+);
+drop policy if exists "calendar holidays update" on public.calendar_holidays;
+create policy "calendar holidays update" on public.calendar_holidays for update using (
+  created_by = auth.uid()
+  or public.org_role(org_id) = 'diretor'
+  or (public.is_superadmin() and org_id = public.current_active_org())
+);
+drop policy if exists "calendar holidays delete" on public.calendar_holidays;
+create policy "calendar holidays delete" on public.calendar_holidays for delete using (
+  created_by = auth.uid()
   or public.org_role(org_id) = 'diretor'
   or (public.is_superadmin() and org_id = public.current_active_org())
 );

@@ -7,6 +7,7 @@ import type {
   AttendanceSession,
   ClassRoom,
   CalendarEvent,
+  CalendarHoliday,
   CalendarUpload,
   CalendarUploadSlot,
   EventAttachment,
@@ -952,6 +953,30 @@ export async function uploadCalendarDocument(slot: CalendarUploadSlot, file: Fil
 export async function deleteCalendarUpload(upload: CalendarUpload): Promise<void> {
   await supabase.storage.from('calendario').remove([upload.path]);
   const { error } = await supabase.from('calendar_uploads').delete().eq('id', upload.id);
+  if (error) throw new Error(error.message);
+}
+
+export async function listCalendarHolidays(): Promise<CalendarHoliday[]> {
+  return unwrap<CalendarHoliday[]>(
+    await scoped(supabase.from('calendar_holidays').select('*')).order('date', { ascending: true }),
+  );
+}
+
+export async function saveCalendarHoliday(input: Omit<CalendarHoliday, 'id'> & { id?: string }): Promise<CalendarHoliday> {
+  const row = {
+    title: input.title,
+    date: input.date,
+    scope: input.scope,
+    state: input.state || null,
+    city: input.city || null,
+    source: input.source || 'Cadastro manual',
+  };
+  if (input.id) return unwrap(await supabase.from('calendar_holidays').update(row).eq('id', input.id).select().single());
+  return unwrap(await supabase.from('calendar_holidays').insert(row).select().single());
+}
+
+export async function deleteCalendarHoliday(id: string): Promise<void> {
+  const { error } = await supabase.from('calendar_holidays').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
 

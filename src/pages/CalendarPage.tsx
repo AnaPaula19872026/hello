@@ -13,7 +13,7 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Mail, Paperclip, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Flag, Mail, Paperclip, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { AttachmentChips } from '../components/Attachments';
@@ -21,16 +21,20 @@ import { Dropzone } from '../components/Dropzone';
 import { successToast } from '../components/Feedback';
 import { Button, Card, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { cn } from '../lib/cn';
+import { listNationalHolidays } from '../lib/holidays';
 import { downloadCalendarTemplate, parseCalendarFile, type ParsedEvent } from '../lib/importCalendar';
 import { canManageCalendar } from '../lib/permissions';
 import {
   bulkCreateEvents,
+  deleteCalendarHoliday,
   deleteCalendarUpload,
   deleteEvent,
+  listCalendarHolidays,
   listCalendarUploads,
   listEvents,
   listOrgPeople,
   saveEvent,
+  saveCalendarHoliday,
   uploadCalendarDocument,
   uploadEventAttachment,
   type EventInput,
@@ -44,6 +48,7 @@ import {
   eventColor,
   eventSoftColor,
   type AppRole,
+  type CalendarHoliday,
   type CalendarUpload,
   type CalendarUploadSlot,
   type EventAudience,
@@ -80,11 +85,19 @@ export function CalendarPage() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeDate, setComposeDate] = useState<Date>(today);
   const [importOpen, setImportOpen] = useState(false);
+  const [holidayOpen, setHolidayOpen] = useState(false);
   const [editing, setEditing] = useState<EventWithMeta | null>(null);
 
   const { data: events = [] } = useQuery({ queryKey: ['cal-events'], queryFn: listEvents });
+  const { data: nationalHolidays = [] } = useQuery({
+    queryKey: ['national-holidays', format(currentMonth, 'yyyy')],
+    queryFn: () => listNationalHolidays(Number(format(currentMonth, 'yyyy'))),
+  });
+  const { data: localHolidays = [] } = useQuery({ queryKey: ['calendar-holidays'], queryFn: listCalendarHolidays });
 
   const dayEvents = (d: Date) => events.filter((e) => inEvent(d, e));
+  const holidays = useMemo(() => [...nationalHolidays, ...localHolidays], [nationalHolidays, localHolidays]);
+  const dayHolidays = (d: Date) => holidays.filter((h) => isSameDay(day(h.date), d));
   const monthEvents = useMemo(
     () => events.filter((e) => {
       const start = day(e.event_date);
@@ -94,6 +107,10 @@ export function CalendarPage() {
         || isWithinInterval(currentMonth, { start, end });
     }),
     [events, currentMonth],
+  );
+  const monthHolidays = useMemo(
+    () => holidays.filter((h) => isWithinInterval(day(h.date), { start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) })),
+    [holidays, currentMonth],
   );
 
   function openNew(d: Date) {
@@ -115,6 +132,9 @@ export function CalendarPage() {
         action={
           canManage ? (
             <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setHolidayOpen(true)}>
+                <Flag size={18} /> Feriado local
+              </Button>
               <Button variant="ghost" onClick={() => setImportOpen(true)}>
                 <FileSpreadsheet size={18} /> Importar
               </Button>
@@ -157,12 +177,15 @@ export function CalendarPage() {
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.color }} /> {c.label}
               </span>
             ))}
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-700">
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Feriado
+            </span>
           </div>
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
-          <MonthCalendar monthDate={currentMonth} dayEvents={dayEvents} onSelect={setDayModal} />
-          <MonthEventList events={monthEvents} onSelect={(event) => setDayModal(day(event.event_date))} />
+          <MonthCalendar monthDate={currentMonth} dayEvents={dayEvents} dayHolidays={dayHolidays} onSelect={setDayModal} />
+          <MonthEventList events={monthEvents} holidays={monthHolidays} onSelect={(event) => setDayModal(day(event.event_date))} onHolidaySelect={(holiday) => setDayModal(day(holiday.date))} />
         </div>
 
       </Card>
@@ -171,6 +194,7 @@ export function CalendarPage() {
         <DayModal
           date={dayModal}
           events={dayEvents(dayModal)}
+          holidays={dayHolidays(dayModal)}
           canManage={canManage}
           onClose={() => setDayModal(null)}
           onNew={() => openNew(dayModal)}
@@ -179,6 +203,7 @@ export function CalendarPage() {
       ) : null}
       {composeOpen ? <ComposeModal event={editing} onClose={() => setComposeOpen(false)} defaultDate={composeDate} /> : null}
       {importOpen ? <CalImportModal onClose={() => setImportOpen(false)} /> : null}
+      {holidayOpen ? <HolidayModal onClose={() => setHolidayOpen(false)} /> : null}
     </>
   );
 }
@@ -186,6 +211,7 @@ export function CalendarPage() {
 function DayModal({
   date,
   events,
+  holidays,
   canManage,
   onClose,
   onNew,
@@ -193,6 +219,7 @@ function DayModal({
 }: {
   date: Date;
   events: EventWithMeta[];
+  holidays: CalendarHoliday[];
   canManage: boolean;
   onClose: () => void;
   onNew: () => void;
@@ -201,7 +228,8 @@ function DayModal({
   return (
     <Modal open onClose={onClose} title={format(date, "EEEE, d 'de' MMMM", { locale: ptBR })} size="xl">
       <div className="space-y-3">
-        {events.length === 0 ? (
+        {holidays.map((holiday) => <HolidayCard key={holiday.id} holiday={holiday} canManage={canManage && holiday.scope !== 'national'} />)}
+        {events.length === 0 && holidays.length === 0 ? (
           <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-400">Nenhum evento neste dia.</p>
         ) : (
           events.map((e) => <EventCard key={e.id} event={e} canManage={canManage} onEdit={() => onEdit(e)} />)
@@ -466,10 +494,12 @@ function CalendarUploadSlotCard({
 function MonthCalendar({
   monthDate,
   dayEvents,
+  dayHolidays,
   onSelect,
 }: {
   monthDate: Date;
   dayEvents: (d: Date) => EventWithMeta[];
+  dayHolidays: (d: Date) => CalendarHoliday[];
   onSelect: (d: Date) => void;
 }) {
   const days = eachDayOfInterval({
@@ -488,15 +518,16 @@ function MonthCalendar({
         {days.map((d) => {
           const out = !isSameMonth(d, monthDate);
           const evs = out ? [] : dayEvents(d);
+          const hols = out ? [] : dayHolidays(d);
           const isToday = isSameDay(d, today);
-          const has = evs.length > 0;
-          const color = has ? eventColor(evs[0].category) : undefined;
+          const has = evs.length > 0 || hols.length > 0;
+          const color = evs.length > 0 ? eventColor(evs[0].category) : undefined;
           return (
             <button
               key={d.toISOString()}
               onClick={() => !out && onSelect(d)}
               disabled={out}
-              title={has ? evs.map((e) => `${eventCatLabel(e.category)}: ${e.title}`).join(', ') : undefined}
+              title={has ? [...hols.map((h) => `Feriado: ${h.title}`), ...evs.map((e) => `${eventCatLabel(e.category)}: ${e.title}`)].join(', ') : undefined}
               className={cn(
                 'relative flex min-h-24 flex-col rounded-lg border p-1.5 text-left text-xs transition sm:min-h-28',
                 out ? 'border-transparent text-transparent' : 'border-slate-100 bg-slate-50 text-slate-700 hover:ring-2 hover:ring-emerald-300',
@@ -506,11 +537,19 @@ function MonthCalendar({
             >
               <span
                 className={cn('mb-1 grid h-5 w-5 place-items-center rounded-md text-[11px] font-black', has ? 'text-white' : 'text-slate-500')}
-                style={has ? { backgroundColor: color } : undefined}
+                style={has ? { backgroundColor: hols.length ? '#d97706' : color } : undefined}
               >
                 {format(d, 'd')}
               </span>
               <span className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
+                {hols.slice(0, 1).map((h) => (
+                  <span
+                    key={h.id}
+                    className="truncate rounded bg-amber-50 px-1 py-0.5 text-[9px] font-black leading-tight text-amber-700"
+                  >
+                    Feriado · {h.title}
+                  </span>
+                ))}
                 {evs.slice(0, 2).map((e) => (
                   <span
                     key={e.id}
@@ -520,7 +559,7 @@ function MonthCalendar({
                     {eventCatLabel(e.category)} · {e.title}
                   </span>
                 ))}
-                {evs.length > 2 ? <span className="px-1 text-[9px] font-black text-slate-400">+{evs.length - 2} evento(s)</span> : null}
+                {evs.length + hols.length > 3 ? <span className="px-1 text-[9px] font-black text-slate-400">+{evs.length + hols.length - 3} item(ns)</span> : null}
               </span>
             </button>
           );
@@ -530,16 +569,41 @@ function MonthCalendar({
   );
 }
 
-function MonthEventList({ events, onSelect }: { events: EventWithMeta[]; onSelect: (event: EventWithMeta) => void }) {
+function MonthEventList({
+  events,
+  holidays,
+  onSelect,
+  onHolidaySelect,
+}: {
+  events: EventWithMeta[];
+  holidays: CalendarHoliday[];
+  onSelect: (event: EventWithMeta) => void;
+  onHolidaySelect: (holiday: CalendarHoliday) => void;
+}) {
   return (
     <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">Eventos do mês</h3>
-      {events.length === 0 ? (
+      <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">Feriados e eventos do mês</h3>
+      {events.length === 0 && holidays.length === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm font-bold text-slate-400">
-          Nenhum evento neste mês.
+          Nenhum feriado ou evento neste mês.
         </p>
       ) : (
         <div className="mt-3 max-h-[640px] space-y-2 overflow-y-auto pr-1">
+          {holidays.map((h) => (
+            <button
+              key={h.id}
+              onClick={() => onHolidaySelect(h)}
+              className="flex w-full items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-left transition hover:bg-amber-100"
+            >
+              <span className="grid h-10 w-12 shrink-0 place-items-center rounded-lg bg-amber-600 text-center text-xs font-black text-white">
+                {h.date.slice(8, 10)}/{h.date.slice(5, 7)}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-bold text-amber-900">{h.title}</span>
+                <span className="block text-xs font-bold text-amber-700">{holidayScopeLabel(h)}</span>
+              </span>
+            </button>
+          ))}
           {events.map((e) => (
             <button
               key={e.id}
@@ -562,6 +626,118 @@ function MonthEventList({ events, onSelect }: { events: EventWithMeta[]; onSelec
         </div>
       )}
     </aside>
+  );
+}
+
+function holidayScopeLabel(holiday: CalendarHoliday) {
+  if (holiday.scope === 'national') return 'Feriado nacional';
+  if (holiday.scope === 'state') return `Feriado estadual${holiday.state ? ` · ${holiday.state}` : ''}`;
+  return `Feriado municipal${holiday.city ? ` · ${holiday.city}` : ''}`;
+}
+
+function HolidayCard({ holiday, canManage }: { holiday: CalendarHoliday; canManage: boolean }) {
+  const qc = useQueryClient();
+  const remove = useMutation({
+    mutationFn: () => deleteCalendarHoliday(holiday.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar-holidays'] });
+      successToast('Feriado removido');
+    },
+  });
+
+  return (
+    <Card className="border-amber-200 bg-amber-50">
+      <div className="flex items-start gap-3">
+        <span className="mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-600 text-white">
+          <Flag size={17} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-md bg-amber-600 px-2 py-0.5 text-[11px] font-black uppercase text-white">Feriado</span>
+            <p className="font-black text-amber-950">{holiday.title}</p>
+          </div>
+          <p className="mt-0.5 text-xs font-bold text-amber-700">
+            {format(day(holiday.date), 'dd/MM/yyyy', { locale: ptBR })} · {holidayScopeLabel(holiday)}
+            {holiday.source ? ` · ${holiday.source}` : ''}
+          </p>
+        </div>
+        {canManage ? (
+          <button
+            onClick={() => confirm(`Excluir "${holiday.title}"?`) && remove.mutate()}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+            aria-label="Excluir feriado"
+          >
+            <Trash2 size={15} />
+          </button>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+function HolidayModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [scope, setScope] = useState<'state' | 'city'>('city');
+  const [state, setState] = useState('');
+  const [city, setCity] = useState('');
+
+  const save = useMutation({
+    mutationFn: () => saveCalendarHoliday({
+      title: title.trim(),
+      date,
+      scope,
+      state: scope === 'state' ? state.trim() || null : state.trim() || null,
+      city: scope === 'city' ? city.trim() || null : null,
+      source: 'Cadastro manual',
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar-holidays'] });
+      onClose();
+      successToast('Feriado local cadastrado');
+    },
+  });
+
+  const valid = title.trim() && date && (scope !== 'city' || city.trim());
+
+  return (
+    <Modal open onClose={onClose} title="Novo feriado local">
+      <div className="space-y-4">
+        <Field label="Nome do feriado">
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex.: Aniversário da cidade" autoFocus />
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Data">
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
+          <Field label="Tipo">
+            <Select value={scope} onChange={(e) => setScope(e.target.value as 'state' | 'city')}>
+              <option value="city">Municipal</option>
+              <option value="state">Estadual</option>
+            </Select>
+          </Field>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Estado / UF">
+            <Input value={state} onChange={(e) => setState(e.target.value)} placeholder="Ex.: BA" maxLength={32} />
+          </Field>
+          <Field label="Cidade">
+            <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex.: Salvador" disabled={scope === 'state'} />
+          </Field>
+        </div>
+        <p className="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-700">
+          Feriados nacionais aparecem automaticamente. Cadastre aqui feriados estaduais e municipais da sua realidade escolar.
+        </p>
+        {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button onClick={() => save.mutate()} disabled={!valid || save.isPending}>
+            <Flag size={16} /> {save.isPending ? 'Salvando…' : 'Salvar feriado'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
