@@ -20,7 +20,6 @@ export function SettingsPage() {
   });
 
   const [name, setName] = useState('');
-  const [calendarUrl, setCalendarUrl] = useState('');
   const [avatar, setAvatar] = useState<string | null>(null);
   const [photoErr, setPhotoErr] = useState('');
   const [pwd, setPwd] = useState('');
@@ -29,7 +28,6 @@ export function SettingsPage() {
   useEffect(() => {
     if (profile) {
       setName(profile.full_name ?? '');
-      setCalendarUrl(profile.calendar_url ?? '');
       setAvatar(profile.avatar_url ?? null);
     }
   }, [profile]);
@@ -49,7 +47,7 @@ export function SettingsPage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      await updateProfile(user!.id, { full_name: name.trim(), calendar_url: calendarUrl.trim() || null, avatar_url: avatar });
+      await updateProfile(user!.id, { full_name: name.trim(), avatar_url: avatar });
       // Atualiza também o nome no auth (usado na saudação e no menu).
       await supabase.auth.updateUser({ data: { full_name: name.trim() } });
     },
@@ -147,22 +145,6 @@ export function SettingsPage() {
               {changePwd.isPending ? 'Salvando…' : 'Atualizar senha'}
             </Button>
           </div>
-        </Card>
-
-        {/* Google Agenda */}
-        <Card>
-          <h2 className="mb-2 text-sm font-black uppercase tracking-wide text-slate-500">Google Agenda</h2>
-          <p className="mb-4 text-sm text-slate-500">
-            No Google Agenda → Configurações → sua agenda → “Integrar agenda”, copie o link em <strong>Incorporar código</strong>{' '}
-            (o endereço dentro de <code>src="…"</code>) e cole abaixo.
-          </p>
-          <Field label="Link de incorporação">
-            <Input
-              value={calendarUrl}
-              onChange={(e) => setCalendarUrl(e.target.value)}
-              placeholder="https://calendar.google.com/calendar/embed?src=…"
-            />
-          </Field>
         </Card>
 
         <div className="flex flex-wrap items-center justify-between gap-3">

@@ -621,7 +621,6 @@ export async function updateProfile(userId: string, input: Partial<Profile>): Pr
       .from('profiles')
       .update({
         full_name: input.full_name,
-        calendar_url: input.calendar_url,
         avatar_url: input.avatar_url,
       })
       .eq('id', userId)

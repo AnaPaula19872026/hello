@@ -55,7 +55,6 @@ export interface Profile {
   full_name: string | null;
   email: string | null;
   avatar_url: string | null;
-  calendar_url: string | null;
   role: 'user' | 'master';
   is_superadmin: boolean;
   active_org_id: string | null;
