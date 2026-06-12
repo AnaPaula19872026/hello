@@ -9,10 +9,11 @@ import { Card, PageHeader } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { dashboardCounts, deleteAttendanceSession, listClasses, listRecentSessions, type RecentSession } from '../lib/queries';
+import { HqDashboard } from './HqDashboard';
 
 export function DashboardPage() {
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, isHq, isSuperadmin } = useAuth();
   const firstName = (user?.user_metadata?.full_name || user?.email || 'Bem-vinda').split(' ')[0];
 
   const { data: counts } = useQuery({ queryKey: ['counts'], queryFn: dashboardCounts });
@@ -40,6 +41,9 @@ export function DashboardPage() {
     });
     return [...map.entries()];
   }, [recent]);
+
+  // Na HQ (Administração Geral), o Início é o painel de gestão dos clientes.
+  if (isHq && isSuperadmin) return <HqDashboard />;
 
   return (
     <>

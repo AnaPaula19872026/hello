@@ -596,6 +596,31 @@ export async function updateOrganization(
   if (error) throw new Error(error.message);
 }
 
+/* ------------------------------ HQ — estatísticas ----------------------------- */
+export interface HqStats {
+  sessions_30d: number;
+  sessions_total: number;
+  notices_30d: number;
+  notices_total: number;
+  attendance_records_30d: number;
+}
+export async function hqStats(): Promise<HqStats> {
+  const { data, error } = await supabase.rpc('hq_stats');
+  if (error) throw new Error(error.message);
+  const row = (data as HqStats[])?.[0];
+  return row ?? { sessions_30d: 0, sessions_total: 0, notices_30d: 0, notices_total: 0, attendance_records_30d: 0 };
+}
+
+export interface DailyPoint {
+  day: string;
+  sessions: number;
+}
+export async function hqAttendanceDaily(): Promise<DailyPoint[]> {
+  const { data, error } = await supabase.rpc('hq_attendance_daily');
+  if (error) throw new Error(error.message);
+  return (data as DailyPoint[]) ?? [];
+}
+
 /* ----------------------- Centro de permissões (overrides) --------------------- */
 export interface PermissionSetting {
   role: AppRole;
