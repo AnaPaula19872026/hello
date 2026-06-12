@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  addMonths,
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
@@ -34,6 +33,7 @@ import {
   ASSIGNABLE_ROLES,
   EVENT_CATEGORIES,
   ROLE_LABEL,
+  SCHOOL_YEAR_MONTHS,
   eventCatLabel,
   eventColor,
   type AppRole,
@@ -59,21 +59,24 @@ function shareText(e: EventWithMeta) {
 export function CalendarPage() {
   const { role } = useAuth();
   const canManage = canManageCalendar(role);
-  const [cursor, setCursor] = useState(new Date());
-  const [selected, setSelected] = useState(new Date());
+  const today = new Date();
+  const [year, setYear] = useState(today.getFullYear());
+  const [selected, setSelected] = useState(today);
   const [composeOpen, setComposeOpen] = useState(false);
   const [editing, setEditing] = useState<EventWithMeta | null>(null);
 
   const { data: events = [], isLoading } = useQuery({ queryKey: ['cal-events'], queryFn: listEvents });
 
-  const monthDays = useMemo(() => {
-    const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 0 });
-    const end = endOfWeek(endOfMonth(cursor), { weekStartsOn: 0 });
-    return eachDayOfInterval({ start, end });
-  }, [cursor]);
-
   const dayEvents = (d: Date) => events.filter((e) => inEvent(d, e));
   const selectedEvents = dayEvents(selected);
+
+  // Ano letivo: fev (1) a nov (10) — mostra todos os meses de uma vez.
+  const months = useMemo(() => {
+    const [a, b] = SCHOOL_YEAR_MONTHS;
+    const arr: Date[] = [];
+    for (let m = a; m <= b; m++) arr.push(new Date(year, m, 1));
+    return arr;
+  }, [year]);
 
   function openNew() {
     setEditing(null);
@@ -88,53 +91,25 @@ export function CalendarPage() {
     <>
       <PageHeader
         title="Calendário"
-        subtitle="Eventos, atividades, gincanas e semana de provas."
+        subtitle="Ano letivo inteiro — eventos, atividades, gincanas e semana de provas."
         action={canManage ? <Button onClick={openNew}><Plus size={18} /> Novo evento</Button> : undefined}
       />
 
-      {/* Navegação do mês */}
+      {/* Ano letivo completo (fev–nov) */}
       <Card className="mb-4">
-        <div className="mb-3 flex items-center justify-between">
-          <button onClick={() => setCursor(addMonths(cursor, -1))} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 hover:bg-slate-200">
+        <div className="mb-3 flex items-center justify-center gap-4">
+          <button onClick={() => setYear(year - 1)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 hover:bg-slate-200">
             <ChevronLeft size={18} />
           </button>
-          <h2 className="text-base font-black capitalize text-slate-900">{format(cursor, "MMMM 'de' yyyy", { locale: ptBR })}</h2>
-          <button onClick={() => setCursor(addMonths(cursor, 1))} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 hover:bg-slate-200">
+          <h2 className="text-base font-black text-slate-900">Ano letivo {year}</h2>
+          <button onClick={() => setYear(year + 1)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 hover:bg-slate-200">
             <ChevronRight size={18} />
           </button>
         </div>
-
-        <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-black uppercase text-slate-400">
-          {WD.map((w) => (
-            <div key={w} className="py-1">{w}</div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {months.map((m) => (
+            <MiniMonth key={m.toISOString()} monthDate={m} dayEvents={dayEvents} selected={selected} onSelect={setSelected} />
           ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {monthDays.map((d) => {
-            const evs = dayEvents(d);
-            const isSel = isSameDay(d, selected);
-            const isToday = isSameDay(d, new Date());
-            return (
-              <button
-                key={d.toISOString()}
-                onClick={() => setSelected(d)}
-                className={cn(
-                  'flex min-h-14 flex-col items-center rounded-lg border p-1 text-sm transition',
-                  isSel ? 'border-emerald-500 bg-emerald-50' : 'border-transparent hover:bg-slate-50',
-                  !isSameMonth(d, cursor) && 'opacity-40',
-                )}
-              >
-                <span className={cn('text-xs font-bold', isToday ? 'grid h-6 w-6 place-items-center rounded-full bg-emerald-600 text-white' : 'text-slate-700')}>
-                  {format(d, 'd')}
-                </span>
-                <div className="mt-1 flex flex-wrap justify-center gap-0.5">
-                  {evs.slice(0, 3).map((e) => (
-                    <span key={e.id} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: eventColor(e.category) }} />
-                  ))}
-                </div>
-              </button>
-            );
-          })}
         </div>
       </Card>
 
@@ -158,6 +133,64 @@ export function CalendarPage() {
 
       {composeOpen ? <ComposeModal event={editing} onClose={() => setComposeOpen(false)} defaultDate={selected} /> : null}
     </>
+  );
+}
+
+function MiniMonth({
+  monthDate,
+  dayEvents,
+  selected,
+  onSelect,
+}: {
+  monthDate: Date;
+  dayEvents: (d: Date) => EventWithMeta[];
+  selected: Date;
+  onSelect: (d: Date) => void;
+}) {
+  const days = eachDayOfInterval({
+    start: startOfWeek(startOfMonth(monthDate), { weekStartsOn: 0 }),
+    end: endOfWeek(endOfMonth(monthDate), { weekStartsOn: 0 }),
+  });
+  const today = new Date();
+  return (
+    <div className="rounded-xl border border-slate-200 p-2">
+      <p className="mb-1 text-center text-xs font-black capitalize text-slate-700">{format(monthDate, 'MMMM', { locale: ptBR })}</p>
+      <div className="grid grid-cols-7 text-center text-[9px] font-bold uppercase text-slate-400">
+        {WD.map((w) => (
+          <div key={w}>{w[0]}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {days.map((d) => {
+          const out = !isSameMonth(d, monthDate);
+          const evs = out ? [] : dayEvents(d);
+          const isSel = isSameDay(d, selected);
+          const isToday = isSameDay(d, today);
+          return (
+            <button
+              key={d.toISOString()}
+              onClick={() => !out && onSelect(d)}
+              disabled={out}
+              className={cn(
+                'relative grid h-7 place-items-center rounded text-[11px] transition',
+                out ? 'text-transparent' : 'text-slate-700 hover:bg-slate-100',
+                isSel && !out && 'bg-emerald-100 font-black ring-1 ring-emerald-400',
+                isToday && !out && !isSel && 'font-black text-emerald-700',
+              )}
+            >
+              {format(d, 'd')}
+              {evs.length ? (
+                <span className="absolute bottom-0.5 flex gap-0.5">
+                  {evs.slice(0, 3).map((e) => (
+                    <span key={e.id} className="h-1 w-1 rounded-full" style={{ backgroundColor: eventColor(e.category) }} />
+                  ))}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
