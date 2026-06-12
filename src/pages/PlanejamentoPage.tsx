@@ -24,6 +24,15 @@ import {
 } from '../lib/queries';
 import { PLAN_STATUS } from '../lib/types';
 
+// Traduz erros técnicos (ex.: módulo ainda não ativado no banco) para algo amigável.
+function friendly(e: unknown): string {
+  const m = (e as Error)?.message ?? '';
+  if (m.includes('schema cache') || m.includes('lesson_plan') || m.includes('PGRST205')) {
+    return 'O módulo de planejamento ainda está sendo ativado. Tente novamente em instantes.';
+  }
+  return m || 'Não foi possível completar a ação. Tente novamente.';
+}
+
 export function PlanejamentoPage() {
   const { user, role } = useAuth();
   const uid = user!.id;
@@ -72,7 +81,7 @@ export function PlanejamentoPage() {
 
 function MeusPlanos({ uid, onEdit }: { uid: string; onEdit: (p: PlanWithMeta) => void }) {
   const qc = useQueryClient();
-  const { data: plans = [], isLoading } = useQuery({ queryKey: ['my-plans', uid], queryFn: () => listMyPlans(uid) });
+  const { data: plans = [], isLoading, isError, error } = useQuery({ queryKey: ['my-plans', uid], queryFn: () => listMyPlans(uid), retry: false });
 
   const send = useMutation({
     mutationFn: submitPlan,
@@ -91,6 +100,7 @@ function MeusPlanos({ uid, onEdit }: { uid: string; onEdit: (p: PlanWithMeta) =>
   });
 
   if (isLoading) return <p className="text-slate-400">Carregando…</p>;
+  if (isError) return <EmptyState icon={<BookOpen size={26} />} title="Planejamento indisponível" hint={friendly(error)} />;
   if (plans.length === 0)
     return <EmptyState icon={<BookOpen size={26} />} title="Nenhum planejamento" hint="Crie seu primeiro planejamento e envie para a coordenação." />;
 
@@ -125,7 +135,7 @@ function MeusPlanos({ uid, onEdit }: { uid: string; onEdit: (p: PlanWithMeta) =>
 
 function ParaRevisar() {
   const qc = useQueryClient();
-  const { data: plans = [], isLoading } = useQuery({ queryKey: ['org-plans', 'enviado'], queryFn: () => listOrgPlans('enviado') });
+  const { data: plans = [], isLoading, isError, error } = useQuery({ queryKey: ['org-plans', 'enviado'], queryFn: () => listOrgPlans('enviado'), retry: false });
   const [feedbackFor, setFeedbackFor] = useState<PlanWithMeta | null>(null);
 
   const approve = useMutation({
@@ -137,6 +147,7 @@ function ParaRevisar() {
   });
 
   if (isLoading) return <p className="text-slate-400">Carregando…</p>;
+  if (isError) return <EmptyState icon={<BookOpen size={26} />} title="Planejamento indisponível" hint={friendly(error)} />;
   if (plans.length === 0)
     return <EmptyState icon={<Check size={26} />} title="Nada para revisar" hint="Planejamentos enviados pelos professores aparecem aqui." />;
 
@@ -327,7 +338,7 @@ function ComposeModal({ plan, onClose }: { plan: PlanWithMeta | null; onClose: (
         ) : null}
 
         {saveDraft.isError || saveSend.isError ? (
-          <p className="text-sm font-semibold text-red-600">{((saveDraft.error || saveSend.error) as Error).message}</p>
+          <p className="text-sm font-semibold text-red-600">{friendly(saveDraft.error || saveSend.error)}</p>
         ) : null}
 
         <div className="flex flex-wrap justify-end gap-2">
