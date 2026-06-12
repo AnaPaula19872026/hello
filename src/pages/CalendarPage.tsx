@@ -13,10 +13,10 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarCheck2, CalendarDays, CalendarRange, CheckCircle2, ChevronLeft, ChevronRight, Clock, Download, FileSpreadsheet, FileText, Flag, Mail, Paperclip, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react';
+import { CalendarCheck2, CalendarDays, CalendarRange, CheckCircle2, ChevronLeft, ChevronRight, Clock, Download, Eye, FileSpreadsheet, FileText, Flag, Mail, Paperclip, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { AttachmentChips } from '../components/Attachments';
+import { AttachmentChips, PreviewModal } from '../components/Attachments';
 import { Dropzone } from '../components/Dropzone';
 import { successToast } from '../components/Feedback';
 import { Button, Card, Field, Input, Modal, PageHeader, Select } from '../components/ui';
@@ -439,6 +439,38 @@ function CalendarUploadCenter({ canManage }: { canManage: boolean }) {
   );
 }
 
+function SlotAction({
+  icon,
+  label,
+  onClick,
+  href,
+  download,
+  danger,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+  href?: string;
+  download?: string;
+  danger?: boolean;
+}) {
+  const cls = cn(
+    'grid h-9 flex-1 place-items-center rounded-lg transition',
+    danger ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900',
+  );
+  if (href)
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" download={download} className={cls} title={label} aria-label={label}>
+        {icon}
+      </a>
+    );
+  return (
+    <button type="button" onClick={onClick} className={cls} title={label} aria-label={label}>
+      {icon}
+    </button>
+  );
+}
+
 function CalendarUploadSlotCard({
   meta,
   uploads,
@@ -456,125 +488,125 @@ function CalendarUploadSlotCard({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [preview, setPreview] = useState(false);
   const Icon = meta.icon;
   const latest = uploads[0];
   const filled = !!latest;
+  const isImg = !!latest?.mime?.startsWith('image/');
+  const ext = (latest?.name.split('.').pop() || 'arq').toUpperCase().slice(0, 4);
+  const canPrev = !!latest?.url && (isImg || latest.mime === 'application/pdf');
 
-  function sendFile(file?: File | null) {
-    if (file) onUpload(file);
+  const sendFile = (f?: File | null) => f && onUpload(f);
+  function openView() {
+    if (!latest?.url) return;
+    if (canPrev) setPreview(true);
+    else window.open(latest.url, '_blank', 'noopener');
   }
 
   return (
-    <article
-      onDragOver={(e) => {
-        if (!canManage) return;
-        e.preventDefault();
-        setDragOver(true);
-      }}
-      onDragLeave={(e) => {
-        if (e.currentTarget === e.target) setDragOver(false);
-      }}
-      onDrop={(e) => {
-        if (!canManage) return;
-        e.preventDefault();
-        setDragOver(false);
-        sendFile(e.dataTransfer.files?.[0]);
-      }}
-      className={cn(
-        'group flex min-h-[260px] flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
-        dragOver ? 'border-emerald-400 ring-4 ring-emerald-100' : 'border-slate-200',
-      )}
-    >
-      <div className="flex flex-1 flex-col p-4">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl ring-1 ring-black/5" style={{ backgroundColor: meta.soft, color: meta.color }}>
-              <Icon size={21} />
-            </span>
-            <div className="min-w-0">
-              <h3 className="truncate text-base font-black text-slate-950">{meta.title}</h3>
-              <p className="mt-0.5 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{meta.description}</p>
+    <>
+      <article
+        onDragOver={(e) => {
+          if (!canManage) return;
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={(e) => e.currentTarget === e.target && setDragOver(false)}
+        onDrop={(e) => {
+          if (!canManage) return;
+          e.preventDefault();
+          setDragOver(false);
+          sendFile(e.dataTransfer.files?.[0]);
+        }}
+        className={cn(
+          'group flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
+          dragOver ? 'border-emerald-400 ring-4 ring-emerald-100' : 'border-slate-200',
+        )}
+      >
+        {/* Miniatura */}
+        <div className="relative h-32 w-full overflow-hidden" style={{ backgroundColor: meta.soft }}>
+          {filled && isImg ? (
+            <img src={latest.url} alt={latest.name} className="h-full w-full object-cover" />
+          ) : filled ? (
+            <div className="grid h-full w-full place-items-center">
+              <div className="flex flex-col items-center" style={{ color: meta.color }}>
+                <FileText size={34} />
+                <span className="mt-1 rounded-md bg-white/80 px-2 py-0.5 text-[10px] font-black tracking-wide">{ext}</span>
+              </div>
             </div>
-          </div>
-          <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase', filled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400')}>
+          ) : canManage ? (
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={busy}
+              className="grid h-full w-full place-items-center text-slate-400 transition hover:text-emerald-600"
+            >
+              <div className="flex flex-col items-center">
+                <Plus size={26} />
+                <span className="mt-1 text-xs font-black">Anexar</span>
+              </div>
+            </button>
+          ) : (
+            <div className="grid h-full w-full place-items-center text-slate-300">
+              <Paperclip size={26} />
+            </div>
+          )}
+
+          {/* selo do tipo (canto) e status */}
+          <span className="absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-lg bg-white/90 shadow-sm" style={{ color: meta.color }}>
+            <Icon size={15} />
+          </span>
+          <span
+            className={cn(
+              'absolute right-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-black uppercase shadow-sm',
+              filled ? 'bg-emerald-500 text-white' : 'bg-white/90 text-slate-400',
+            )}
+          >
             {filled ? 'Anexado' : 'Vazio'}
           </span>
         </div>
 
-        {latest ? (
-          <div className="flex flex-1 flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <div className="mb-3 flex min-w-0 items-start gap-2">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-slate-500 shadow-sm">
-                <FileText size={17} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-black text-slate-900">{latest.name}</p>
-                <p className="mt-0.5 text-[11px] font-bold text-slate-400">
-                  Enviado em {format(parseISO(latest.created_at), 'dd/MM/yyyy', { locale: ptBR })}
-                </p>
-              </div>
-            </div>
+        {/* Corpo */}
+        <div className="flex flex-1 flex-col p-3">
+          <h3 className="truncate text-sm font-black text-slate-900">{meta.title}</h3>
+          <p className="mt-0.5 truncate text-[11px] font-bold text-slate-400">
+            {filled ? latest.name : canManage ? 'Clique ou arraste para anexar' : 'Não disponibilizado'}
+          </p>
 
-            <div className="flex items-center gap-2">
-              {latest.url ? (
-                <a
-                  href={latest.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download={latest.name}
-                  className="inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-3 text-xs font-black text-white transition hover:bg-slate-800"
-                >
-                  <Download size={15} /> Abrir
-                </a>
-              ) : null}
-              {canManage ? (
-                <button
-                  onClick={() => onDelete(latest)}
-                  disabled={busy}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-red-50 text-red-600 transition hover:bg-red-100 disabled:opacity-60"
-                  aria-label="Excluir calendário"
-                >
-                  <Trash2 size={15} />
-                </button>
-              ) : null}
-            </div>
+          <div className="mt-3 flex items-center gap-1.5">
+            {filled ? (
+              <>
+                <SlotAction icon={<Eye size={16} />} label="Visualizar" onClick={openView} />
+                <SlotAction icon={<Download size={16} />} label="Baixar" href={latest.url} download={latest.name} />
+                {canManage ? <SlotAction icon={<Pencil size={16} />} label="Editar / substituir" onClick={() => inputRef.current?.click()} /> : null}
+                {canManage ? <SlotAction icon={<Trash2 size={16} />} label="Excluir" danger onClick={() => onDelete(latest)} /> : null}
+              </>
+            ) : canManage ? (
+              <button
+                onClick={() => inputRef.current?.click()}
+                disabled={busy}
+                className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-slate-950 text-xs font-black text-white transition hover:bg-slate-800 disabled:opacity-50"
+              >
+                <RefreshCw size={14} /> {busy ? 'Enviando…' : 'Procurar arquivo'}
+              </button>
+            ) : null}
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => canManage && inputRef.current?.click()}
-            disabled={!canManage || busy}
-            className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center transition hover:border-emerald-300 hover:bg-emerald-50/40 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50"
-          >
-            <Paperclip size={20} className="mb-2 text-slate-300" />
-            <p className="text-sm font-black text-slate-500">{canManage ? 'Enviar arquivo' : 'Sem arquivo'}</p>
-            <p className="mt-1 text-xs font-semibold text-slate-400">{canManage ? 'Clique ou arraste para anexar' : 'Ainda não disponibilizado'}</p>
-          </button>
-        )}
+        </div>
 
-        {canManage ? (
-          <div className="mt-3 border-t border-slate-100 pt-3">
-            <button
-              onClick={() => inputRef.current?.click()}
-              disabled={busy}
-              className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-white text-xs font-black text-slate-600 ring-1 ring-slate-200 transition hover:text-emerald-700 hover:ring-emerald-200 disabled:opacity-50"
-            >
-              <RefreshCw size={14} /> {busy ? 'Enviando...' : filled ? 'Substituir arquivo' : 'Procurar arquivo'}
-            </button>
-            <input
-              ref={inputRef}
-              type="file"
-              accept={CAL_UPLOAD_ACCEPT}
-              className="hidden"
-              onChange={(e) => {
-                sendFile(e.target.files?.[0]);
-                e.target.value = '';
-              }}
-            />
-          </div>
-        ) : null}
-      </div>
-    </article>
+        <input
+          ref={inputRef}
+          type="file"
+          accept={CAL_UPLOAD_ACCEPT}
+          className="hidden"
+          onChange={(e) => {
+            sendFile(e.target.files?.[0]);
+            e.target.value = '';
+          }}
+        />
+      </article>
+
+      {preview && latest?.url ? <PreviewModal name={latest.name} url={latest.url} mime={latest.mime} onClose={() => setPreview(false)} /> : null}
+    </>
   );
 }
 
