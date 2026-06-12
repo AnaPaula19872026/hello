@@ -120,6 +120,7 @@ export interface NoticeAttachment {
   name: string;
   path: string;
   mime: string | null;
+  url?: string; // URL assinada (temporária) para baixar/pré-visualizar
 }
 
 export interface Grade {

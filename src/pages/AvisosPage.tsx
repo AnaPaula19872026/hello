@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, Megaphone, Paperclip, Plus, Send, Trash2, UploadCloud, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { Check, Download, Eye, Megaphone, Paperclip, Plus, Send, Trash2, UploadCloud, X } from 'lucide-react';
+import { useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
@@ -10,7 +10,6 @@ import { cn } from '../lib/cn';
 import { canSendNotice } from '../lib/permissions';
 import {
   deleteNotice,
-  getAttachmentUrl,
   listOrgPeople,
   listReceivedNotices,
   listSentNotices,
@@ -21,29 +20,62 @@ import {
 } from '../lib/queries';
 import { ASSIGNABLE_ROLES, ROLE_LABEL, type AppRole, type NoticeAttachment, type NoticeAudience } from '../lib/types';
 
-function AttachmentChips({ attachments }: { attachments: NoticeAttachment[] }) {
-  if (!attachments.length) return null;
-  async function open(path: string) {
-    try {
-      const url = await getAttachmentUrl(path);
-      window.open(url, '_blank', 'noopener');
-    } catch (e) {
-      alert((e as Error).message);
-    }
-  }
+function canPreview(mime: string | null | undefined) {
+  return !!mime && (mime.startsWith('image/') || mime === 'application/pdf');
+}
+
+function PreviewModal({ name, url, mime, onClose }: { name: string; url: string; mime: string | null; onClose: () => void }) {
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
-      {attachments.map((a) => (
-        <button
-          key={a.id}
-          onClick={() => open(a.path)}
-          className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+    <Modal open onClose={onClose} title={name} size="xl">
+      <div className="space-y-3">
+        {mime?.startsWith('image/') ? (
+          <img src={url} alt={name} className="mx-auto max-h-[70vh] rounded-xl object-contain" />
+        ) : mime === 'application/pdf' ? (
+          <iframe src={url} title={name} className="h-[70vh] w-full rounded-xl border border-slate-200" />
+        ) : (
+          <p className="text-sm text-slate-500">Pré-visualização não disponível para este tipo de arquivo.</p>
+        )}
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          download={name}
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700"
         >
-          <Paperclip size={14} className="shrink-0" />
-          <span className="truncate">{a.name}</span>
-        </button>
-      ))}
-    </div>
+          <Download size={16} /> Baixar
+        </a>
+      </div>
+    </Modal>
+  );
+}
+
+function AttachmentChips({ attachments }: { attachments: NoticeAttachment[] }) {
+  const [preview, setPreview] = useState<NoticeAttachment | null>(null);
+  if (!attachments.length) return null;
+  return (
+    <>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {attachments.map((a) => (
+          <div
+            key={a.id}
+            className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700"
+          >
+            <Paperclip size={14} className="shrink-0 text-slate-400" />
+            <a href={a.url} target="_blank" rel="noopener noreferrer" download={a.name} className="truncate hover:text-emerald-700">
+              {a.name}
+            </a>
+            {canPreview(a.mime) && a.url ? (
+              <button onClick={() => setPreview(a)} aria-label="Pré-visualizar" className="shrink-0 text-slate-400 hover:text-emerald-700">
+                <Eye size={15} />
+              </button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      {preview?.url ? (
+        <PreviewModal name={preview.name} url={preview.url} mime={preview.mime} onClose={() => setPreview(null)} />
+      ) : null}
+    </>
   );
 }
 
@@ -202,7 +234,6 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
   const [targetUser, setTargetUser] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const { data: people = [] } = useQuery({ queryKey: ['org-people'], queryFn: listOrgPeople });
 
@@ -293,8 +324,8 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
         ) : null}
 
         <Field label="Anexos (PDF, DOC, DOCX, PNG, JPG, PPTX…)">
-          <div
-            onClick={() => inputRef.current?.click()}
+          <label
+            htmlFor="aviso-files"
             onDragOver={(e) => {
               e.preventDefault();
               setDragOver(true);
@@ -314,7 +345,7 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
             <p className="text-sm font-bold text-slate-600">Clique ou arraste os arquivos aqui</p>
             <p className="text-xs text-slate-400">PDF, DOC, DOCX, PNG, JPG, PPTX, XLSX…</p>
             <input
-              ref={inputRef}
+              id="aviso-files"
               type="file"
               multiple
               className="hidden"
@@ -323,18 +354,27 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
                 e.target.value = '';
               }}
             />
-          </div>
+          </label>
           {files.length > 0 ? (
             <div className="mt-2 space-y-1.5">
-              {files.map((f, i) => (
-                <div key={i} className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">
-                  <Paperclip size={14} className="shrink-0" />
-                  <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                  <button onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} aria-label="Remover" className="text-slate-400 hover:text-red-600">
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
+              {files.map((f, i) => {
+                const localUrl = URL.createObjectURL(f);
+                const previewable = f.type.startsWith('image/') || f.type === 'application/pdf';
+                return (
+                  <div key={i} className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">
+                    <Paperclip size={14} className="shrink-0 text-slate-400" />
+                    <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                    {previewable ? (
+                      <a href={localUrl} target="_blank" rel="noopener noreferrer" aria-label="Pré-visualizar" className="text-slate-400 hover:text-emerald-700">
+                        <Eye size={15} />
+                      </a>
+                    ) : null}
+                    <button onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} aria-label="Remover" className="text-slate-400 hover:text-red-600">
+                      <X size={14} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           ) : null}
         </Field>

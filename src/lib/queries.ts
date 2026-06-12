@@ -681,6 +681,15 @@ async function attachmentsByNotice(noticeIds: string[]): Promise<Map<string, Not
   const rows = unwrap<NoticeAttachment[]>(
     await supabase.from('notice_attachments').select('id, notice_id, name, path, mime').in('notice_id', noticeIds),
   );
+  // Pré-gera as URLs assinadas (evita popup bloqueado ao abrir depois de um await).
+  if (rows.length) {
+    const { data: signed } = await supabase.storage.from('avisos').createSignedUrls(
+      rows.map((r) => r.path),
+      3600,
+    );
+    const urlByPath = new Map((signed ?? []).map((s) => [s.path ?? '', s.signedUrl] as const));
+    for (const r of rows) r.url = urlByPath.get(r.path);
+  }
   for (const a of rows) {
     const list = map.get(a.notice_id) ?? [];
     list.push(a);
