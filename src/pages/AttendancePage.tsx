@@ -167,9 +167,25 @@ export function AttendancePage() {
         </div>
       ) : null}
 
-      <div className="mb-4 grid grid-cols-2 gap-3 text-center">
-        <Stat label="Presentes" value={counts.present} className="text-emerald-700" />
-        <Stat label="Faltas" value={counts.absent} className="text-red-600" />
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
+          <p className="text-2xl font-black text-slate-900">{students.length}</p>
+          <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Alunos</p>
+        </div>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center">
+          <p className="text-2xl font-black text-emerald-700">{counts.present}</p>
+          <p className="text-[11px] font-black uppercase tracking-wide text-emerald-700/70">Presentes</p>
+        </div>
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-center">
+          <p className="text-2xl font-black text-red-600">{counts.absent}</p>
+          <p className="text-[11px] font-black uppercase tracking-wide text-red-600/70">Faltas</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
+          <p className={cn('text-2xl font-black', students.length && counts.present / students.length < 0.75 ? 'text-amber-600' : 'text-slate-900')}>
+            {students.length ? Math.round((counts.present / students.length) * 100) : 0}%
+          </p>
+          <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Presença</p>
+        </div>
       </div>
 
       <div className="mb-3 flex flex-col gap-2 sm:flex-row">
@@ -204,18 +220,25 @@ export function AttendancePage() {
                 onClick={() => toggle(s.id)}
                 disabled={!editingAttendance}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-75 disabled:active:scale-100',
-                  absent ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50/60',
+                  'flex w-full items-center gap-3 rounded-2xl border p-3 text-left shadow-sm transition active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-80 disabled:active:scale-100',
+                  absent ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white hover:border-emerald-200',
                 )}
               >
-                <span className={cn('w-6 shrink-0 text-right text-sm font-bold', absent ? 'text-red-400' : 'text-slate-400')}>{i + 1}</span>
+                <span
+                  className={cn(
+                    'grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-black tabular-nums',
+                    absent ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700',
+                  )}
+                >
+                  {i + 1}
+                </span>
                 <span className={cn('min-w-0 flex-1 truncate text-base font-bold', absent ? 'text-red-800' : 'text-slate-800')}>
                   {s.full_name}
                 </span>
                 <span
                   className={cn(
-                    'flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-black text-white',
-                    absent ? 'bg-red-600' : 'bg-emerald-600',
+                    'flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-black',
+                    absent ? 'bg-red-600 text-white' : 'bg-emerald-50 text-emerald-700',
                   )}
                 >
                   {absent ? <X size={18} /> : <Check size={18} />}
@@ -269,15 +292,6 @@ export function AttendancePage() {
           {save.isError ? <p className="mx-auto mt-2 max-w-5xl px-1 text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
         </footer>
       ) : null}
-    </div>
-  );
-}
-
-function Stat({ label, value, className }: { label: string; value: number; className?: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <p className={cn('text-2xl font-black', className)}>{value}</p>
-      <p className="text-xs font-bold text-slate-500">{label}</p>
     </div>
   );
 }
