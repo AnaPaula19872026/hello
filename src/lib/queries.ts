@@ -719,7 +719,7 @@ export async function listReceivedNotices(userId: string): Promise<ReceivedNotic
   const atts = await attachmentsByNotice(mine.map((n) => n.id));
   // Resolve o nome de quem enviou (RLS de profiles não deixa ler colegas; usa org_people).
   const people = await listOrgPeople().catch(() => []);
-  const byId = new Map(people.map((p) => [p.user_id, p]));
+  const byId = new Map(people.map((p) => [p.user_id, p] as const));
   return mine.map((n) => ({
     ...n,
     read: readSet.has(n.id),
