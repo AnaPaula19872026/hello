@@ -470,6 +470,48 @@ export interface AttendanceReport {
   rows: AttendanceReportRow[];
 }
 
+export interface AttendanceAlert {
+  student_id: string;
+  name: string;
+  class_id: string | null;
+  pct: number;
+  absent: number;
+  total: number;
+}
+/**
+ * Alunos com frequência abaixo do mínimo (padrão 75%) no ano, considerando todas
+ * as turmas da organização ativa. Ignora quem tem poucas chamadas (ruído).
+ */
+export async function listAttendanceAlerts(minPct = 75, year = new Date().getFullYear(), minSessions = 4): Promise<AttendanceAlert[]> {
+  const sessions = unwrap<{ id: string; session_date: string }[]>(
+    await scoped(supabase.from('attendance_sessions').select('id, session_date')),
+  ).filter((s) => s.session_date.startsWith(String(year)));
+  if (!sessions.length) return [];
+  const ids = sessions.map((s) => s.id);
+  const records = unwrap<{ student_id: string; status: string }[]>(
+    await supabase.from('attendance_records').select('student_id, status').in('session_id', ids),
+  );
+  const students = await listStudents();
+  const byId = new Map(students.map((s) => [s.id, s]));
+  const agg = new Map<string, { present: number; total: number }>();
+  for (const r of records) {
+    const a = agg.get(r.student_id) ?? { present: 0, total: 0 };
+    a.total++;
+    if (r.status === 'present' || r.status === 'late') a.present++;
+    agg.set(r.student_id, a);
+  }
+  const out: AttendanceAlert[] = [];
+  for (const [sid, a] of agg) {
+    if (a.total < minSessions) continue;
+    const pct = Math.round((a.present / a.total) * 1000) / 10;
+    if (pct >= minPct) continue;
+    const st = byId.get(sid);
+    if (!st) continue;
+    out.push({ student_id: sid, name: st.full_name, class_id: st.class_id, pct, absent: a.total - a.present, total: a.total });
+  }
+  return out.sort((x, y) => x.pct - y.pct);
+}
+
 export async function reportAttendance(classId: string, from: string, to: string): Promise<AttendanceReport> {
   const sessions = unwrap<{ id: string; session_date: string }[]>(
     await scoped(supabase.from('attendance_sessions').select('id, session_date'))
