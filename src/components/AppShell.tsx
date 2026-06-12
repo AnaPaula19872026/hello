@@ -59,10 +59,11 @@ const groups: { title?: string; items: NavItem[] }[] = [
 ];
 
 function OrgSwitcher() {
-  const { organizations, activeOrgId, switchOrg, isSuperadmin, memberships } = useAuth();
-  // Só mostra se há mais de uma organização para escolher.
-  if (!isSuperadmin && memberships.length <= 1) return null;
-  if (organizations.length === 0) return null;
+  const { organizations, activeOrgId, switchOrg, isSuperadmin } = useAuth();
+  // A HQ (Administração Geral) é exclusiva do superadmin — nunca aparece para os demais.
+  const options = isSuperadmin ? organizations : organizations.filter((o) => o.kind !== 'hq');
+  // Só mostra o seletor quando há mais de uma organização para escolher.
+  if (options.length <= 1) return null;
   return (
     <div className="border-b border-white/10 px-4 py-3">
       <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">Organização</p>
@@ -71,7 +72,7 @@ function OrgSwitcher() {
         onChange={(e) => switchOrg(e.target.value)}
         className="w-full rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 text-sm font-bold text-white outline-none focus:border-emerald-400"
       >
-        {organizations.map((o) => (
+        {options.map((o) => (
           <option key={o.id} value={o.id} className="text-slate-900">
             {o.name}
             {o.is_demo ? ' (demo)' : ''}
