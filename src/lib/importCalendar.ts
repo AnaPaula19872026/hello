@@ -1,4 +1,5 @@
 import { EVENT_CATEGORIES } from './types';
+import { assertCalendarImportFile, assertImportRowLimit } from './fileSecurity';
 
 export interface ParsedEvent {
   title: string;
@@ -78,6 +79,7 @@ export async function downloadCalendarTemplate() {
 
 /** Lê o arquivo (.xlsx/.csv ou .ics) e devolve os eventos identificados. */
 export async function parseCalendarFile(file: File): Promise<ParsedEvent[]> {
+  assertCalendarImportFile(file);
   const name = file.name.toLowerCase();
   if (name.endsWith('.ics')) return parseIcs(await file.text());
   return parseSheet(file);
@@ -91,6 +93,7 @@ async function parseSheet(file: File): Promise<ParsedEvent[]> {
   for (const sheetName of wb.SheetNames) {
     const ws = wb.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+    assertImportRowLimit(rows.length);
     for (const r of rows) {
       // aceita cabeçalhos em pt (Data/Título/...) de forma flexível
       const get = (keys: string[]) => {

@@ -47,6 +47,10 @@ const ACCESS: Record<ModuleKey, AppRole[]> = {
   organizacoes: [], // só superadmin
 };
 
+// Na HQ, o superadmin gerencia clientes/permissões. Dados escolares ficam nas
+// bases dos clientes, não na organização de administração.
+export const HQ_MODULES = new Set<ModuleKey>(['dashboard', 'organizacoes', 'permissoes', 'configuracoes']);
+
 // Overrides definidos no Centro de Permissões (carregados do banco pelo AuthProvider).
 // Chave: `${role}|${module}` -> allowed.
 let overrides: Record<string, boolean> = {};
@@ -69,6 +73,11 @@ export function can(role: AppRole | null, module: ModuleKey): boolean {
   const ov = overrides[permKey(role, module)];
   if (ov !== undefined) return ov;
   return defaultAllowed(role, module);
+}
+
+/** Acesso final usado por rotas e menu, incluindo a regra da HQ. */
+export function canAccessModule(role: AppRole | null, module: ModuleKey, isHq: boolean): boolean {
+  return can(role, module) && (!isHq || HQ_MODULES.has(module));
 }
 
 /** Quem pode gerenciar membros/organização (convidar, etc.). */

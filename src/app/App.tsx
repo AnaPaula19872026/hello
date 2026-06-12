@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../auth/AuthProvider';
 import { AppShell } from '../components/AppShell';
@@ -17,13 +18,14 @@ import { SchoolsPage } from '../pages/SchoolsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { SharedReportPage } from '../pages/SharedReportPage';
 import { StudentsPage } from '../pages/StudentsPage';
+import { canAccessModule, type ModuleKey } from '../lib/permissions';
 
 const qc = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, staleTime: 30_000 } },
 });
 
 function Protected() {
-  const { session, loading, ctxLoading } = useAuth();
+  const { session, loading, ctxLoading, role, isHq } = useAuth();
 
   if (loading || (session && ctxLoading)) {
     return (
@@ -38,22 +40,37 @@ function Protected() {
   return (
     <AppShell>
       <Routes>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/chamadas" element={<AttendancePage />} />
-        <Route path="/notas" element={<NotasPage />} />
-        <Route path="/relatorios" element={<ReportsPage />} />
-        <Route path="/avisos" element={<AvisosPage />} />
-        <Route path="/calendario" element={<CalendarPage />} />
-        <Route path="/escolas" element={<SchoolsPage />} />
-        <Route path="/turmas" element={<ClassesPage />} />
-        <Route path="/alunos" element={<StudentsPage />} />
-        <Route path="/organizacoes" element={<OrganizationsPage />} />
-        <Route path="/permissoes" element={<PermissionsPage />} />
-        <Route path="/configuracoes" element={<SettingsPage />} />
+        <Route path="/" element={<ModuleGate module="dashboard" role={role} isHq={isHq}><DashboardPage /></ModuleGate>} />
+        <Route path="/chamadas" element={<ModuleGate module="chamadas" role={role} isHq={isHq}><AttendancePage /></ModuleGate>} />
+        <Route path="/notas" element={<ModuleGate module="notas" role={role} isHq={isHq}><NotasPage /></ModuleGate>} />
+        <Route path="/relatorios" element={<ModuleGate module="relatorios" role={role} isHq={isHq}><ReportsPage /></ModuleGate>} />
+        <Route path="/avisos" element={<ModuleGate module="avisos" role={role} isHq={isHq}><AvisosPage /></ModuleGate>} />
+        <Route path="/calendario" element={<ModuleGate module="calendario" role={role} isHq={isHq}><CalendarPage /></ModuleGate>} />
+        <Route path="/escolas" element={<ModuleGate module="escolas" role={role} isHq={isHq}><SchoolsPage /></ModuleGate>} />
+        <Route path="/turmas" element={<ModuleGate module="turmas" role={role} isHq={isHq}><ClassesPage /></ModuleGate>} />
+        <Route path="/alunos" element={<ModuleGate module="alunos" role={role} isHq={isHq}><StudentsPage /></ModuleGate>} />
+        <Route path="/organizacoes" element={<ModuleGate module="organizacoes" role={role} isHq={isHq}><OrganizationsPage /></ModuleGate>} />
+        <Route path="/permissoes" element={<ModuleGate module="permissoes" role={role} isHq={isHq}><PermissionsPage /></ModuleGate>} />
+        <Route path="/configuracoes" element={<ModuleGate module="configuracoes" role={role} isHq={isHq}><SettingsPage /></ModuleGate>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>
   );
+}
+
+function ModuleGate({
+  module,
+  role,
+  isHq,
+  children,
+}: {
+  module: ModuleKey;
+  role: ReturnType<typeof useAuth>['role'];
+  isHq: boolean;
+  children: ReactNode;
+}) {
+  if (!canAccessModule(role, module, isHq)) return <Navigate to="/" replace />;
+  return children;
 }
 
 function Gate() {

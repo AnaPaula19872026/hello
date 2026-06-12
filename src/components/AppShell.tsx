@@ -22,7 +22,7 @@ import { Fragment, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { cn } from '../lib/cn';
-import { can, type ModuleKey } from '../lib/permissions';
+import { canAccessModule, type ModuleKey } from '../lib/permissions';
 import { listSchools, unreadNoticeCount } from '../lib/queries';
 import { ROLE_LABEL } from '../lib/types';
 import { signOut } from '../lib/supabase';
@@ -57,10 +57,6 @@ const groups: { title?: string; items: NavItem[] }[] = [
     ],
   },
 ];
-
-// Na HQ (Administração Geral) o superadmin vê só as ferramentas de gestão — não
-// os módulos de escola (que são das bases dos clientes).
-const HQ_MODULES = new Set<ModuleKey>(['dashboard', 'organizacoes', 'permissoes', 'configuracoes']);
 
 function OrgSwitcher() {
   const { organizations, activeOrgId, switchOrg, isSuperadmin, memberships } = useAuth();
@@ -107,8 +103,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       ...g,
       items: g.items.filter(
         (it) =>
-          can(role, it.module) &&
-          (!isHq || HQ_MODULES.has(it.module)) &&
+          canAccessModule(role, it.module, isHq) &&
           (it.module !== 'escolas' || multiSchool), // Escolas: só com 2+ escolas
       ),
     }))

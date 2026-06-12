@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { calcMedia, withRecoveryActivity, type GradeActivity } from './types';
 import { getActiveOrgId } from './org';
+import { assertUploadFile } from './fileSecurity';
 import type {
   AppRole,
   AttendanceRecord,
@@ -60,15 +61,15 @@ export async function saveSchool(input: Partial<School> & { name: string }): Pro
     inep: input.inep ?? null,
     active: input.active ?? true,
   };
-  if (input.id) return unwrap(await supabase.from('schools').update(row).eq('id', input.id).select().single());
+  if (input.id) return unwrap(await scoped(supabase.from('schools').update(row)).eq('id', input.id).select().single());
   return unwrap(await supabase.from('schools').insert(row).select().single());
 }
 export async function deleteSchool(id: string): Promise<void> {
-  const { error } = await supabase.from('schools').delete().eq('id', id);
+  const { error } = await scoped(supabase.from('schools').delete()).eq('id', id);
   if (error) throw new Error(error.message);
 }
 export async function bulkDeleteSchools(ids: string[]): Promise<void> {
-  const { error } = await supabase.from('schools').delete().in('id', ids);
+  const { error } = await scoped(supabase.from('schools').delete()).in('id', ids);
   if (error) throw new Error(error.message);
 }
 export async function bulkInsertSchools(rows: { name: string; city?: string }[]): Promise<number> {
@@ -89,15 +90,15 @@ export async function saveClass(input: Partial<ClassRoom> & { name: string; scho
     shift: input.shift ?? 'Manhã',
     year: input.year ?? null,
   };
-  if (input.id) return unwrap(await supabase.from('classes').update(row).eq('id', input.id).select().single());
+  if (input.id) return unwrap(await scoped(supabase.from('classes').update(row)).eq('id', input.id).select().single());
   return unwrap(await supabase.from('classes').insert(row).select().single());
 }
 export async function deleteClass(id: string): Promise<void> {
-  const { error } = await supabase.from('classes').delete().eq('id', id);
+  const { error } = await scoped(supabase.from('classes').delete()).eq('id', id);
   if (error) throw new Error(error.message);
 }
 export async function bulkDeleteClasses(ids: string[]): Promise<void> {
-  const { error } = await supabase.from('classes').delete().in('id', ids);
+  const { error } = await scoped(supabase.from('classes').delete()).in('id', ids);
   if (error) throw new Error(error.message);
 }
 export async function bulkInsertClasses(
@@ -121,7 +122,7 @@ export async function listStudents(): Promise<Student[]> {
 }
 export async function listStudentsByClass(classId: string): Promise<Student[]> {
   return unwrap(
-    await supabase.from('students').select('*').eq('class_id', classId).eq('active', true).order('full_name'),
+    await scoped(supabase.from('students').select('*')).eq('class_id', classId).eq('active', true).order('full_name'),
   );
 }
 function mapStudentError(error: { code?: string; message: string }): string {
@@ -145,18 +146,18 @@ export async function saveStudent(
     active: input.active ?? true,
   };
   const q = input.id
-    ? supabase.from('students').update(row).eq('id', input.id)
+    ? scoped(supabase.from('students').update(row)).eq('id', input.id)
     : supabase.from('students').insert(row);
   const { data, error } = await q.select().single();
   if (error) throw new Error(mapStudentError(error));
   return data as Student;
 }
 export async function deleteStudent(id: string): Promise<void> {
-  const { error } = await supabase.from('students').delete().eq('id', id);
+  const { error } = await scoped(supabase.from('students').delete()).eq('id', id);
   if (error) throw new Error(error.message);
 }
 export async function bulkDeleteStudents(ids: string[]): Promise<void> {
-  const { error } = await supabase.from('students').delete().in('id', ids);
+  const { error } = await scoped(supabase.from('students').delete()).in('id', ids);
   if (error) throw new Error(error.message);
 }
 /** Importa alunos pulando duplicados (mesma matrícula na escola ou mesmo nome na turma). */
@@ -166,10 +167,10 @@ export async function bulkInsertStudents(
   rows: { full_name: string; registration?: string; guardian_name?: string; guardian_phone?: string }[],
 ): Promise<number> {
   const inSchool = unwrap<{ registration: string | null }[]>(
-    await supabase.from('students').select('registration').eq('school_id', schoolId),
+    await scoped(supabase.from('students').select('registration')).eq('school_id', schoolId),
   );
   const inClass = unwrap<{ full_name: string }[]>(
-    await supabase.from('students').select('full_name').eq('class_id', classId),
+    await scoped(supabase.from('students').select('full_name')).eq('class_id', classId),
   );
   const regSet = new Set(inSchool.map((s) => (s.registration || '').trim()).filter(Boolean));
   const nameSet = new Set(inClass.map((s) => s.full_name.toLowerCase().trim()));
@@ -366,7 +367,7 @@ export async function listRecentSessions(limit = 10): Promise<RecentSession[]> {
   if (!sessions.length) return [];
   const ids = sessions.map((s) => s.id);
   const recs = unwrap<{ session_id: string; status: string }[]>(
-    await supabase.from('attendance_records').select('session_id, status').in('session_id', ids),
+    await scoped(supabase.from('attendance_records').select('session_id, status')).in('session_id', ids),
   );
   return sessions.map((s) => {
     const mine = recs.filter((r) => r.session_id === s.id);
@@ -471,9 +472,7 @@ export interface AttendanceReport {
 
 export async function reportAttendance(classId: string, from: string, to: string): Promise<AttendanceReport> {
   const sessions = unwrap<{ id: string; session_date: string }[]>(
-    await supabase
-      .from('attendance_sessions')
-      .select('id, session_date')
+    await scoped(supabase.from('attendance_sessions').select('id, session_date'))
       .eq('class_id', classId)
       .gte('session_date', from)
       .lte('session_date', to),
@@ -481,7 +480,7 @@ export async function reportAttendance(classId: string, from: string, to: string
   const ids = sessions.map((s) => s.id);
   const records = ids.length
     ? unwrap<{ student_id: string; status: string; session_id: string }[]>(
-        await supabase.from('attendance_records').select('student_id, status, session_id').in('session_id', ids),
+        await scoped(supabase.from('attendance_records').select('student_id, status, session_id')).in('session_id', ids),
       )
     : [];
   const dateById = new Map(sessions.map((s) => [s.id, s.session_date]));
@@ -505,13 +504,13 @@ export async function reportAttendance(classId: string, from: string, to: string
 
 /** Apaga uma chamada (sessão) e seus registros. */
 export async function deleteAttendanceSession(id: string): Promise<void> {
-  const { error } = await supabase.from('attendance_sessions').delete().eq('id', id);
+  const { error } = await scoped(supabase.from('attendance_sessions').delete()).eq('id', id);
   if (error) throw new Error(error.message);
 }
 
 /* ----------------------------- Relatório por link ------------------------------ */
 function shortId(): string {
-  const bytes = new Uint8Array(8);
+  const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
   const alphabet = '0123456789abcdefghijklmnopqrstuvwxyz';
   return Array.from(bytes, (b) => alphabet[b % 36]).join('');
@@ -758,6 +757,8 @@ export async function sendNotice(input: NoticeInput): Promise<string> {
 /** Envia um arquivo para o Storage e registra o anexo do aviso. */
 export async function uploadNoticeAttachment(noticeId: string, file: File): Promise<void> {
   const org = getActiveOrgId();
+  if (!org) throw new Error('Organização ativa não encontrada.');
+  assertUploadFile(file);
   const safe = file.name.replace(/[^\w.\-]+/g, '_');
   const path = `${org}/${noticeId}/${Date.now()}_${safe}`;
   const up = await supabase.storage.from('avisos').upload(path, file, { upsert: false });
@@ -887,7 +888,7 @@ export async function saveEvent(input: EventInput): Promise<string> {
     target_user: input.audience === 'user' ? input.target_user ?? null : null,
   };
   if (input.id) {
-    const { error } = await supabase.from('calendar_events').update(row).eq('id', input.id);
+    const { error } = await scoped(supabase.from('calendar_events').update(row)).eq('id', input.id);
     if (error) throw new Error(error.message);
     return input.id;
   }
@@ -896,7 +897,7 @@ export async function saveEvent(input: EventInput): Promise<string> {
 }
 
 export async function deleteEvent(id: string): Promise<void> {
-  const { error } = await supabase.from('calendar_events').delete().eq('id', id);
+  const { error } = await scoped(supabase.from('calendar_events').delete()).eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -920,6 +921,8 @@ export async function bulkCreateEvents(
 
 export async function uploadEventAttachment(eventId: string, file: File): Promise<void> {
   const org = getActiveOrgId();
+  if (!org) throw new Error('Organização ativa não encontrada.');
+  assertUploadFile(file);
   const safe = file.name.replace(/[^\w.\-]+/g, '_');
   const path = `${org}/${eventId}/${Date.now()}_${safe}`;
   const up = await supabase.storage.from('calendario').upload(path, file, { upsert: false });
@@ -930,7 +933,7 @@ export async function uploadEventAttachment(eventId: string, file: File): Promis
 
 export async function deleteEventAttachment(att: EventAttachment): Promise<void> {
   await supabase.storage.from('calendario').remove([att.path]);
-  const { error } = await supabase.from('event_attachments').delete().eq('id', att.id);
+  const { error } = await scoped(supabase.from('event_attachments').delete()).eq('id', att.id);
   if (error) throw new Error(error.message);
 }
 
@@ -948,6 +951,7 @@ export async function listCalendarUploads(): Promise<CalendarUpload[]> {
 export async function uploadCalendarDocument(slot: CalendarUploadSlot, file: File): Promise<void> {
   const org = getActiveOrgId();
   if (!org) throw new Error('Organização ativa não encontrada.');
+  assertUploadFile(file);
   const safe = file.name.replace(/[^\w.\-]+/g, '_');
   const path = `${org}/uploads/${slot}/${Date.now()}_${safe}`;
   const up = await supabase.storage.from('calendario').upload(path, file, { upsert: false });
@@ -964,7 +968,7 @@ export async function uploadCalendarDocument(slot: CalendarUploadSlot, file: Fil
 
 export async function deleteCalendarUpload(upload: CalendarUpload): Promise<void> {
   await supabase.storage.from('calendario').remove([upload.path]);
-  const { error } = await supabase.from('calendar_uploads').delete().eq('id', upload.id);
+  const { error } = await scoped(supabase.from('calendar_uploads').delete()).eq('id', upload.id);
   if (error) throw new Error(error.message);
 }
 
@@ -983,12 +987,12 @@ export async function saveCalendarHoliday(input: Omit<CalendarHoliday, 'id'> & {
     city: input.city || null,
     source: input.source || 'Cadastro manual',
   };
-  if (input.id) return unwrap(await supabase.from('calendar_holidays').update(row).eq('id', input.id).select().single());
+  if (input.id) return unwrap(await scoped(supabase.from('calendar_holidays').update(row)).eq('id', input.id).select().single());
   return unwrap(await supabase.from('calendar_holidays').insert(row).select().single());
 }
 
 export async function deleteCalendarHoliday(id: string): Promise<void> {
-  const { error } = await supabase.from('calendar_holidays').delete().eq('id', id);
+  const { error } = await scoped(supabase.from('calendar_holidays').delete()).eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -1014,7 +1018,7 @@ export async function listEvents(): Promise<EventWithMeta[]> {
   if (!events.length) return [];
   const ids = events.map((e) => e.id);
   const atts = unwrap<EventAttachment[]>(
-    await supabase.from('event_attachments').select('id, event_id, name, path, mime').in('event_id', ids),
+    await scoped(supabase.from('event_attachments').select('id, event_id, name, path, mime')).in('event_id', ids),
   );
   if (atts.length) {
     const { data: signed } = await supabase.storage.from('calendario').createSignedUrls(atts.map((a) => a.path), 3600);

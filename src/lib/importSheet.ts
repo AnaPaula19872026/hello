@@ -1,5 +1,6 @@
 // Importação por planilha — template + leitura de .xlsx/.csv.
 // xlsx é carregado sob demanda (dynamic import) para não pesar no bundle inicial.
+import { assertImportRowLimit, assertSpreadsheetFile } from './fileSecurity';
 
 export interface ColumnDef {
   key: string;
@@ -53,6 +54,7 @@ export interface ImportResult {
 
 /** Lê o arquivo (aba com mais dados), mapeia pelas colunas e ignora a linha de exemplo. */
 export async function parseSheet(file: File, columns: ColumnDef[]): Promise<ParseResult> {
+  assertSpreadsheetFile(file);
   const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: 'array' });
@@ -63,6 +65,7 @@ export async function parseSheet(file: File, columns: ColumnDef[]): Promise<Pars
     const j = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[name], { defval: '' });
     if (j.length > raw.length) raw = j;
   }
+  assertImportRowLimit(raw.length);
 
   const labelToKey: Record<string, string> = {};
   const exampleByKey: Record<string, string> = {};
