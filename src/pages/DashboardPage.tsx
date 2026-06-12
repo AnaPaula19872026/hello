@@ -1,24 +1,39 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { BarChart3, Building2, ChevronDown, ClipboardCheck, GraduationCap, Trash2, Users } from 'lucide-react';
+import { Award, BarChart3, Bell, CalendarDays, ChevronDown, ClipboardCheck, GraduationCap, Megaphone, Trash2, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { Card, PageHeader } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
-import { dashboardCounts, deleteAttendanceSession, listClasses, listRecentSessions, type RecentSession } from '../lib/queries';
+import { can } from '../lib/permissions';
+import {
+  dashboardCounts,
+  deleteAttendanceSession,
+  listClasses,
+  listEvents,
+  listReceivedNotices,
+  listRecentSessions,
+  unreadNoticeCount,
+  type RecentSession,
+} from '../lib/queries';
+import { eventCatLabel, eventColor } from '../lib/types';
 import { HqDashboard } from './HqDashboard';
 
 export function DashboardPage() {
   const qc = useQueryClient();
-  const { user, isHq, isSuperadmin } = useAuth();
+  const { user, role, isHq, isSuperadmin } = useAuth();
+  const uid = user?.id;
   const firstName = (user?.user_metadata?.full_name || user?.email || 'Bem-vinda').split(' ')[0];
 
   const { data: counts } = useQuery({ queryKey: ['counts'], queryFn: dashboardCounts });
   const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
   const { data: recent = [] } = useQuery({ queryKey: ['recent-sessions'], queryFn: () => listRecentSessions(60) });
+  const { data: events = [] } = useQuery({ queryKey: ['cal-events'], queryFn: listEvents });
+  const { data: unread = 0 } = useQuery({ queryKey: ['notices-unread', uid], queryFn: () => unreadNoticeCount(uid!), enabled: !!uid });
+  const { data: notices = [] } = useQuery({ queryKey: ['notices-received', uid], queryFn: () => listReceivedNotices(uid!), enabled: !!uid });
 
   const [open, setOpen] = useState<string | null>(null);
   const className = (id: string) => classes.find((c) => c.id === id)?.name ?? 'Turma';
@@ -31,7 +46,6 @@ export function DashboardPage() {
     },
   });
 
-  // Agrupa as chamadas por turma.
   const groups = useMemo(() => {
     const map = new Map<string, RecentSession[]>();
     recent.forEach((s) => {
@@ -42,33 +56,106 @@ export function DashboardPage() {
     return [...map.entries()];
   }, [recent]);
 
+  const todayISO = format(new Date(), 'yyyy-MM-dd');
+  const upcoming = useMemo(
+    () => events.filter((e) => (e.end_date || e.event_date) >= todayISO).slice(0, 4),
+    [events, todayISO],
+  );
+  const recentNotices = notices.slice(0, 3);
+
   // Na HQ (Administração Geral), o Início é o painel de gestão dos clientes.
   if (isHq && isSuperadmin) return <HqDashboard />;
+
+  // Ações rápidas conforme o papel.
+  const actions = [
+    can(role, 'chamadas') && { to: '/chamadas', icon: <ClipboardCheck size={22} />, label: 'Fazer chamada', color: '#059669', soft: '#ecfdf5' },
+    can(role, 'notas') && { to: '/notas', icon: <Award size={22} />, label: 'Lançar notas', color: '#2563eb', soft: '#eff6ff' },
+    { to: '/avisos', icon: <Megaphone size={22} />, label: 'Avisos', color: '#7c3aed', soft: '#f5f3ff', badge: unread },
+    { to: '/calendario', icon: <CalendarDays size={22} />, label: 'Calendário', color: '#ea580c', soft: '#fff7ed' },
+    can(role, 'relatorios') && { to: '/relatorios', icon: <BarChart3 size={22} />, label: 'Relatórios', color: '#475569', soft: '#f1f5f9' },
+  ].filter(Boolean) as { to: string; icon: React.ReactNode; label: string; color: string; soft: string; badge?: number }[];
 
   return (
     <>
       <PageHeader title={`Olá, ${firstName}`} subtitle={format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })} />
 
-      <Link to="/chamadas" className="block">
-        <div className="mb-6 flex items-center justify-between gap-4 rounded-2xl bg-slate-950 p-6 text-white shadow-soft transition hover:bg-slate-900">
-          <div>
-            <p className="text-sm font-bold text-emerald-300">Começar agora</p>
-            <h2 className="mt-1 text-xl font-black">Fazer chamada</h2>
-            <p className="mt-1 text-sm text-slate-300">Registre presenças e faltas em segundos.</p>
-          </div>
-          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-500">
-            <ClipboardCheck size={26} />
-          </div>
-        </div>
-      </Link>
-
-      <div className="mb-6 grid grid-cols-3 gap-3">
-        <StatCard to="/escolas" icon={<Building2 size={20} />} value={counts?.schools ?? 0} label="Escolas" />
-        <StatCard to="/turmas" icon={<GraduationCap size={20} />} value={counts?.classes ?? 0} label="Turmas" />
-        <StatCard to="/alunos" icon={<Users size={20} />} value={counts?.students ?? 0} label="Alunos" />
+      {/* Ações rápidas */}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {actions.map((a) => (
+          <Link
+            key={a.to}
+            to={a.to}
+            className="group relative flex flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+          >
+            <span className="grid h-11 w-11 place-items-center rounded-xl" style={{ backgroundColor: a.soft, color: a.color }}>
+              {a.icon}
+            </span>
+            <span className="text-sm font-black text-slate-900">{a.label}</span>
+            {a.badge ? (
+              <span className="absolute right-3 top-3 grid h-6 min-w-6 place-items-center rounded-full bg-emerald-500 px-1.5 text-xs font-black text-white">{a.badge}</span>
+            ) : null}
+          </Link>
+        ))}
       </div>
 
-      <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">Chamadas por turma</h2>
+      {/* KPIs */}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <KpiCard to="/turmas" icon={<GraduationCap size={18} />} value={counts?.classes ?? 0} label="Turmas" />
+        <KpiCard to="/alunos" icon={<Users size={18} />} value={counts?.students ?? 0} label="Alunos" />
+        <KpiCard to="/avisos" icon={<Bell size={18} />} value={unread} label="Avisos não lidos" highlight={unread > 0} />
+        <KpiCard to="/calendario" icon={<CalendarDays size={18} />} value={upcoming.length} label="Próximos eventos" />
+      </div>
+
+      {/* Próximos eventos + Avisos recentes */}
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">Próximos eventos</h2>
+            <Link to="/calendario" className="text-xs font-bold text-emerald-700 hover:underline">Ver calendário</Link>
+          </div>
+          {upcoming.length === 0 ? (
+            <Card><p className="text-sm text-slate-400">Nenhum evento agendado.</p></Card>
+          ) : (
+            <div className="space-y-2">
+              {upcoming.map((e) => (
+                <Link key={e.id} to="/calendario" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-emerald-200">
+                  <span className="grid h-11 w-12 shrink-0 place-items-center rounded-lg text-xs font-black text-white" style={{ backgroundColor: eventColor(e.category) }}>
+                    {e.event_date.slice(8, 10)}/{e.event_date.slice(5, 7)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-bold text-slate-800">{e.title}</span>
+                    <span className="block text-xs font-bold text-slate-400">{eventCatLabel(e.category)}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">Avisos recentes</h2>
+            <Link to="/avisos" className="text-xs font-bold text-emerald-700 hover:underline">Ver avisos</Link>
+          </div>
+          {recentNotices.length === 0 ? (
+            <Card><p className="text-sm text-slate-400">Nenhum aviso recebido.</p></Card>
+          ) : (
+            <div className="space-y-2">
+              {recentNotices.map((n) => (
+                <Link key={n.id} to="/avisos" className={cn('flex items-start gap-3 rounded-xl border bg-white p-3 transition hover:border-emerald-200', n.read ? 'border-slate-200' : 'border-emerald-300 bg-emerald-50/40')}>
+                  <span className={cn('mt-1 h-2.5 w-2.5 shrink-0 rounded-full', n.read ? 'bg-slate-300' : 'bg-emerald-500')} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-bold text-slate-800">{n.title}</span>
+                    <span className="block truncate text-xs text-slate-500">{n.body}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">Chamadas recentes por turma</h2>
       {groups.length === 0 ? (
         <Card>
           <p className="text-sm text-slate-500">Nenhuma chamada registrada ainda.</p>
@@ -129,13 +216,15 @@ export function DashboardPage() {
   );
 }
 
-function StatCard({ to, icon, value, label }: { to: string; icon: React.ReactNode; value: number; label: string }) {
+function KpiCard({ to, icon, value, label, highlight }: { to: string; icon: React.ReactNode; value: number; label: string; highlight?: boolean }) {
   return (
     <Link to={to}>
-      <Card className="p-4 text-center transition hover:border-emerald-300">
-        <div className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700">{icon}</div>
-        <p className="text-2xl font-black text-slate-900">{value}</p>
-        <p className="text-xs font-bold text-slate-500">{label}</p>
+      <Card className={cn('flex items-center gap-3 p-4 transition hover:border-emerald-300', highlight && 'border-emerald-300 bg-emerald-50/50')}>
+        <div className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl', highlight ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-50 text-emerald-700')}>{icon}</div>
+        <div className="min-w-0">
+          <p className="text-2xl font-black leading-none text-slate-900">{value}</p>
+          <p className="mt-1 truncate text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</p>
+        </div>
       </Card>
     </Link>
   );
