@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Check, CheckCheck, ClipboardCheck, Save, Search, X } from 'lucide-react';
+import { Check, CheckCheck, ClipboardCheck, Lock, Pencil, Save, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../auth/AuthProvider';
 import { Card, EmptyState, PageHeader, Select } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
@@ -11,45 +12,56 @@ import type { AttendanceStatus } from '../lib/types';
 
 export function AttendancePage() {
   const qc = useQueryClient();
+  const { activeOrgId, ctxLoading } = useAuth();
   const today = format(new Date(), 'yyyy-MM-dd');
-  const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
+  const orgReady = !ctxLoading && !!activeOrgId;
+  const { data: classes = [] } = useQuery({ queryKey: ['classes', activeOrgId], queryFn: listClasses, enabled: orgReady });
 
   const [classId, setClassId] = usePersistentState('hello:attendance:classId', '');
   const [date, setDate] = usePersistentState('hello:attendance:date', today);
   const [q, setQ] = useState('');
   const [records, setRecords] = useState<Record<string, AttendanceStatus>>({});
   const [saved, setSaved] = useState(false);
+  const [editingAttendance, setEditingAttendance] = useState(false);
 
   useEffect(() => {
+    if (!orgReady) return;
     if (!classes.length) return;
     if (!classId || !classes.some((c) => c.id === classId)) setClassId(classes[0].id);
-  }, [classes, classId]);
+  }, [classes, classId, orgReady]);
 
   const { data: students = [], isLoading } = useQuery({
-    queryKey: ['students-by-class', classId],
+    queryKey: ['students-by-class', activeOrgId, classId],
     queryFn: () => listStudentsByClass(classId),
-    enabled: !!classId,
+    enabled: orgReady && !!classId,
   });
 
   // Carrega chamada existente (turma + data) para editar em vez de duplicar.
-  const { data: existing } = useQuery({
-    queryKey: ['session', classId, date],
+  const {
+    data: existing,
+    isLoading: existingLoading,
+    isError: existingIsError,
+    error: existingError,
+  } = useQuery({
+    queryKey: ['session', activeOrgId, classId, date],
     queryFn: async () => {
       const session = await getSession(classId, date);
-      if (!session) return { records: [] as { student_id: string; status: AttendanceStatus }[] };
+      if (!session) return { session: null, records: [] as { student_id: string; status: AttendanceStatus }[] };
       const recs = await getRecords(session.id);
-      return { records: recs.map((r) => ({ student_id: r.student_id, status: r.status })) };
+      return { session, records: recs.map((r) => ({ student_id: r.student_id, status: r.status })) };
     },
-    enabled: !!classId,
+    enabled: orgReady && !!classId,
   });
 
   const studentsSig = students.map((s) => s.id).join(',');
-  const existingSig = (existing?.records ?? []).map((r) => `${r.student_id}:${r.status}`).join(',');
+  const existingSig = `${existing?.session?.updated_at ?? ''}|${(existing?.records ?? []).map((r) => `${r.student_id}:${r.status}`).join(',')}`;
+  const hasSavedAttendance = !!existing?.session;
+  const lastMovement = existing?.session?.updated_at;
 
-  // Inicializa: todos presentes, sobrescrevendo com a chamada salva.
-  useEffect(() => {
+  function resetRecordsFromSaved() {
     if (!students.length) {
       setRecords({});
+      setEditingAttendance(false);
       return;
     }
     const base: Record<string, AttendanceStatus> = {};
@@ -60,8 +72,15 @@ export function AttendancePage() {
     });
     setRecords(base);
     setSaved(false);
+    setEditingAttendance(!existing?.session);
+  }
+
+  // Inicializa: todos presentes, sobrescrevendo com a chamada salva.
+  useEffect(() => {
+    if (!orgReady || isLoading || existingLoading) return;
+    resetRecordsFromSaved();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studentsSig, existingSig]);
+  }, [orgReady, isLoading, existingLoading, studentsSig, existingSig]);
 
   const counts = useMemo(() => {
     let present = 0;
@@ -81,21 +100,33 @@ export function AttendancePage() {
       ),
     onSuccess: () => {
       setSaved(true);
-      qc.invalidateQueries({ queryKey: ['session', classId, date] });
+      setEditingAttendance(false);
+      qc.invalidateQueries({ queryKey: ['session', activeOrgId, classId, date] });
       qc.invalidateQueries({ queryKey: ['recent-sessions'] });
       successToast('Chamada salva com sucesso');
     },
   });
 
   function toggle(id: string) {
+    if (!editingAttendance) return;
     setRecords((prev) => ({ ...prev, [id]: prev[id] === 'absent' ? 'present' : 'absent' }));
     setSaved(false);
   }
   function allPresent() {
+    if (!editingAttendance) return;
     const next: Record<string, AttendanceStatus> = {};
     students.forEach((s) => (next[s.id] = 'present'));
     setRecords(next);
     setSaved(false);
+  }
+
+  if (!orgReady) {
+    return (
+      <>
+        <PageHeader title="Chamadas" subtitle="Carregando organização ativa..." />
+        <p className="text-sm font-semibold text-slate-500">Preparando os dados da escola.</p>
+      </>
+    );
   }
 
   if (classes.length === 0) {
@@ -128,6 +159,14 @@ export function AttendancePage() {
         />
       </div>
 
+      {hasSavedAttendance && !editingAttendance ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
+          <Lock size={16} className="text-slate-400" />
+          Chamada bloqueada para evitar alterações acidentais. Clique em Editar chamada para reabrir.
+          {lastMovement ? <span className="ml-auto text-xs font-bold text-slate-400">Últ. mov. {format(new Date(lastMovement), 'dd/MM')}</span> : null}
+        </div>
+      ) : null}
+
       <div className="mb-4 grid grid-cols-2 gap-3 text-center">
         <Stat label="Presentes" value={counts.present} className="text-emerald-700" />
         <Stat label="Faltas" value={counts.absent} className="text-red-600" />
@@ -138,13 +177,21 @@ export function AttendancePage() {
           <Search size={18} className="text-slate-400" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar aluno…" className="w-full bg-transparent text-sm outline-none" />
         </label>
-        <button onClick={allPresent} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 text-sm font-bold text-emerald-700 hover:bg-emerald-100">
+        <button
+          onClick={allPresent}
+          disabled={!editingAttendance}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 text-sm font-bold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+        >
           <CheckCheck size={18} /> Todos presentes
         </button>
       </div>
 
       {isLoading ? (
         <p className="text-sm text-slate-500">Carregando alunos…</p>
+      ) : existingIsError ? (
+        <EmptyState icon={<ClipboardCheck size={26} />} title="Não foi possível carregar a chamada" hint={(existingError as Error).message} />
+      ) : existingLoading ? (
+        <p className="text-sm text-slate-500">Carregando chamada salva...</p>
       ) : students.length === 0 ? (
         <EmptyState icon={<ClipboardCheck size={26} />} title="Turma sem alunos" hint="Cadastre alunos nesta turma para fazer a chamada." />
       ) : (
@@ -155,8 +202,9 @@ export function AttendancePage() {
               <button
                 key={s.id}
                 onClick={() => toggle(s.id)}
+                disabled={!editingAttendance}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition active:scale-[.99]',
+                  'flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-75 disabled:active:scale-100',
                   absent ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50/60',
                 )}
               >
@@ -183,16 +231,40 @@ export function AttendancePage() {
         <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:pl-72">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-1">
             <p className="hidden text-sm font-semibold text-slate-500 sm:block">
-              {saved ? '✓ Chamada salva' : `${counts.absent} falta(s) • ${students.length} alunos`}
+              {saved ? '✓ Chamada salva e bloqueada' : editingAttendance ? `${counts.absent} falta(s) • edição aberta` : `${counts.absent} falta(s) • ${students.length} alunos`}
             </p>
-            <button
-              onClick={() => save.mutate()}
-              disabled={save.isPending}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-4 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:flex-none sm:px-8"
-            >
-              <Save size={20} />
-              {save.isPending ? 'Salvando…' : saved ? 'Salvar novamente' : 'Salvar chamada'}
-            </button>
+            {editingAttendance ? (
+              <>
+                {hasSavedAttendance ? (
+                  <button
+                    onClick={resetRecordsFromSaved}
+                    disabled={save.isPending}
+                    className="hidden rounded-xl border border-slate-200 px-4 py-4 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-60 sm:inline-flex"
+                  >
+                    Cancelar
+                  </button>
+                ) : null}
+                <button
+                  onClick={() => save.mutate()}
+                  disabled={save.isPending}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-4 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:flex-none sm:px-8"
+                >
+                  <Save size={20} />
+                  {save.isPending ? 'Salvando…' : 'Salvar e bloquear'}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => {
+                  setEditingAttendance(true);
+                  setSaved(false);
+                }}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-4 text-base font-black text-white transition hover:bg-slate-800 sm:flex-none sm:px-8"
+              >
+                <Pencil size={20} />
+                Editar chamada
+              </button>
+            )}
           </div>
           {save.isError ? <p className="mx-auto mt-2 max-w-5xl px-1 text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
         </footer>

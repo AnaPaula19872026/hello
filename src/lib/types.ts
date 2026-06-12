@@ -39,6 +39,7 @@ export interface AttendanceSession {
   class_id: string;
   session_date: string;
   note: string | null;
+  updated_at?: string | null;
 }
 
 export interface AttendanceRecord {

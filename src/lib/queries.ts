@@ -301,9 +301,7 @@ export function importResultToModal(r: ImportAllResult): { created: number; note
 
 /* ---------------------------------- Chamadas ----------------------------------- */
 export async function getSession(classId: string, date: string): Promise<AttendanceSession | null> {
-  const { data, error } = await supabase
-    .from('attendance_sessions')
-    .select('*')
+  const { data, error } = await scoped(supabase.from('attendance_sessions').select('*'))
     .eq('class_id', classId)
     .eq('session_date', date)
     .maybeSingle();
@@ -312,7 +310,7 @@ export async function getSession(classId: string, date: string): Promise<Attenda
 }
 
 export async function getRecords(sessionId: string): Promise<AttendanceRecord[]> {
-  return unwrap(await supabase.from('attendance_records').select('*').eq('session_id', sessionId));
+  return unwrap(await scoped(supabase.from('attendance_records').select('*')).eq('session_id', sessionId));
 }
 
 /** Salva a chamada inteira: cria/atualiza a sessão e grava todos os registros. */
@@ -322,11 +320,12 @@ export async function saveAttendance(
   records: AttendanceRecord[],
   note?: string,
 ): Promise<void> {
+  const org = getActiveOrgId();
   const session = unwrap<AttendanceSession>(
     await supabase
       .from('attendance_sessions')
       .upsert(
-        { class_id: classId, session_date: date, note: note ?? null, updated_at: new Date().toISOString() },
+        { class_id: classId, session_date: date, note: note ?? null, updated_at: new Date().toISOString(), ...(org ? { org_id: org } : {}) },
         { onConflict: 'class_id,session_date' },
       )
       .select()
@@ -338,6 +337,7 @@ export async function saveAttendance(
     student_id: r.student_id,
     status: r.status,
     note: r.note ?? null,
+    ...(org ? { org_id: org } : {}),
   }));
 
   if (rows.length) {
