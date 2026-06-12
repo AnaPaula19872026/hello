@@ -1,5 +1,7 @@
-import { Download, Eye, Paperclip } from 'lucide-react';
+import { Download, Eye, Loader2, Paperclip } from 'lucide-react';
 import { useState } from 'react';
+import { downloadAllAttachments } from '../lib/storage';
+import { successToast } from './Feedback';
 import { Modal } from './ui';
 
 /** Anexo genérico (avisos, calendário…). `url` é a URL assinada para baixar/abrir. */
@@ -40,12 +42,39 @@ export function PreviewModal({ name, url, mime, onClose }: { name: string; url: 
   );
 }
 
-export function AttachmentChips({ attachments }: { attachments: Attachment[] }) {
+export function AttachmentChips({ attachments, zipName = 'anexos' }: { attachments: Attachment[]; zipName?: string }) {
   const [preview, setPreview] = useState<Attachment | null>(null);
+  const [zipping, setZipping] = useState(false);
   if (!attachments.length) return null;
+
+  const downloadable = attachments.filter((a) => a.url);
+
+  async function baixarTodos() {
+    if (zipping) return;
+    setZipping(true);
+    try {
+      await downloadAllAttachments(downloadable, zipName);
+      successToast(downloadable.length > 1 ? 'Anexos baixados (.zip)' : 'Arquivo baixado');
+    } catch (e) {
+      alert((e as Error).message || 'Não foi possível baixar os anexos.');
+    } finally {
+      setZipping(false);
+    }
+  }
+
   return (
     <>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {downloadable.length >= 2 ? (
+          <button
+            onClick={baixarTodos}
+            disabled={zipping}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-black text-white transition hover:bg-emerald-700 disabled:opacity-60"
+          >
+            {zipping ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            {zipping ? 'Compactando…' : `Baixar todos (${downloadable.length})`}
+          </button>
+        ) : null}
         {attachments.map((a) => (
           <div
             key={a.id}

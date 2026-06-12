@@ -10,6 +10,7 @@ import { successToast } from '../components/Feedback';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { cn } from '../lib/cn';
 import { canReviewPlan } from '../lib/permissions';
+import { safeFileName } from '../lib/storage';
 import {
   deletePlan,
   listClasses,
@@ -41,7 +42,7 @@ export function PlanejamentoPage() {
   const { user, role } = useAuth();
   const uid = user!.id;
   const canReview = canReviewPlan(role);
-  const [tab, setTab] = useState<'meus' | 'revisar'>('meus');
+  const [tab, setTab] = useState<'meus' | 'revisar' | 'revisados'>('meus');
   const [composeOpen, setComposeOpen] = useState(false);
   const [editing, setEditing] = useState<PlanWithMeta | null>(null);
 
@@ -63,20 +64,20 @@ export function PlanejamentoPage() {
       />
 
       {canReview ? (
-        <div className="mb-5 inline-flex rounded-xl bg-slate-100 p-1">
-          {(['meus', 'revisar'] as const).map((t) => (
+        <div className="mb-5 inline-flex flex-wrap rounded-xl bg-slate-100 p-1">
+          {([['meus', 'Meus planejamentos'], ['revisar', 'Para revisar'], ['revisados', 'Revisados']] as const).map(([t, label]) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={cn('rounded-lg px-4 py-2 text-sm font-bold transition', tab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500')}
             >
-              {t === 'meus' ? 'Meus planejamentos' : 'Para revisar'}
+              {label}
             </button>
           ))}
         </div>
       ) : null}
 
-      {tab === 'meus' ? <MeusPlanos uid={uid} onEdit={openEdit} /> : <ParaRevisar />}
+      {tab === 'meus' ? <MeusPlanos uid={uid} onEdit={openEdit} /> : tab === 'revisar' ? <Pendentes /> : <Revisados />}
 
       {composeOpen ? <ComposeModal plan={editing} onClose={() => setComposeOpen(false)} /> : null}
     </>
@@ -134,26 +135,6 @@ function MeusPlanos({ uid, onEdit }: { uid: string; onEdit: (p: PlanWithMeta) =>
         />
       ))}
     </div>
-  );
-}
-
-function ParaRevisar() {
-  const [sub, setSub] = useState<'pendentes' | 'revisados'>('pendentes');
-  return (
-    <>
-      <div className="mb-4 inline-flex rounded-xl border border-slate-200 bg-white p-1">
-        {([['pendentes', 'A revisar'], ['revisados', 'Revisados']] as const).map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => setSub(k)}
-            className={cn('rounded-lg px-4 py-1.5 text-sm font-bold transition', sub === k ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700')}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      {sub === 'pendentes' ? <Pendentes /> : <Revisados />}
-    </>
   );
 }
 
@@ -354,7 +335,7 @@ function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?
         </button>
       </div>
       {p.content ? <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{p.content}</p> : null}
-      <AttachmentChips attachments={p.attachments} />
+      <AttachmentChips attachments={p.attachments} zipName={safeFileName(p.title) || 'planejamento'} />
       {p.feedback ? (
         <div className={cn('mt-3 rounded-xl border p-3 text-sm', p.status === 'aprovado' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800')}>
           <p className="text-[11px] font-black uppercase tracking-wide opacity-70">Retorno da coordenação</p>
