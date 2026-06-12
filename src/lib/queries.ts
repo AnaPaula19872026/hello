@@ -8,6 +8,7 @@ import type {
   ClassRoom,
   Membership,
   Notice,
+  NoticeAttachment,
   NoticeAudience,
   Organization,
   OrgPerson,
@@ -643,8 +644,8 @@ export async function listOrgPeople(): Promise<OrgPerson[]> {
   return (data as OrgPerson[]) ?? [];
 }
 
-/** Dispara um aviso. */
-export async function sendNotice(input: NoticeInput): Promise<void> {
+/** Dispara um aviso. Devolve o id (para anexar arquivos em seguida). */
+export async function sendNotice(input: NoticeInput): Promise<string> {
   const row = {
     title: input.title,
     body: input.body,
@@ -652,8 +653,40 @@ export async function sendNotice(input: NoticeInput): Promise<void> {
     target_role: input.audience === 'role' ? input.target_role ?? null : null,
     target_user: input.audience === 'user' ? input.target_user ?? null : null,
   };
-  const { error } = await supabase.from('notices').insert(row);
+  const data = unwrap<{ id: string }>(await supabase.from('notices').insert(row).select('id').single());
+  return data.id;
+}
+
+/** Envia um arquivo para o Storage e registra o anexo do aviso. */
+export async function uploadNoticeAttachment(noticeId: string, file: File): Promise<void> {
+  const org = getActiveOrgId();
+  const safe = file.name.replace(/[^\w.\-]+/g, '_');
+  const path = `${org}/${noticeId}/${Date.now()}_${safe}`;
+  const up = await supabase.storage.from('avisos').upload(path, file, { upsert: false });
+  if (up.error) throw new Error(up.error.message);
+  const { error } = await supabase.from('notice_attachments').insert({ notice_id: noticeId, name: file.name, path, mime: file.type });
   if (error) throw new Error(error.message);
+}
+
+/** Gera uma URL temporária (assinada) para baixar/abrir um anexo. */
+export async function getAttachmentUrl(path: string): Promise<string> {
+  const { data, error } = await supabase.storage.from('avisos').createSignedUrl(path, 3600);
+  if (error) throw new Error(error.message);
+  return data.signedUrl;
+}
+
+async function attachmentsByNotice(noticeIds: string[]): Promise<Map<string, NoticeAttachment[]>> {
+  const map = new Map<string, NoticeAttachment[]>();
+  if (!noticeIds.length) return map;
+  const rows = unwrap<NoticeAttachment[]>(
+    await supabase.from('notice_attachments').select('id, notice_id, name, path, mime').in('notice_id', noticeIds),
+  );
+  for (const a of rows) {
+    const list = map.get(a.notice_id) ?? [];
+    list.push(a);
+    map.set(a.notice_id, list);
+  }
+  return map;
 }
 
 export async function deleteNotice(id: string): Promise<void> {
@@ -669,6 +702,7 @@ export async function markNoticeRead(id: string): Promise<void> {
 
 export interface ReceivedNotice extends Notice {
   read: boolean;
+  attachments: NoticeAttachment[];
 }
 /** Avisos recebidos pelo usuário (exclui os que ele mesmo enviou), com status de leitura. */
 export async function listReceivedNotices(userId: string): Promise<ReceivedNotice[]> {
@@ -680,11 +714,13 @@ export async function listReceivedNotices(userId: string): Promise<ReceivedNotic
     await supabase.from('notice_reads').select('notice_id').eq('user_id', userId),
   );
   const readSet = new Set(reads.map((r) => r.notice_id));
-  return mine.map((n) => ({ ...n, read: readSet.has(n.id) }));
+  const atts = await attachmentsByNotice(mine.map((n) => n.id));
+  return mine.map((n) => ({ ...n, read: readSet.has(n.id), attachments: atts.get(n.id) ?? [] }));
 }
 
 export interface SentNotice extends Notice {
   reads: number;
+  attachments: NoticeAttachment[];
 }
 /** Avisos enviados pelo usuário, com contagem de confirmações de leitura. */
 export async function listSentNotices(userId: string): Promise<SentNotice[]> {
@@ -698,7 +734,8 @@ export async function listSentNotices(userId: string): Promise<SentNotice[]> {
   );
   const count = new Map<string, number>();
   for (const r of reads) count.set(r.notice_id, (count.get(r.notice_id) ?? 0) + 1);
-  return notices.map((n) => ({ ...n, reads: count.get(n.id) ?? 0 }));
+  const atts = await attachmentsByNotice(ids);
+  return notices.map((n) => ({ ...n, reads: count.get(n.id) ?? 0, attachments: atts.get(n.id) ?? [] }));
 }
 
 /** Quantos avisos recebidos ainda não foram lidos (para o selo do menu). */

@@ -114,6 +114,14 @@ export interface OrgPerson {
   role: AppRole;
 }
 
+export interface NoticeAttachment {
+  id: string;
+  notice_id: string;
+  name: string;
+  path: string;
+  mime: string | null;
+}
+
 export interface Grade {
   id?: string;
   class_id: string;

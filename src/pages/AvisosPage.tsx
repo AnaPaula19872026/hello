@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, Megaphone, Plus, Send, Trash2 } from 'lucide-react';
+import { Check, Megaphone, Paperclip, Plus, Send, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
@@ -10,14 +10,42 @@ import { cn } from '../lib/cn';
 import { canSendNotice } from '../lib/permissions';
 import {
   deleteNotice,
+  getAttachmentUrl,
   listOrgPeople,
   listReceivedNotices,
   listSentNotices,
   markNoticeRead,
   sendNotice,
+  uploadNoticeAttachment,
   type NoticeInput,
 } from '../lib/queries';
-import { ASSIGNABLE_ROLES, ROLE_LABEL, type AppRole, type NoticeAudience } from '../lib/types';
+import { ASSIGNABLE_ROLES, ROLE_LABEL, type AppRole, type NoticeAttachment, type NoticeAudience } from '../lib/types';
+
+function AttachmentChips({ attachments }: { attachments: NoticeAttachment[] }) {
+  if (!attachments.length) return null;
+  async function open(path: string) {
+    try {
+      const url = await getAttachmentUrl(path);
+      window.open(url, '_blank', 'noopener');
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  }
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {attachments.map((a) => (
+        <button
+          key={a.id}
+          onClick={() => open(a.path)}
+          className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+        >
+          <Paperclip size={14} className="shrink-0" />
+          <span className="truncate">{a.name}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function fmt(iso: string) {
   return format(parseISO(iso), "dd/MM 'às' HH:mm", { locale: ptBR });
@@ -89,6 +117,7 @@ function Recebidos({ uid }: { uid: string }) {
             <div className="min-w-0 flex-1">
               <p className="font-black text-slate-900">{n.title}</p>
               <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{n.body}</p>
+              <AttachmentChips attachments={n.attachments} />
               <p className="mt-2 text-xs font-bold text-slate-400">{fmt(n.created_at)}</p>
             </div>
           </div>
@@ -135,6 +164,7 @@ function Enviados({ uid }: { uid: string }) {
             <div className="min-w-0 flex-1">
               <p className="font-black text-slate-900">{n.title}</p>
               <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{n.body}</p>
+              <AttachmentChips attachments={n.attachments} />
               <p className="mt-2 text-xs font-bold text-slate-400">
                 {AUDIENCE_LABEL(n.audience, n.target_role)} • {fmt(n.created_at)}
               </p>
@@ -166,15 +196,22 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
   const [audience, setAudience] = useState<NoticeAudience>('all');
   const [targetRole, setTargetRole] = useState<AppRole>('professor');
   const [targetUser, setTargetUser] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
 
   const { data: people = [] } = useQuery({ queryKey: ['org-people'], queryFn: listOrgPeople });
 
+  function addFiles(list: FileList | null) {
+    if (!list) return;
+    setFiles((prev) => [...prev, ...Array.from(list)]);
+  }
+
   const send = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const input: NoticeInput = { title: title.trim(), body: body.trim(), audience };
       if (audience === 'role') input.target_role = targetRole;
       if (audience === 'user') input.target_user = targetUser;
-      return sendNotice(input);
+      const id = await sendNotice(input);
+      for (const f of files) await uploadNoticeAttachment(id, f); // anexos, na ordem
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notices-sent', user?.id] });
@@ -248,6 +285,35 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
             </Select>
           </Field>
         ) : null}
+
+        <Field label="Anexos (PDF, DOC, DOCX, PNG, JPG, PPTX…)">
+          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-100">
+            <Paperclip size={16} /> Anexar arquivos
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.ppt,.pptx,.xls,.xlsx,.txt"
+              className="hidden"
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = '';
+              }}
+            />
+          </label>
+          {files.length > 0 ? (
+            <div className="mt-2 space-y-1.5">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">
+                  <Paperclip size={14} className="shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                  <button onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} aria-label="Remover" className="text-slate-400 hover:text-red-600">
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </Field>
 
         {send.isError ? <p className="text-sm font-semibold text-red-600">{(send.error as Error).message}</p> : null}
 
