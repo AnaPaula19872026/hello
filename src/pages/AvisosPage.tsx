@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, Megaphone, Paperclip, Plus, Send, Trash2, X } from 'lucide-react';
-import { useState } from 'react';
+import { Check, Megaphone, Paperclip, Plus, Send, Trash2, UploadCloud, X } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
@@ -197,11 +197,13 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
   const [targetRole, setTargetRole] = useState<AppRole>('professor');
   const [targetUser, setTargetUser] = useState('');
   const [files, setFiles] = useState<File[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const { data: people = [] } = useQuery({ queryKey: ['org-people'], queryFn: listOrgPeople });
 
   function addFiles(list: FileList | null) {
-    if (!list) return;
+    if (!list || list.length === 0) return;
     setFiles((prev) => [...prev, ...Array.from(list)]);
   }
 
@@ -287,19 +289,37 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
         ) : null}
 
         <Field label="Anexos (PDF, DOC, DOCX, PNG, JPG, PPTX…)">
-          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-100">
-            <Paperclip size={16} /> Anexar arquivos
+          <div
+            onClick={() => inputRef.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              addFiles(e.dataTransfer.files);
+            }}
+            className={cn(
+              'flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-6 text-center transition',
+              dragOver ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100',
+            )}
+          >
+            <UploadCloud size={22} className="text-slate-400" />
+            <p className="text-sm font-bold text-slate-600">Clique ou arraste os arquivos aqui</p>
+            <p className="text-xs text-slate-400">PDF, DOC, DOCX, PNG, JPG, PPTX, XLSX…</p>
             <input
+              ref={inputRef}
               type="file"
               multiple
-              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.ppt,.pptx,.xls,.xlsx,.txt"
               className="hidden"
               onChange={(e) => {
                 addFiles(e.target.files);
                 e.target.value = '';
               }}
             />
-          </label>
+          </div>
           {files.length > 0 ? (
             <div className="mt-2 space-y-1.5">
               {files.map((f, i) => (
