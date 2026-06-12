@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   eachDayOfInterval,
+  addMonths,
   endOfMonth,
   endOfWeek,
   format,
@@ -39,7 +40,6 @@ import {
   ASSIGNABLE_ROLES,
   EVENT_CATEGORIES,
   ROLE_LABEL,
-  SCHOOL_YEAR_MONTHS,
   eventCatLabel,
   eventColor,
   eventSoftColor,
@@ -75,7 +75,7 @@ export function CalendarPage() {
   const { role } = useAuth();
   const canManage = canManageCalendar(role);
   const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(startOfMonth(today));
   const [dayModal, setDayModal] = useState<Date | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeDate, setComposeDate] = useState<Date>(today);
@@ -85,18 +85,16 @@ export function CalendarPage() {
   const { data: events = [] } = useQuery({ queryKey: ['cal-events'], queryFn: listEvents });
 
   const dayEvents = (d: Date) => events.filter((e) => inEvent(d, e));
-  const yearEvents = useMemo(() => events.filter((e) => e.event_date.startsWith(String(year))), [events, year]);
-
-  // Ano letivo fev (1) a nov (10), agrupado em trimestres (3 meses por linha).
-  const groups = useMemo(() => {
-    const [a, b] = SCHOOL_YEAR_MONTHS;
-    const arr: Date[] = [];
-    for (let m = a; m <= b; m++) arr.push(new Date(year, m, 1));
-    const labels = ['1º Trimestre', '2º Trimestre', '3º Trimestre', 'Encerramento'];
-    const out: { label: string; months: Date[] }[] = [];
-    for (let i = 0; i < arr.length; i += 3) out.push({ label: labels[i / 3] ?? '', months: arr.slice(i, i + 3) });
-    return out;
-  }, [year]);
+  const monthEvents = useMemo(
+    () => events.filter((e) => {
+      const start = day(e.event_date);
+      const end = e.end_date ? day(e.end_date) : start;
+      return isWithinInterval(start, { start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) })
+        || isWithinInterval(end, { start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) })
+        || isWithinInterval(currentMonth, { start, end });
+    }),
+    [events, currentMonth],
+  );
 
   function openNew(d: Date) {
     setEditing(null);
@@ -131,14 +129,20 @@ export function CalendarPage() {
       <CalendarUploadCenter canManage={canManage} />
 
       <Card className="mb-4">
-        <div className="mb-4 flex items-center justify-center gap-4">
-          <button onClick={() => setYear(year - 1)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 hover:bg-slate-200">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wide text-emerald-700">Ano letivo {format(currentMonth, 'yyyy')}</p>
+            <h2 className="text-xl font-black capitalize text-slate-900">{format(currentMonth, 'MMMM yyyy', { locale: ptBR })}</h2>
+          </div>
+          <div className="flex items-center gap-2">
+          <button onClick={() => setCurrentMonth((m) => addMonths(m, -1))} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 hover:bg-slate-200">
             <ChevronLeft size={18} />
           </button>
-          <h2 className="text-lg font-black text-slate-900">Ano letivo {year}</h2>
-          <button onClick={() => setYear(year + 1)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 hover:bg-slate-200">
+          <Button variant="ghost" onClick={() => setCurrentMonth(startOfMonth(today))}>Hoje</Button>
+          <button onClick={() => setCurrentMonth((m) => addMonths(m, 1))} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 hover:bg-slate-200">
             <ChevronRight size={18} />
           </button>
+          </div>
         </div>
 
         <div className="mb-5 rounded-2xl border border-slate-100 bg-slate-50 p-3">
@@ -156,50 +160,12 @@ export function CalendarPage() {
           </div>
         </div>
 
-        <div className="space-y-5">
-          {groups.map((g, i) => (
-            <div key={i}>
-              {g.label ? <p className="mb-2 text-xs font-black uppercase tracking-wide text-emerald-700">{g.label}</p> : null}
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {g.months.map((m) => (
-                  <MiniMonth key={m.toISOString()} monthDate={m} dayEvents={dayEvents} onSelect={setDayModal} />
-                ))}
-              </div>
-            </div>
-          ))}
+        <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
+          <MonthCalendar monthDate={currentMonth} dayEvents={dayEvents} onSelect={setDayModal} />
+          <MonthEventList events={monthEvents} onSelect={(event) => setDayModal(day(event.event_date))} />
         </div>
 
       </Card>
-
-      {/* Lista de eventos do ano (nomes visíveis a todos) */}
-      <h3 className="mb-2 text-sm font-black uppercase tracking-wide text-slate-500">Eventos de {year}</h3>
-      {yearEvents.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
-          Nenhum evento neste ano ainda.
-        </p>
-      ) : (
-        <div className="space-y-1.5">
-          {yearEvents.map((e) => (
-            <button
-              key={e.id}
-              onClick={() => setDayModal(day(e.event_date))}
-              className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-emerald-300 hover:bg-emerald-50/40"
-            >
-              <span className="grid h-10 w-12 shrink-0 place-items-center rounded-lg text-center text-xs font-black text-white" style={{ backgroundColor: eventColor(e.category) }}>
-                {e.event_date.slice(8, 10)}/{e.event_date.slice(5, 7)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-bold text-slate-800">{e.title}</span>
-                <span className="block text-xs font-bold text-slate-400">
-                  {eventCatLabel(e.category)}
-                  {e.attachments.length ? ` · ${e.attachments.length} anexo(s)` : ''}
-                </span>
-              </span>
-              {e.attachments.length ? <Paperclip size={15} className="shrink-0 text-slate-400" /> : null}
-            </button>
-          ))}
-        </div>
-      )}
 
       {dayModal ? (
         <DayModal
@@ -497,7 +463,7 @@ function CalendarUploadSlotCard({
   );
 }
 
-function MiniMonth({
+function MonthCalendar({
   monthDate,
   dayEvents,
   onSelect,
@@ -513,10 +479,9 @@ function MiniMonth({
   const today = new Date();
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-      <p className="mb-2 text-center text-sm font-black capitalize text-slate-800">{format(monthDate, 'MMMM', { locale: ptBR })}</p>
-      <div className="grid grid-cols-7 text-center text-[10px] font-bold uppercase text-slate-400">
+      <div className="grid grid-cols-7 text-center text-[11px] font-black uppercase text-slate-400">
         {WD.map((w) => (
-          <div key={w} className="pb-1">{w[0]}</div>
+          <div key={w} className="pb-2">{w}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -533,7 +498,7 @@ function MiniMonth({
               disabled={out}
               title={has ? evs.map((e) => `${eventCatLabel(e.category)}: ${e.title}`).join(', ') : undefined}
               className={cn(
-                'relative flex min-h-20 flex-col rounded-lg border p-1 text-left text-xs transition',
+                'relative flex min-h-24 flex-col rounded-lg border p-1.5 text-left text-xs transition sm:min-h-28',
                 out ? 'border-transparent text-transparent' : 'border-slate-100 bg-slate-50 text-slate-700 hover:ring-2 hover:ring-emerald-300',
                 has && !out && 'bg-white',
                 isToday && !out && 'border-emerald-400 ring-1 ring-emerald-300',
@@ -562,6 +527,41 @@ function MiniMonth({
         })}
       </div>
     </div>
+  );
+}
+
+function MonthEventList({ events, onSelect }: { events: EventWithMeta[]; onSelect: (event: EventWithMeta) => void }) {
+  return (
+    <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">Eventos do mês</h3>
+      {events.length === 0 ? (
+        <p className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm font-bold text-slate-400">
+          Nenhum evento neste mês.
+        </p>
+      ) : (
+        <div className="mt-3 max-h-[640px] space-y-2 overflow-y-auto pr-1">
+          {events.map((e) => (
+            <button
+              key={e.id}
+              onClick={() => onSelect(e)}
+              className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-emerald-300 hover:bg-emerald-50/40"
+            >
+              <span className="grid h-10 w-12 shrink-0 place-items-center rounded-lg text-center text-xs font-black text-white" style={{ backgroundColor: eventColor(e.category) }}>
+                {e.event_date.slice(8, 10)}/{e.event_date.slice(5, 7)}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-bold text-slate-800">{e.title}</span>
+                <span className="block text-xs font-bold text-slate-400">
+                  {eventCatLabel(e.category)} · {audienceLabel(e)}
+                  {e.attachments.length ? ` · ${e.attachments.length} anexo(s)` : ''}
+                </span>
+              </span>
+              {e.attachments.length ? <Paperclip size={15} className="shrink-0 text-slate-400" /> : null}
+            </button>
+          ))}
+        </div>
+      )}
+    </aside>
   );
 }
 
