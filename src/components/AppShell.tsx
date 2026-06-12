@@ -23,7 +23,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { cn } from '../lib/cn';
 import { can, type ModuleKey } from '../lib/permissions';
-import { unreadNoticeCount } from '../lib/queries';
+import { listSchools, unreadNoticeCount } from '../lib/queries';
 import { ROLE_LABEL } from '../lib/types';
 import { signOut } from '../lib/supabase';
 
@@ -97,11 +97,20 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     enabled: !!user,
     refetchInterval: 60_000,
   });
+  // "Escolas" só faz sentido para rede/secretaria (2+ escolas). Numa base de uma
+  // escola só, o cadastro é redundante (a base já é a escola).
+  const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: listSchools, enabled: !!user && !isHq });
+  const multiSchool = schools.length > 1;
 
   const visibleGroups = groups
     .map((g) => ({
       ...g,
-      items: g.items.filter((it) => can(role, it.module) && (!isHq || HQ_MODULES.has(it.module))),
+      items: g.items.filter(
+        (it) =>
+          can(role, it.module) &&
+          (!isHq || HQ_MODULES.has(it.module)) &&
+          (it.module !== 'escolas' || multiSchool), // Escolas: só com 2+ escolas
+      ),
     }))
     .filter((g) => g.items.length > 0);
 

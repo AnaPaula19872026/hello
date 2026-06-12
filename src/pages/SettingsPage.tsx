@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ImagePlus, KeyRound, LogOut, X } from 'lucide-react';
+import { Building2, Check, ImagePlus, KeyRound, LogOut, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { ROLE_LABEL } from '../lib/types';
+import { ROLE_LABEL, type School } from '../lib/types';
 import { Button, Card, Field, Input, PageHeader } from '../components/ui';
 import { successToast } from '../components/Feedback';
+import { can } from '../lib/permissions';
 import { fileToCompressedDataUrl } from '../lib/image';
-import { getProfile, updateProfile } from '../lib/queries';
+import { getProfile, listSchools, saveSchool, updateProfile } from '../lib/queries';
 import { signOut, supabase } from '../lib/supabase';
 
 export function SettingsPage() {
@@ -125,6 +126,9 @@ export function SettingsPage() {
           </div>
         </Card>
 
+        {/* Dados da escola (base de uma escola só) */}
+        {can(role, 'escolas') ? <SchoolSettingsCard /> : null}
+
         {/* Senha */}
         <Card>
           <h2 className="mb-4 flex items-center gap-2 text-sm font-black uppercase tracking-wide text-slate-500">
@@ -180,5 +184,114 @@ export function SettingsPage() {
         {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
       </div>
     </>
+  );
+}
+
+/** Edição dos dados da escola quando a base tem exatamente uma escola
+ *  (substitui o cadastro "Escolas" no caso comum de uma escola por base). */
+function SchoolSettingsCard() {
+  const qc = useQueryClient();
+  const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: listSchools });
+  const school = schools.length === 1 ? schools[0] : null;
+
+  const [form, setForm] = useState<Partial<School>>({});
+  const [logo, setLogo] = useState<string | null>(null);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    if (school) {
+      setForm({
+        name: school.name,
+        director: school.director ?? '',
+        address: school.address ?? '',
+        phone: school.phone ?? '',
+        inep: school.inep ?? '',
+        city: school.city ?? '',
+      });
+      setLogo(school.logo_url ?? null);
+    }
+  }, [school]);
+
+  async function onLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setErr('');
+    try {
+      setLogo(await fileToCompressedDataUrl(file, 256, 0.8, false));
+    } catch (x) {
+      setErr((x as Error).message);
+    }
+  }
+
+  const save = useMutation({
+    mutationFn: () => saveSchool({ id: school!.id, name: (form.name || '').trim() || school!.name, ...form, logo_url: logo }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['schools'] });
+      successToast('Dados da escola salvos');
+    },
+  });
+
+  // Só faz sentido quando a base tem UMA escola (rede usa o menu Escolas).
+  if (schools.length !== 1) return null;
+
+  const set = (k: keyof School) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  return (
+    <Card>
+      <h2 className="mb-4 flex items-center gap-2 text-sm font-black uppercase tracking-wide text-slate-500">
+        <Building2 size={16} /> Dados da escola
+      </h2>
+      <p className="mb-4 text-xs text-slate-400">Aparecem no cabeçalho dos relatórios (logo, diretor, endereço).</p>
+
+      <div className="mb-5 flex items-center gap-4">
+        {logo ? (
+          <img src={logo} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1" />
+        ) : (
+          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-400">
+            <Building2 size={24} />
+          </div>
+        )}
+        <div className="flex flex-col gap-1">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200">
+            <ImagePlus size={16} /> {logo ? 'Trocar logo' : 'Enviar logo'}
+            <input type="file" accept="image/*" className="hidden" onChange={onLogo} />
+          </label>
+          {logo ? (
+            <button onClick={() => setLogo(null)} className="text-left text-xs font-bold text-red-600">
+              Remover logo
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Nome da escola">
+          <Input value={form.name ?? ''} onChange={set('name')} />
+        </Field>
+        <Field label="Diretor(a)">
+          <Input value={form.director ?? ''} onChange={set('director')} />
+        </Field>
+        <Field label="Endereço">
+          <Input value={form.address ?? ''} onChange={set('address')} />
+        </Field>
+        <Field label="Cidade">
+          <Input value={form.city ?? ''} onChange={set('city')} />
+        </Field>
+        <Field label="Telefone">
+          <Input value={form.phone ?? ''} onChange={set('phone')} />
+        </Field>
+        <Field label="Código INEP">
+          <Input value={form.inep ?? ''} onChange={set('inep')} />
+        </Field>
+      </div>
+      {err ? <p className="mt-2 text-sm font-semibold text-red-600">{err}</p> : null}
+      {save.isError ? <p className="mt-2 text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
+      <div className="mt-4">
+        <Button variant="soft" onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? 'Salvando…' : 'Salvar dados da escola'}
+        </Button>
+      </div>
+    </Card>
   );
 }
