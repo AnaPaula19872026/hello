@@ -583,16 +583,23 @@ export interface TermsReportRow {
 }
 
 export async function reportTerms(classId: string, year: number): Promise<TermsReportRow[]> {
-  const [grades, students] = await Promise.all([
+  const [grades, configs, students] = await Promise.all([
     unwrap<{ student_id: string; term: number; scores: Record<string, number> }[]>(
       await scoped(supabase.from('term_grades').select('student_id, term, scores')).eq('class_id', classId).eq('year', year),
     ),
+    unwrap<{ term: number; activities: GradeActivity[] }[]>(
+      await scoped(supabase.from('grade_terms').select('term, activities')).eq('year', year),
+    ),
     listStudentsByClass(classId),
   ]);
+  // Composição (atividades) por trimestre, para agrupar as notas no cálculo da média.
+  const actByTerm = new Map(
+    configs.map((c) => [c.term, withRecoveryActivity(((c.activities as GradeActivity[]) ?? []).filter((a) => a && a.name))]),
+  );
   return students.map((s) => {
     const terms: (number | null)[] = [1, 2, 3].map((t) => {
       const g = grades.find((x) => x.student_id === s.id && x.term === t);
-      return g ? calcMedia(g.scores) : null;
+      return g ? calcMedia(g.scores, actByTerm.get(t)) : null;
     });
     const got = terms.filter((x): x is number => x != null);
     const final = got.length ? Math.round((got.reduce((a, b) => a + b, 0) / got.length) * 10) / 10 : null;

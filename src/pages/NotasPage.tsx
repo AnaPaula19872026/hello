@@ -103,7 +103,7 @@ export function NotasPage() {
         if (!isRecoveryActivity(a.name)) has = true;
       }
     });
-    return has ? calcMedia(nums) : null;
+    return has ? calcMedia(nums, orderedActivities) : null;
   }
 
   function setScore(id: string, act: string, raw: string, max: number) {

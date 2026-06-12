@@ -341,22 +341,53 @@ export const SCHOOL_YEAR_MONTHS: [number, number] = [1, 10];
 export const MEDIA_APROVACAO = 6;
 export const MEDIA_DIVISOR = 3; // média = soma das notas / 3
 
-export function calcMedia(scores: Record<string, number>): number {
-  const regular = Object.entries(scores)
+/**
+ * Monta as "notas" (buckets) a partir da composição:
+ *  - atividades de valor cheio (max >= 10) contam como UMA nota cada (ex.: TESTE, E-CERM);
+ *  - as menores (max < 10) SOMAM e viram UMA única nota (ex.: SIMULADO+PROJETO+CRÉDITO = 10).
+ * Sem a composição, cada atividade lançada conta como uma nota (fallback).
+ */
+function gradeBuckets(scores: Record<string, number>, activities?: GradeActivity[]): number[] {
+  if (activities && activities.length) {
+    const mains: number[] = [];
+    const small: number[] = [];
+    for (const a of activities) {
+      if (isRecoveryActivity(a.name)) continue;
+      const v = Number(scores[a.name]) || 0;
+      if (a.max < 10) small.push(v);
+      else mains.push(v);
+    }
+    const buckets = [...mains];
+    if (small.length) buckets.push(small.reduce((x, y) => x + y, 0));
+    if (buckets.length) return buckets;
+  }
+  return Object.entries(scores)
     .filter(([name, value]) => !isRecoveryActivity(name) && Number.isFinite(Number(value)))
     .map(([, value]) => Number(value) || 0);
-  if (!regular.length) return 0;
+}
+
+/**
+ * Média final = soma das notas ÷ 3.
+ * Recuperação: se a média ficar abaixo de 6, a nota de recuperação SUBSTITUI a MENOR
+ * das notas (desde que seja maior que ela, ou seja, que melhore a média).
+ */
+export function calcMedia(scores: Record<string, number>, activities?: GradeActivity[]): number {
+  const buckets = gradeBuckets(scores, activities);
+  if (!buckets.length) return 0;
+
+  const sum = buckets.reduce((a, b) => a + b, 0);
+  const baseMedia = sum / MEDIA_DIVISOR;
 
   const recovery = Object.entries(scores).find(([name]) => isRecoveryActivity(name))?.[1];
-  const adjusted = [...regular];
-  if (recovery != null && Number.isFinite(Number(recovery))) {
-    const recoveryValue = Number(recovery) || 0;
-    const lowestIndex = adjusted.indexOf(Math.min(...adjusted));
-    if (lowestIndex >= 0 && recoveryValue > adjusted[lowestIndex]) adjusted[lowestIndex] = recoveryValue;
+  if (recovery != null && Number.isFinite(Number(recovery)) && baseMedia < MEDIA_APROVACAO) {
+    const rec = Number(recovery) || 0;
+    const lowestIndex = buckets.indexOf(Math.min(...buckets));
+    if (lowestIndex >= 0 && rec > buckets[lowestIndex]) {
+      const adjustedSum = sum - buckets[lowestIndex] + rec;
+      return Math.round((adjustedSum / MEDIA_DIVISOR) * 10) / 10;
+    }
   }
-
-  const sum = adjusted.reduce((a, b) => a + b, 0);
-  return Math.round((sum / MEDIA_DIVISOR) * 10) / 10;
+  return Math.round(baseMedia * 10) / 10;
 }
 
 export const STATUS_LABEL: Record<AttendanceStatus, string> = {
