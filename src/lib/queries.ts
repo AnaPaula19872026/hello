@@ -32,8 +32,11 @@ function unwrap<T>(res: { data: T | null; error: { message: string } | null }): 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function scoped<T>(q: T): T {
   const org = getActiveOrgId();
+  // FAIL-CLOSED: sem organização ativa, NÃO retorna tudo (evitaria vazamento entre
+  // clientes). Filtra por um id impossível => resultado vazio. (A RLS no banco já
+  // garante o isolamento; isto é defesa em profundidade no cliente.)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return org ? ((q as any).eq('org_id', org) as T) : q;
+  return (q as any).eq('org_id', org ?? '00000000-0000-0000-0000-000000000000') as T;
 }
 
 /* ----------------------------------- Escolas ----------------------------------- */
