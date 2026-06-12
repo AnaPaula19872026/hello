@@ -236,63 +236,109 @@ export function NotasPage() {
                 </div>
               ) : null}
 
+              {/* Resumo da turma */}
+              {(() => {
+                const medias = list.map((s) => mediaOf(s.id)).filter((x): x is number => x != null);
+                const turma = medias.length ? Math.round((medias.reduce((a, b) => a + b, 0) / medias.length) * 10) / 10 : null;
+                const aprov = medias.filter((m) => m >= MEDIA_APROVACAO).length;
+                const rec = medias.length - aprov;
+                const pct = medias.length ? Math.round((aprov / medias.length) * 100) : 0;
+                return (
+                  <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
+                      <p className="text-2xl font-black text-slate-900">{list.length}</p>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Alunos</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
+                      <p className={cn('text-2xl font-black', turma == null ? 'text-slate-300' : turma >= MEDIA_APROVACAO ? 'text-emerald-700' : 'text-red-600')}>
+                        {turma != null ? turma.toFixed(1) : '–'}
+                      </p>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Média da turma</p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center">
+                      <p className="text-2xl font-black text-emerald-700">{aprov}</p>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-emerald-700/70">Aprovados · {pct}%</p>
+                    </div>
+                    <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-center">
+                      <p className="text-2xl font-black text-red-600">{rec}</p>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-red-600/70">Em recuperação</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <Card className="overflow-x-auto p-0">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
+              <table className="w-full border-collapse text-sm">
+                <thead className="bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="sticky left-0 bg-slate-50 p-3">Aluno</th>
+                    <th className="sticky left-0 z-10 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
                     {orderedActivities.map((a) => (
-                      <th key={a.name} className="p-2 text-center">
-                        {a.name}
-                        <span className="block text-[10px] font-bold text-slate-400">0–{a.max}</span>
-                        {isRecoveryActivity(a.name) ? <span className="block text-[10px] font-black text-amber-600">substitui menor</span> : null}
+                      <th key={a.name} className="min-w-[88px] px-2 py-3 text-center align-bottom">
+                        <span className="block leading-tight text-slate-600">{a.name}</span>
+                        <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
+                        {isRecoveryActivity(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span> : null}
                       </th>
                     ))}
-                    <th className="p-3 text-center">Média</th>
-                    <th className="p-3 text-center">Últ. mov.</th>
+                    <th className="px-3 py-3 text-center">Média</th>
+                    <th className="px-3 py-3 text-center">Situação</th>
+                    <th className="px-3 py-3 text-center">Últ. mov.</th>
                   </tr>
                 </thead>
                 <tbody>
                   {list.map((s, i) => {
                     const m = mediaOf(s.id);
                     const launchedAt = gradeByStudent.get(s.id)?.updated_at;
+                    const ok = m != null && m >= MEDIA_APROVACAO;
                     return (
-                      <tr key={s.id} className="border-t border-slate-100">
-                        <td className="sticky left-0 bg-white p-3 font-bold text-slate-800">
-                          <span className="mr-1.5 text-slate-400">{i + 1}.</span>{s.full_name}
+                      <tr key={s.id} className="border-t border-slate-100 transition hover:bg-emerald-50/30 even:bg-slate-50/40">
+                        <td className="sticky left-0 z-10 bg-inherit p-3 font-bold text-slate-800 shadow-[2px_0_0_0_rgba(241,245,249,1)]">
+                          <span className="mr-2 inline-block w-6 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>
+                          {s.full_name}
                         </td>
-                        {orderedActivities.map((a) => (
-                          <td key={a.name} className="p-1.5 text-center">
-                            <input
-                              inputMode="decimal"
-                              value={scores[s.id]?.[a.name] ?? ''}
-                              onChange={(e) => setScore(s.id, a.name, e.target.value, a.max)}
-                              disabled={!editingGrades}
-                              placeholder="–"
-                              className={cn(
-                                'h-10 w-14 rounded-lg border border-slate-200 bg-white text-center font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 disabled:shadow-none',
-                                !editingGrades && 'border-slate-100',
-                              )}
-                            />
-                          </td>
-                        ))}
-                        <td className="p-3 text-center">
+                        {orderedActivities.map((a) => {
+                          const val = scores[s.id]?.[a.name] ?? '';
+                          return (
+                            <td key={a.name} className="px-1.5 py-1.5 text-center">
+                              <input
+                                inputMode="decimal"
+                                value={val}
+                                onChange={(e) => setScore(s.id, a.name, e.target.value, a.max)}
+                                disabled={!editingGrades}
+                                placeholder="–"
+                                className={cn(
+                                  'h-10 w-14 rounded-lg border text-center font-bold tabular-nums outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed',
+                                  val !== '' ? 'border-slate-200 bg-white text-slate-900' : 'border-slate-200 bg-white text-slate-400',
+                                  !editingGrades && 'border-transparent bg-transparent disabled:bg-transparent',
+                                )}
+                              />
+                            </td>
+                          );
+                        })}
+                        <td className="px-3 py-3 text-center">
                           {m != null ? (
-                            <span className={cn('text-lg font-black', m >= MEDIA_APROVACAO ? 'text-emerald-700' : 'text-red-600')}>{m.toFixed(1)}</span>
+                            <span className={cn('inline-block min-w-[44px] rounded-lg px-2 py-1 text-base font-black tabular-nums', ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600')}>
+                              {m.toFixed(1)}
+                            </span>
                           ) : (
-                            <span className="text-slate-400">–</span>
+                            <span className="text-slate-300">–</span>
                           )}
                         </td>
-                        <td className="p-3 text-center">
+                        <td className="px-3 py-3 text-center">
+                          {m == null ? (
+                            <span className="text-slate-300">–</span>
+                          ) : ok ? (
+                            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-black uppercase text-emerald-700">Aprovado</span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-black uppercase text-red-700">Recuperação</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-center">
                           {launchedAt ? (
-                            <span
-                              className="text-[11px] font-bold text-slate-400"
-                              title={format(new Date(launchedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                            >
+                            <span className="text-[11px] font-bold text-slate-400" title={format(new Date(launchedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}>
                               {format(new Date(launchedAt), 'dd/MM', { locale: ptBR })}
                             </span>
                           ) : (
-                            <span className="text-slate-400">–</span>
+                            <span className="text-slate-300">–</span>
                           )}
                         </td>
                       </tr>
@@ -301,6 +347,10 @@ export function NotasPage() {
                 </tbody>
               </table>
               </Card>
+
+              <p className="mt-3 text-xs text-slate-400">
+                Média final = soma das notas ÷ 3 · aprovação a partir de {MEDIA_APROVACAO.toFixed(1)} · a nota de recuperação substitui a menor quando melhora a média.
+              </p>
             </>
           )}
         </>
