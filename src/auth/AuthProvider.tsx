@@ -60,33 +60,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const userId = session?.user?.id ?? null;
 
-  const refreshContext = useCallback(async () => {
-    if (!userId) {
-      setProfile(null);
-      setMemberships([]);
-      setOrganizations([]);
-      setActiveOrgIdRef(null);
-      setCtxLoading(false);
-      return;
-    }
-    setCtxLoading(true);
-    try {
-      const [{ data: prof }, mems, orgs] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-        listMyMemberships(userId).catch(() => [] as Membership[]),
-        listOrganizations().catch(() => [] as Organization[]),
-      ]);
-      const p = (prof as Profile) ?? null;
-      setProfile(p);
-      setMemberships(mems);
-      setOrganizations(orgs);
-      // organização ativa: a do perfil, ou a primeira que ele participa.
-      const active = p?.active_org_id ?? mems[0]?.org_id ?? null;
-      setActiveOrgIdRef(active);
-    } finally {
-      setCtxLoading(false);
-    }
-  }, [userId]);
+  // silent=true: atualização de fundo (foco/intervalo) — NÃO mostra o spinner global,
+  // senão a tela "pisca" e tira o usuário do que está fazendo.
+  const refreshContext = useCallback(
+    async (silent = false) => {
+      if (!userId) {
+        setProfile(null);
+        setMemberships([]);
+        setOrganizations([]);
+        setActiveOrgIdRef(null);
+        setCtxLoading(false);
+        return;
+      }
+      if (!silent) setCtxLoading(true);
+      try {
+        const [{ data: prof }, mems, orgs] = await Promise.all([
+          supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+          listMyMemberships(userId).catch(() => [] as Membership[]),
+          listOrganizations().catch(() => [] as Organization[]),
+        ]);
+        const p = (prof as Profile) ?? null;
+        setProfile(p);
+        setMemberships(mems);
+        setOrganizations(orgs);
+        // organização ativa: a do perfil, ou a primeira que ele participa.
+        const active = p?.active_org_id ?? mems[0]?.org_id ?? null;
+        setActiveOrgIdRef(active);
+      } finally {
+        if (!silent) setCtxLoading(false);
+      }
+    },
+    [userId],
+  );
 
   useEffect(() => {
     refreshContext();
@@ -97,11 +102,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId) return;
     function onFocus() {
-      if (document.visibilityState === 'visible') refreshContext();
+      if (document.visibilityState === 'visible') refreshContext(true);
     }
     window.addEventListener('visibilitychange', onFocus);
     window.addEventListener('focus', onFocus);
-    const interval = setInterval(refreshContext, 45_000);
+    const interval = setInterval(() => refreshContext(true), 45_000);
     return () => {
       window.removeEventListener('visibilitychange', onFocus);
       window.removeEventListener('focus', onFocus);
