@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { calcMedia, withRecoveryActivity, type GradeActivity } from './types';
 import { getActiveOrgId } from './org';
 import { assertUploadFile } from './fileSecurity';
+import { safeFileName, uploadToBucket } from './storage';
 import type {
   AppRole,
   AttendanceRecord,
@@ -815,10 +816,8 @@ export async function uploadNoticeAttachment(noticeId: string, file: File): Prom
   const org = getActiveOrgId();
   if (!org) throw new Error('Organização ativa não encontrada.');
   assertUploadFile(file);
-  const safe = file.name.replace(/[^\w.\-]+/g, '_');
-  const path = `${org}/${noticeId}/${Date.now()}_${safe}`;
-  const up = await supabase.storage.from('avisos').upload(path, file, { upsert: false });
-  if (up.error) throw new Error(up.error.message);
+  const path = `${org}/${noticeId}/${Date.now()}_${safeFileName(file.name)}`;
+  await uploadToBucket('avisos', path, file);
   const { error } = await supabase.from('notice_attachments').insert({ notice_id: noticeId, org_id: org, name: file.name, path, mime: file.type || null });
   if (error) throw new Error(error.message);
 }
@@ -979,11 +978,9 @@ export async function uploadEventAttachment(eventId: string, file: File): Promis
   const org = getActiveOrgId();
   if (!org) throw new Error('Organização ativa não encontrada.');
   assertUploadFile(file);
-  const safe = file.name.replace(/[^\w.\-]+/g, '_');
-  const path = `${org}/${eventId}/${Date.now()}_${safe}`;
-  const up = await supabase.storage.from('calendario').upload(path, file, { upsert: false });
-  if (up.error) throw new Error(up.error.message);
-  const { error } = await supabase.from('event_attachments').insert({ event_id: eventId, name: file.name, path, mime: file.type });
+  const path = `${org}/${eventId}/${Date.now()}_${safeFileName(file.name)}`;
+  await uploadToBucket('calendario', path, file);
+  const { error } = await supabase.from('event_attachments').insert({ event_id: eventId, name: file.name, path, mime: file.type || null });
   if (error) throw new Error(error.message);
 }
 
@@ -1008,10 +1005,8 @@ export async function uploadCalendarDocument(slot: CalendarUploadSlot, file: Fil
   const org = getActiveOrgId();
   if (!org) throw new Error('Organização ativa não encontrada.');
   assertUploadFile(file);
-  const safe = file.name.replace(/[^\w.\-]+/g, '_');
-  const path = `${org}/uploads/${slot}/${Date.now()}_${safe}`;
-  const up = await supabase.storage.from('calendario').upload(path, file, { upsert: false });
-  if (up.error) throw new Error(up.error.message);
+  const path = `${org}/uploads/${slot}/${Date.now()}_${safeFileName(file.name)}`;
+  await uploadToBucket('calendario', path, file);
   const { error } = await supabase.from('calendar_uploads').insert({
     slot,
     title: calendarUploadTitle(slot),
@@ -1138,11 +1133,9 @@ export async function deletePlan(id: string): Promise<void> {
 export async function uploadPlanAttachment(planId: string, file: File): Promise<void> {
   assertUploadFile(file);
   const org = getActiveOrgId();
-  const safe = file.name.replace(/[^\w.\-]+/g, '_');
-  const path = `${org}/${planId}/${Date.now()}_${safe}`;
-  const up = await supabase.storage.from('planejamentos').upload(path, file, { upsert: false });
-  if (up.error) throw new Error(up.error.message);
-  const { error } = await supabase.from('lesson_plan_attachments').insert({ plan_id: planId, name: file.name, path, mime: file.type });
+  const path = `${org}/${planId}/${Date.now()}_${safeFileName(file.name)}`;
+  await uploadToBucket('planejamentos', path, file);
+  const { error } = await supabase.from('lesson_plan_attachments').insert({ plan_id: planId, name: file.name, path, mime: file.type || null });
   if (error) throw new Error(error.message);
 }
 
