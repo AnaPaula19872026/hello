@@ -4,6 +4,7 @@ import { getActiveOrgId } from './org';
 import { assertUploadFile } from './fileSecurity';
 import { safeFileName, uploadToBucket } from './storage';
 import type {
+  AccessRequest,
   AppRole,
   AttendanceRecord,
   AttendanceSession,
@@ -15,7 +16,9 @@ import type {
   EventAttachment,
   EventAudience,
   LessonPlan,
+  JoinOrg,
   Membership,
+  MyAccessRequest,
   Notice,
   NoticeAttachment,
   NoticeAudience,
@@ -774,6 +777,46 @@ export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
     full_name: byId.get(m.user_id)?.full_name ?? null,
     email: byId.get(m.user_id)?.email ?? null,
   }));
+}
+
+/* ------------------- Autocadastro com aprovação (acesso) ---------------------- */
+
+/** Escolas (clientes ativos) disponíveis para o usuário pedir acesso. */
+export async function listJoinOrgs(): Promise<JoinOrg[]> {
+  const { data, error } = await supabase.rpc('list_join_orgs');
+  if (error) throw new Error(error.message);
+  return (data as JoinOrg[]) ?? [];
+}
+
+/** Solicita acesso a uma escola (fica pendente até o admin aprovar). */
+export async function requestAccess(orgId: string, role: AppRole, note: string): Promise<void> {
+  const { error } = await supabase.rpc('request_access', { p_org: orgId, p_role: role, p_note: note });
+  if (error) throw new Error(error.message);
+}
+
+/** Pedido de acesso atual do usuário logado (o mais recente), ou null. */
+export async function myAccessRequest(): Promise<MyAccessRequest | null> {
+  const { data, error } = await supabase
+    .from('membership_requests')
+    .select('id, org_id, requested_role, note, status, created_at')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as MyAccessRequest) ?? null;
+}
+
+/** Fila de solicitações para o administrador. */
+export async function listAccessRequests(status: 'pending' | 'all' = 'pending'): Promise<AccessRequest[]> {
+  const { data, error } = await supabase.rpc('list_access_requests', { p_status: status });
+  if (error) throw new Error(error.message);
+  return (data as AccessRequest[]) ?? [];
+}
+
+/** Aprova (com papel) ou recusa uma solicitação de acesso. */
+export async function decideAccessRequest(id: string, approve: boolean, role: AppRole): Promise<void> {
+  const { error } = await supabase.rpc('decide_access_request', { p_id: id, p_approve: approve, p_role: role });
+  if (error) throw new Error(error.message);
 }
 
 /* ----------------------------- Avisos (Fase 2) -------------------------------- */

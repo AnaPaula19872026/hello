@@ -119,6 +119,37 @@ export interface OrgPerson {
   phone: string | null;
 }
 
+export type RequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface JoinOrg {
+  id: string;
+  name: string;
+}
+
+/** Pedido de acesso do próprio usuário (visão do solicitante). */
+export interface MyAccessRequest {
+  id: string;
+  org_id: string;
+  requested_role: AppRole;
+  note: string | null;
+  status: RequestStatus;
+  created_at: string;
+}
+
+/** Pedido de acesso na fila do administrador. */
+export interface AccessRequest {
+  id: string;
+  user_id: string;
+  full_name: string | null;
+  email: string | null;
+  org_id: string;
+  org_name: string;
+  requested_role: AppRole;
+  note: string | null;
+  status: RequestStatus;
+  created_at: string;
+}
+
 export interface NoticeAttachment {
   id: string;
   notice_id: string;

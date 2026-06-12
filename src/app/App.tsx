@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../auth/AuthProvider';
 import { AppShell } from '../components/AppShell';
+import { AccessRequestGate } from '../pages/AccessRequestGate';
 import { FeedbackHost } from '../components/Feedback';
 import { AttendancePage } from '../pages/AttendancePage';
 import { AvisosPage } from '../pages/AvisosPage';
@@ -26,7 +27,7 @@ const qc = new QueryClient({
 });
 
 function Protected() {
-  const { session, loading, ctxLoading, role, isHq } = useAuth();
+  const { session, loading, ctxLoading, role, isHq, memberships, isSuperadmin } = useAuth();
 
   if (loading || (session && ctxLoading)) {
     return (
@@ -37,6 +38,9 @@ function Protected() {
   }
 
   if (!session) return <Navigate to="/login" replace />;
+
+  // Autenticado mas sem vínculo: pedir acesso e aguardar liberação do admin.
+  if (!isSuperadmin && memberships.length === 0) return <AccessRequestGate />;
 
   return (
     <AppShell>

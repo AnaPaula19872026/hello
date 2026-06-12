@@ -24,7 +24,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { cn } from '../lib/cn';
 import { canAccessModule, type ModuleKey } from '../lib/permissions';
-import { listSchools, planUnreadCounts, unreadNoticeCount } from '../lib/queries';
+import { listAccessRequests, listSchools, planUnreadCounts, unreadNoticeCount } from '../lib/queries';
 import { ROLE_LABEL } from '../lib/types';
 import { signOut } from '../lib/supabase';
 
@@ -86,7 +86,7 @@ function OrgSwitcher() {
 }
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { user, profile, role, activeOrgId, organizations, isHq } = useAuth();
+  const { user, profile, role, activeOrgId, organizations, isHq, isSuperadmin } = useAuth();
   const name = profile?.full_name || user?.user_metadata?.full_name || user?.email || 'Usuária';
   const avatar = profile?.avatar_url || (user?.user_metadata?.avatar_url as string | undefined);
   const orgName = organizations.find((o) => o.id === activeOrgId)?.name;
@@ -104,6 +104,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     retry: false,
   });
   const planUnread = Object.values(planUnreadMap).reduce((a, b) => a + b, 0);
+  const { data: accessReqs = [] } = useQuery({
+    queryKey: ['access-requests', 'pending'],
+    queryFn: () => listAccessRequests('pending'),
+    enabled: !!user && isSuperadmin,
+    refetchInterval: 30_000,
+    retry: false,
+  });
+  const pendingAccess = accessReqs.length;
   // "Escolas" só faz sentido para rede/secretaria (2+ escolas). Numa base de uma
   // escola só, o cadastro é redundante (a base já é a escola).
   const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: listSchools, enabled: !!user && !isHq });
@@ -162,6 +170,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                   {item.to === '/planejamento' && planUnread > 0 ? (
                     <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black text-white">
                       {planUnread > 9 ? '9+' : planUnread}
+                    </span>
+                  ) : null}
+                  {item.to === '/organizacoes' && pendingAccess > 0 ? (
+                    <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-amber-500 px-1.5 text-[11px] font-black text-white">
+                      {pendingAccess > 9 ? '9+' : pendingAccess}
                     </span>
                   ) : null}
                 </NavLink>

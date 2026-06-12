@@ -3,6 +3,7 @@ import { Building2, GraduationCap, ImagePlus, LogIn, Network, Pencil, Plus, Powe
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+import { AccessRequestsQueue } from '../components/AccessRequestsQueue';
 import { successToast } from '../components/Feedback';
 import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { cn } from '../lib/cn';
@@ -92,6 +93,9 @@ export function OrganizationsPage() {
         subtitle="Gerenciamento dos clientes contratantes."
         action={<AddButton onClick={() => setNewOpen(true)} label="Nova organização" />}
       />
+
+      {/* Fila de aprovação de novos cadastros */}
+      <AccessRequestsQueue />
 
       {/* Busca */}
       <div className="relative mb-4">

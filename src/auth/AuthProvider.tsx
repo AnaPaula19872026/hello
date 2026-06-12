@@ -21,7 +21,7 @@ interface AuthState {
   isHq: boolean; // organização ativa é a HQ (Administração Geral)
   ctxLoading: boolean;
   switchOrg: (orgId: string) => Promise<void>;
-  refreshContext: () => Promise<void>;
+  refreshContext: (silent?: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState>({

@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
 import { useState } from 'react';
 import { Button, Field, Input } from '../components/ui';
 import { supabase } from '../lib/supabase';
@@ -7,6 +7,7 @@ type Mode = 'login' | 'signup';
 
 export function LoginPage() {
   const [mode, setMode] = useState<Mode>('login');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
@@ -25,11 +26,11 @@ export function LoginPage() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: window.location.origin },
+        options: { emailRedirectTo: window.location.origin, data: { full_name: fullName.trim() } },
       });
       if (error) setMsg({ type: 'error', text: traduz(error.message) });
-      else if (data.session) setMsg({ type: 'ok', text: 'Conta criada! Entrando…' });
-      else setMsg({ type: 'ok', text: 'Conta criada. Confirme o e-mail (se a confirmação estiver ativa) e entre.' });
+      else if (data.session) setMsg({ type: 'ok', text: 'Conta criada! Agora escolha sua escola…' });
+      else setMsg({ type: 'ok', text: 'Conta criada. Confirme o e-mail (se a confirmação estiver ativa) e entre para escolher sua escola.' });
     }
     setLoading(false);
   }
@@ -56,6 +57,21 @@ export function LoginPage() {
           </div>
 
           <form onSubmit={submit} className="space-y-4">
+            {mode === 'signup' ? (
+              <Field label="Nome completo">
+                <div className="relative">
+                  <User size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Seu nome"
+                    className="pl-10"
+                    required
+                    autoComplete="name"
+                  />
+                </div>
+              </Field>
+            ) : null}
             <Field label="E-mail">
               <div className="relative">
                 <Mail size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
