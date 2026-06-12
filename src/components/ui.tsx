@@ -1,6 +1,7 @@
 import { Dialog, DialogPanel, DialogTitle, Menu, MenuButton, MenuItem, MenuItems, Transition, TransitionChild } from '@headlessui/react';
-import { Check, CheckSquare, MoreVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Check, CheckSquare, MoreVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { Fragment, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/cn';
 
 /* --------------------------------- Botões -------------------------------------- */
@@ -73,16 +74,34 @@ export function PageHeader({
   title,
   subtitle,
   action,
+  back = true,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
+  back?: boolean;
 }) {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const showBack = back && pathname !== '/'; // no Início não mostra voltar
+
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900">{title}</h1>
-        {subtitle ? <p className="mt-1 text-sm font-medium text-slate-500">{subtitle}</p> : null}
+      <div className="flex min-w-0 items-center gap-3">
+        {showBack ? (
+          <button
+            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+            aria-label="Voltar"
+            title="Voltar"
+          >
+            <ArrowLeft size={20} />
+          </button>
+        ) : null}
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-black text-slate-900">{title}</h1>
+          {subtitle ? <p className="mt-1 text-sm font-medium text-slate-500">{subtitle}</p> : null}
+        </div>
       </div>
       {action}
     </div>

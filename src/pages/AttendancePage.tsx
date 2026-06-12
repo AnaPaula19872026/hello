@@ -252,17 +252,20 @@ export function AttendancePage() {
 
       {students.length > 0 ? (
         <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:pl-72">
-          <div className="mx-auto flex max-w-5xl items-center gap-3 px-1">
-            <p className="hidden text-sm font-semibold text-slate-500 sm:block">
-              {saved ? '✓ Chamada salva e bloqueada' : editingAttendance ? `${counts.absent} falta(s) • edição aberta` : `${counts.absent} falta(s) • ${students.length} alunos`}
-            </p>
+          <div className="mx-auto flex max-w-5xl items-center gap-2 px-1 sm:gap-3">
+            <div className="hidden min-w-0 flex-1 sm:block">
+              <p className="truncate text-sm font-bold text-slate-700">
+                {saved ? '✓ Chamada salva e bloqueada' : editingAttendance ? 'Edição aberta' : 'Chamada do dia'}
+              </p>
+              <p className="truncate text-xs text-slate-400">{counts.absent} falta(s) • {students.length} alunos</p>
+            </div>
             {editingAttendance ? (
               <>
                 {hasSavedAttendance ? (
                   <button
                     onClick={resetRecordsFromSaved}
                     disabled={save.isPending}
-                    className="hidden rounded-xl border border-slate-200 px-4 py-4 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-60 sm:inline-flex"
+                    className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
                   >
                     Cancelar
                   </button>
@@ -270,10 +273,11 @@ export function AttendancePage() {
                 <button
                   onClick={() => save.mutate()}
                   disabled={save.isPending}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-4 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:flex-none sm:px-8"
+                  className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:flex-none sm:px-8"
                 >
                   <Save size={20} />
-                  {save.isPending ? 'Salvando…' : 'Salvar e bloquear'}
+                  <span className="sm:hidden">{save.isPending ? 'Salvando…' : 'Salvar'}</span>
+                  <span className="hidden sm:inline">{save.isPending ? 'Salvando…' : 'Salvar e bloquear'}</span>
                 </button>
               </>
             ) : (
@@ -282,7 +286,7 @@ export function AttendancePage() {
                   setEditingAttendance(true);
                   setSaved(false);
                 }}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-4 text-base font-black text-white transition hover:bg-slate-800 sm:flex-none sm:px-8"
+                className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-base font-black text-white transition hover:bg-slate-800 sm:flex-none sm:px-8"
               >
                 <Pencil size={20} />
                 Editar chamada

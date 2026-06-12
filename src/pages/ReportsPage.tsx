@@ -26,6 +26,7 @@ export function ReportsPage() {
   const [minPct, setMinPct] = useState(75);
   const [onlyBelow, setOnlyBelow] = useState(false);
   const [notaTerm, setNotaTerm] = useState(0); // 0 = todos os trimestres
+  const [activePreset, setActivePreset] = useState('mes');
   const [compact, setCompact] = useState(false);
   const [preview, setPreview] = useState(false);
   const [share, setShare] = useState(false);
@@ -60,6 +61,7 @@ export function ReportsPage() {
   });
 
   function preset(p: 'mes' | 'mesPassado' | 'ano' | 'tri1' | 'tri2' | 'tri3') {
+    setActivePreset(p);
     const y = today.getFullYear();
     if (p === 'mes') {
       setFrom(iso(startOfMonth(today)));
@@ -169,25 +171,6 @@ export function ReportsPage() {
         <PageHeader
           title="Relatórios"
           subtitle="Frequência e notas, com filtros, compartilhamento e exportação."
-          action={
-            <div className="flex flex-wrap gap-2">
-              <Button variant="ghost" onClick={() => setCompact((c) => !c)} disabled={!classId} title="Alternar layout">
-                {compact ? <Rows3 size={18} /> : <List size={18} />} {compact ? 'Detalhado' : 'Compacto'}
-              </Button>
-              <Button variant="ghost" onClick={() => setPreview(true)} disabled={!payload}>
-                <Eye size={18} /> Visualizar
-              </Button>
-              <Button variant="ghost" onClick={() => setShare(true)} disabled={!payload}>
-                <Send size={18} /> Enviar
-              </Button>
-              <Button variant="ghost" onClick={() => window.print()} disabled={!classId}>
-                <Printer size={18} /> PDF
-              </Button>
-              <Button onClick={exportExcel} disabled={!classId}>
-                <FileDown size={18} /> Excel
-              </Button>
-            </div>
-          }
         />
 
         {/* Filtros */}
@@ -244,12 +227,18 @@ export function ReportsPage() {
 
           {tipo === 'freq' ? (
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button onClick={() => preset('mes')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Este mês</button>
-              <button onClick={() => preset('mesPassado')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Mês passado</button>
-              <button onClick={() => preset('ano')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">Ano letivo</button>
-              <button onClick={() => preset('tri1')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">1º trimestre</button>
-              <button onClick={() => preset('tri2')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">2º trimestre</button>
-              <button onClick={() => preset('tri3')} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-200">3º trimestre</button>
+              {([['mes', 'Este mês'], ['mesPassado', 'Mês passado'], ['ano', 'Ano letivo'], ['tri1', '1º trimestre'], ['tri2', '2º trimestre'], ['tri3', '3º trimestre']] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => preset(key)}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-xs font-bold transition',
+                    activePreset === key ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
               <div className="ml-auto flex items-center gap-2">
                 <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
                   <input type="checkbox" checked={onlyBelow} onChange={(e) => setOnlyBelow(e.target.checked)} />
@@ -281,6 +270,27 @@ export function ReportsPage() {
             </div>
           ) : null}
         </Card>
+
+        {/* Barra de ações (responsiva) */}
+        {classId ? (
+          <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-soft">
+            <Button variant="ghost" onClick={() => setCompact((c) => !c)} className="flex-1 sm:flex-none" title="Alternar layout">
+              {compact ? <Rows3 size={18} /> : <List size={18} />} {compact ? 'Detalhado' : 'Compacto'}
+            </Button>
+            <Button variant="ghost" onClick={() => setPreview(true)} disabled={!payload} className="flex-1 sm:flex-none">
+              <Eye size={18} /> Visualizar
+            </Button>
+            <Button variant="ghost" onClick={() => setShare(true)} disabled={!payload} className="flex-1 sm:flex-none">
+              <Send size={18} /> Enviar
+            </Button>
+            <Button variant="ghost" onClick={() => window.print()} className="flex-1 sm:flex-none">
+              <Printer size={18} /> PDF
+            </Button>
+            <Button onClick={exportExcel} className="flex-1 sm:ml-auto sm:flex-none">
+              <FileDown size={18} /> Excel
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {/* Relatório */}
