@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { BookOpen, Check, MessageSquare, Paperclip, Pencil, Plus, Send, Trash2, Undo2, X } from 'lucide-react';
+import { BookOpen, Check, Mail, MessageCircle, MessageSquare, Paperclip, Pencil, Plus, Save, Send, Share2, Trash2, Undo2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { AttachmentChips } from '../components/Attachments';
@@ -16,9 +16,11 @@ import {
   listMyPlans,
   listOrgPlans,
   listPlanMessages,
+  listReviewedPlans,
   reviewPlan,
   savePlan,
   sendPlanMessage,
+  setMemberContact,
   submitPlan,
   uploadPlanAttachment,
   type PlanInput,
@@ -136,6 +138,26 @@ function MeusPlanos({ uid, onEdit }: { uid: string; onEdit: (p: PlanWithMeta) =>
 }
 
 function ParaRevisar() {
+  const [sub, setSub] = useState<'pendentes' | 'revisados'>('pendentes');
+  return (
+    <>
+      <div className="mb-4 inline-flex rounded-xl border border-slate-200 bg-white p-1">
+        {([['pendentes', 'A revisar'], ['revisados', 'Revisados']] as const).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setSub(k)}
+            className={cn('rounded-lg px-4 py-1.5 text-sm font-bold transition', sub === k ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700')}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {sub === 'pendentes' ? <Pendentes /> : <Revisados />}
+    </>
+  );
+}
+
+function Pendentes() {
   const qc = useQueryClient();
   const { data: plans = [], isLoading, isError, error } = useQuery({ queryKey: ['org-plans', 'enviado'], queryFn: () => listOrgPlans('enviado'), retry: false });
   const [feedbackFor, setFeedbackFor] = useState<PlanWithMeta | null>(null);
@@ -144,6 +166,7 @@ function ParaRevisar() {
     mutationFn: (id: string) => reviewPlan(id, 'aprovado', ''),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['org-plans', 'enviado'] });
+      qc.invalidateQueries({ queryKey: ['org-plans', 'revisados'] });
       successToast('Planejamento aprovado');
     },
   });
@@ -172,6 +195,136 @@ function ParaRevisar() {
       </div>
       {feedbackFor ? <DevolverModal plan={feedbackFor} onClose={() => setFeedbackFor(null)} /> : null}
     </>
+  );
+}
+
+function Revisados() {
+  const { data: plans = [], isLoading, isError, error } = useQuery({ queryKey: ['org-plans', 'revisados'], queryFn: listReviewedPlans, retry: false });
+  const [sendFor, setSendFor] = useState<PlanWithMeta | null>(null);
+
+  if (isLoading) return <p className="text-slate-400">Carregando…</p>;
+  if (isError) return <EmptyState icon={<BookOpen size={26} />} title="Planejamento indisponível" hint={friendly(error)} />;
+  if (plans.length === 0)
+    return <EmptyState icon={<Check size={26} />} title="Nenhum revisado ainda" hint="Aprovados e devolvidos ficam aqui para consulta e reenvio." />;
+
+  return (
+    <>
+      <div className="space-y-3">
+        {plans.map((p) => (
+          <PlanCard
+            key={p.id}
+            plan={p}
+            showAuthor
+            footer={
+              <div className="flex flex-wrap gap-2">
+                <Button variant="soft" onClick={() => setSendFor(p)}><Share2 size={16} /> Enviar</Button>
+              </div>
+            }
+          />
+        ))}
+      </div>
+      {sendFor ? <SendModal plan={sendFor} onClose={() => setSendFor(null)} /> : null}
+    </>
+  );
+}
+
+/** Só dígitos; garante DDI 55 (Brasil) quando o número não tem código de país. */
+function normalizePhone(raw: string): string {
+  const d = raw.replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('55')) return d;
+  return d.length <= 11 ? `55${d}` : d;
+}
+
+/** Envio do retorno por WhatsApp ou e-mail, com contato pré-configurável. */
+function SendModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [channel, setChannel] = useState<'whatsapp' | 'email'>('whatsapp');
+  const [phone, setPhone] = useState(plan.authorPhone ?? '');
+  const [email, setEmail] = useState(plan.authorEmail ?? '');
+  const statusLabel = PLAN_STATUS[plan.status].label.toLowerCase();
+  const defaultMsg =
+    `Olá${plan.authorName ? `, ${plan.authorName}` : ''}! Seu planejamento "${plan.title}" foi ${statusLabel}.` +
+    (plan.feedback ? `\n\nRetorno da coordenação:\n${plan.feedback}` : '') +
+    (plan.className ? `\n\nTurma: ${plan.className}` : '');
+  const [message, setMessage] = useState(defaultMsg);
+
+  const saveContact = useMutation({
+    mutationFn: () => setMemberContact(plan.author_id, phone, email),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['org-plans'] });
+      successToast('Contato salvo');
+    },
+  });
+
+  function fire() {
+    if (channel === 'whatsapp') {
+      const num = normalizePhone(phone);
+      if (!num) return;
+      window.open(`https://wa.me/${num}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
+    } else {
+      const subject = `Planejamento "${plan.title}" — ${PLAN_STATUS[plan.status].label}`;
+      window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
+    }
+    successToast('Abrindo para envio…');
+    onClose();
+  }
+
+  const canFire = channel === 'whatsapp' ? !!normalizePhone(phone) : /\S+@\S+\.\S+/.test(email);
+
+  return (
+    <Modal open onClose={onClose} title="Enviar retorno ao professor">
+      <div className="space-y-4">
+        <div className="inline-flex rounded-xl bg-slate-100 p-1">
+          <button
+            onClick={() => setChannel('whatsapp')}
+            className={cn('flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition', channel === 'whatsapp' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500')}
+          >
+            <MessageCircle size={16} /> WhatsApp
+          </button>
+          <button
+            onClick={() => setChannel('email')}
+            className={cn('flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition', channel === 'email' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500')}
+          >
+            <Mail size={16} /> E-mail
+          </button>
+        </div>
+
+        {channel === 'whatsapp' ? (
+          <Field label="WhatsApp do professor (com DDD)">
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Ex.: (11) 99999-9999" inputMode="tel" />
+          </Field>
+        ) : (
+          <Field label="E-mail do professor">
+            <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="professor@escola.com" type="email" />
+          </Field>
+        )}
+
+        <Field label="Mensagem">
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={6}
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          />
+        </Field>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+          <Button variant="ghost" onClick={() => saveContact.mutate()} disabled={saveContact.isPending || (!phone.trim() && !email.trim())}>
+            <Save size={16} /> {saveContact.isPending ? 'Salvando…' : 'Salvar contato'}
+          </Button>
+          <div className="ml-auto flex gap-2">
+            <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button onClick={fire} disabled={!canFire}>
+              {channel === 'whatsapp' ? <MessageCircle size={16} /> : <Mail size={16} />} Disparar
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-slate-400">
+          "Salvar contato" guarda o WhatsApp/e-mail no perfil do professor — da próxima vez já vem preenchido, é só disparar.
+        </p>
+      </div>
+    </Modal>
   );
 }
 

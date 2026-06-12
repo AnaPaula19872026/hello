@@ -116,6 +116,8 @@ export interface OrgPerson {
   user_id: string;
   full_name: string | null;
   role: AppRole;
+  email: string | null;
+  phone: string | null;
 }
 
 export interface NoticeAttachment {

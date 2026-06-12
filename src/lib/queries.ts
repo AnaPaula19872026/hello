@@ -1149,6 +1149,8 @@ export async function uploadPlanAttachment(planId: string, file: File): Promise<
 export interface PlanWithMeta extends LessonPlan {
   attachments: PlanAttachment[];
   authorName: string | null;
+  authorEmail: string | null;
+  authorPhone: string | null;
   className: string | null;
 }
 
@@ -1170,14 +1172,19 @@ async function enrichPlans(plans: LessonPlan[]): Promise<PlanWithMeta[]> {
     byPlan.set(a.plan_id, l);
   }
   const [people, classes] = await Promise.all([listOrgPeople().catch(() => []), listClasses().catch(() => [])]);
-  const nameById = new Map(people.map((p) => [p.user_id, p.full_name] as const));
+  const personById = new Map(people.map((p) => [p.user_id, p] as const));
   const classById = new Map(classes.map((c) => [c.id, c.name] as const));
-  return plans.map((p) => ({
-    ...p,
-    attachments: byPlan.get(p.id) ?? [],
-    authorName: nameById.get(p.author_id) ?? null,
-    className: p.class_id ? classById.get(p.class_id) ?? null : null,
-  }));
+  return plans.map((p) => {
+    const author = personById.get(p.author_id);
+    return {
+      ...p,
+      attachments: byPlan.get(p.id) ?? [],
+      authorName: author?.full_name ?? null,
+      authorEmail: author?.email ?? null,
+      authorPhone: author?.phone ?? null,
+      className: p.class_id ? classById.get(p.class_id) ?? null : null,
+    };
+  });
 }
 
 /** Planejamentos do próprio professor. */
@@ -1194,6 +1201,22 @@ export async function listOrgPlans(status?: PlanStatus): Promise<PlanWithMeta[]>
   if (status) q = q.eq('status', status);
   const plans = unwrap<LessonPlan[]>(await q.order('updated_at', { ascending: false }));
   return enrichPlans(plans);
+}
+
+/** Planejamentos já revisados (aprovados ou devolvidos) — aba "Revisados" da coordenação. */
+export async function listReviewedPlans(): Promise<PlanWithMeta[]> {
+  const plans = unwrap<LessonPlan[]>(
+    await scoped(supabase.from('lesson_plans').select('*'))
+      .in('status', ['aprovado', 'devolvido'])
+      .order('reviewed_at', { ascending: false, nullsFirst: false }),
+  );
+  return enrichPlans(plans);
+}
+
+/** Salva o contato (telefone/WhatsApp e e-mail) de um membro para disparo rápido. */
+export async function setMemberContact(userId: string, phone: string, email: string): Promise<void> {
+  const { error } = await supabase.rpc('set_member_contact', { p_user: userId, p_phone: phone, p_email: email });
+  if (error) throw new Error(error.message);
 }
 
 /* --------- Chat interno do planejamento (coordenação ⇄ professor) --------- */
