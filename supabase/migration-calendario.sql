@@ -31,8 +31,22 @@ create table if not exists public.event_attachments (
 );
 create index if not exists idx_event_attachments_event on public.event_attachments(event_id);
 
+create table if not exists public.calendar_uploads (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null default public.default_org() references public.organizations(id) on delete cascade,
+  slot text not null check (slot in ('annual','term1','term2','term3')),
+  title text not null,
+  name text not null,
+  path text not null,
+  mime text,
+  uploaded_by uuid default auth.uid() references auth.users(id) on delete set null,
+  created_at timestamptz default now()
+);
+create index if not exists idx_calendar_uploads_org_slot on public.calendar_uploads(org_id, slot, created_at desc);
+
 alter table public.calendar_events enable row level security;
 alter table public.event_attachments enable row level security;
+alter table public.calendar_uploads enable row level security;
 
 -- Visibilidade segue o público-alvo; superadmin só na organização ativa.
 drop policy if exists "events read" on public.calendar_events;
@@ -74,6 +88,27 @@ create policy "event att insert" on public.event_attachments for insert with che
 drop policy if exists "event att delete" on public.event_attachments;
 create policy "event att delete" on public.event_attachments for delete using (
   exists (select 1 from public.calendar_events e where e.id = event_id and (e.author_id = auth.uid() or public.is_superadmin()))
+);
+
+-- Calendários prontos: todos os membros da organização enxergam; coordenação/direção/admin gerenciam.
+drop policy if exists "calendar uploads read" on public.calendar_uploads;
+create policy "calendar uploads read" on public.calendar_uploads for select using (
+  org_id in (select public.member_orgs())
+  or (public.is_superadmin() and org_id = public.current_active_org())
+);
+drop policy if exists "calendar uploads insert" on public.calendar_uploads;
+create policy "calendar uploads insert" on public.calendar_uploads for insert with check (
+  uploaded_by = auth.uid()
+  and (
+    (org_id in (select public.member_orgs()) and public.org_role(org_id) in ('diretor','coordenador'))
+    or (public.is_superadmin() and org_id = public.current_active_org())
+  )
+);
+drop policy if exists "calendar uploads delete" on public.calendar_uploads;
+create policy "calendar uploads delete" on public.calendar_uploads for delete using (
+  uploaded_by = auth.uid()
+  or public.org_role(org_id) = 'diretor'
+  or (public.is_superadmin() and org_id = public.current_active_org())
 );
 
 -- Storage privado para os anexos do calendário (caminho: <org_id>/<event_id>/arquivo).

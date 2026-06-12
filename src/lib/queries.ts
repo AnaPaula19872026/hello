@@ -7,6 +7,8 @@ import type {
   AttendanceSession,
   ClassRoom,
   CalendarEvent,
+  CalendarUpload,
+  CalendarUploadSlot,
   EventAttachment,
   EventAudience,
   Membership,
@@ -917,6 +919,50 @@ export async function deleteEventAttachment(att: EventAttachment): Promise<void>
   await supabase.storage.from('calendario').remove([att.path]);
   const { error } = await supabase.from('event_attachments').delete().eq('id', att.id);
   if (error) throw new Error(error.message);
+}
+
+/* -------------------------- Uploads prontos do calendário -------------------------- */
+export async function listCalendarUploads(): Promise<CalendarUpload[]> {
+  const uploads = unwrap<CalendarUpload[]>(
+    await scoped(supabase.from('calendar_uploads').select('*')).order('created_at', { ascending: false }),
+  );
+  if (!uploads.length) return [];
+  const { data: signed } = await supabase.storage.from('calendario').createSignedUrls(uploads.map((u) => u.path), 3600);
+  const urlByPath = new Map((signed ?? []).map((s) => [s.path ?? '', s.signedUrl] as const));
+  return uploads.map((upload) => ({ ...upload, url: urlByPath.get(upload.path) }));
+}
+
+export async function uploadCalendarDocument(slot: CalendarUploadSlot, file: File): Promise<void> {
+  const org = getActiveOrgId();
+  if (!org) throw new Error('Organização ativa não encontrada.');
+  const safe = file.name.replace(/[^\w.\-]+/g, '_');
+  const path = `${org}/uploads/${slot}/${Date.now()}_${safe}`;
+  const up = await supabase.storage.from('calendario').upload(path, file, { upsert: false });
+  if (up.error) throw new Error(up.error.message);
+  const { error } = await supabase.from('calendar_uploads').insert({
+    slot,
+    title: calendarUploadTitle(slot),
+    name: file.name,
+    path,
+    mime: file.type || null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteCalendarUpload(upload: CalendarUpload): Promise<void> {
+  await supabase.storage.from('calendario').remove([upload.path]);
+  const { error } = await supabase.from('calendar_uploads').delete().eq('id', upload.id);
+  if (error) throw new Error(error.message);
+}
+
+function calendarUploadTitle(slot: CalendarUploadSlot) {
+  const labels: Record<CalendarUploadSlot, string> = {
+    annual: 'Calendário geral anual',
+    term1: 'Calendário do 1º trimestre',
+    term2: 'Calendário do 2º trimestre',
+    term3: 'Calendário do 3º trimestre',
+  };
+  return labels[slot];
 }
 
 export interface EventWithMeta extends CalendarEvent {

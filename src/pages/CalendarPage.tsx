@@ -24,10 +24,13 @@ import { downloadCalendarTemplate, parseCalendarFile, type ParsedEvent } from '.
 import { canManageCalendar } from '../lib/permissions';
 import {
   bulkCreateEvents,
+  deleteCalendarUpload,
   deleteEvent,
+  listCalendarUploads,
   listEvents,
   listOrgPeople,
   saveEvent,
+  uploadCalendarDocument,
   uploadEventAttachment,
   type EventInput,
   type EventWithMeta,
@@ -41,6 +44,8 @@ import {
   eventColor,
   eventSoftColor,
   type AppRole,
+  type CalendarUpload,
+  type CalendarUploadSlot,
   type EventAudience,
 } from '../lib/types';
 
@@ -108,7 +113,7 @@ export function CalendarPage() {
     <>
       <PageHeader
         title="Calendário"
-        subtitle="Ano letivo inteiro — eventos, atividades, gincanas e semana de provas."
+        subtitle="Central de calendários prontos e eventos do ano letivo."
         action={
           canManage ? (
             <div className="flex gap-2">
@@ -122,6 +127,8 @@ export function CalendarPage() {
           ) : undefined
         }
       />
+
+      <CalendarUploadCenter canManage={canManage} />
 
       <Card className="mb-4">
         <div className="mb-4 flex items-center justify-center gap-4">
@@ -318,6 +325,175 @@ function CalImportModal({ onClose }: { onClose: () => void }) {
         ) : null}
       </div>
     </Modal>
+  );
+}
+
+const CALENDAR_UPLOAD_SLOTS: { slot: CalendarUploadSlot; title: string; description: string }[] = [
+  {
+    slot: 'annual',
+    title: 'Calendário geral anual',
+    description: 'Arquivo principal do ano letivo completo, visível para todos os perfis envolvidos.',
+  },
+  {
+    slot: 'term1',
+    title: 'Calendário do 1º trimestre',
+    description: 'Planejamento fechado do primeiro trimestre.',
+  },
+  {
+    slot: 'term2',
+    title: 'Calendário do 2º trimestre',
+    description: 'Planejamento fechado do segundo trimestre.',
+  },
+  {
+    slot: 'term3',
+    title: 'Calendário do 3º trimestre',
+    description: 'Planejamento fechado do terceiro trimestre.',
+  },
+];
+
+function CalendarUploadCenter({ canManage }: { canManage: boolean }) {
+  const qc = useQueryClient();
+  const { data: uploads = [], isError, error } = useQuery({ queryKey: ['calendar-uploads'], queryFn: listCalendarUploads });
+
+  const upload = useMutation({
+    mutationFn: ({ slot, file }: { slot: CalendarUploadSlot; file: File }) => uploadCalendarDocument(slot, file),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar-uploads'] });
+      successToast('Calendário enviado');
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: (item: CalendarUpload) => deleteCalendarUpload(item),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar-uploads'] });
+      successToast('Calendário removido');
+    },
+  });
+
+  const bySlot = useMemo(() => {
+    const map = new Map<CalendarUploadSlot, CalendarUpload[]>();
+    for (const item of uploads) {
+      const list = map.get(item.slot) ?? [];
+      list.push(item);
+      map.set(item.slot, list);
+    }
+    return map;
+  }, [uploads]);
+
+  return (
+    <Card className="mb-5">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-wide text-emerald-700">Centro de uploads</p>
+          <h2 className="mt-1 text-lg font-black text-slate-900">Calendários prontos</h2>
+          <p className="mt-1 max-w-3xl text-sm font-medium text-slate-500">
+            Coordenação ou administração anexa aqui o calendário anual e os calendários por trimestre. Professores, secretaria e demais perfis autorizados visualizam no próprio login.
+          </p>
+        </div>
+        {!canManage ? (
+          <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-black text-slate-500">
+            Visualização
+          </span>
+        ) : null}
+      </div>
+
+      {isError ? (
+        <p className="mb-4 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-700">
+          Não foi possível carregar os uploads. Verifique se a migração `calendar_uploads` foi rodada no Supabase. {(error as Error).message}
+        </p>
+      ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {CALENDAR_UPLOAD_SLOTS.map((slot) => (
+          <CalendarUploadSlotCard
+            key={slot.slot}
+            slot={slot}
+            uploads={bySlot.get(slot.slot) ?? []}
+            canManage={canManage}
+            busy={upload.isPending || remove.isPending}
+            onUpload={(file) => upload.mutate({ slot: slot.slot, file })}
+            onDelete={(item) => confirm(`Remover "${item.name}"?`) && remove.mutate(item)}
+          />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function CalendarUploadSlotCard({
+  slot,
+  uploads,
+  canManage,
+  busy,
+  onUpload,
+  onDelete,
+}: {
+  slot: { slot: CalendarUploadSlot; title: string; description: string };
+  uploads: CalendarUpload[];
+  canManage: boolean;
+  busy: boolean;
+  onUpload: (file: File) => void;
+  onDelete: (item: CalendarUpload) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="mb-3 flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-emerald-700 shadow-sm">
+          <CalendarDays size={20} />
+        </span>
+        <div>
+          <h3 className="font-black text-slate-900">{slot.title}</h3>
+          <p className="text-sm font-medium text-slate-500">{slot.description}</p>
+        </div>
+      </div>
+
+      {canManage ? (
+        <Dropzone
+          accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.rtf,.odt,.pages,.key,.numbers,.heic,.heif"
+          multiple={false}
+          title="Arraste e solte o calendário aqui"
+          hint="Ou clique em Procurar arquivo"
+          onFiles={(files) => {
+            const file = files?.[0];
+            if (file) onUpload(file);
+          }}
+        />
+      ) : null}
+
+      {busy ? <p className="mt-3 text-xs font-bold text-slate-500">Processando arquivo...</p> : null}
+
+      {uploads.length ? (
+        <div className="mt-3 space-y-2">
+          {uploads.map((item) => (
+            <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-slate-800">{item.name}</p>
+                  <p className="text-xs font-bold text-slate-400">
+                    Enviado em {format(parseISO(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                  </p>
+                </div>
+                {canManage ? (
+                  <button
+                    onClick={() => onDelete(item)}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                    aria-label="Excluir calendário"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                ) : null}
+              </div>
+              <AttachmentChips attachments={[item]} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm font-bold text-slate-400">
+          Nenhum arquivo anexado.
+        </p>
+      )}
+    </div>
   );
 }
 

@@ -175,6 +175,21 @@ export interface EventAttachment {
   url?: string;
 }
 
+export type CalendarUploadSlot = 'annual' | 'term1' | 'term2' | 'term3';
+
+export interface CalendarUpload {
+  id: string;
+  org_id: string;
+  slot: CalendarUploadSlot;
+  title: string;
+  name: string;
+  path: string;
+  mime: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+  url?: string;
+}
+
 export interface Grade {
   id?: string;
   class_id: string;
