@@ -743,7 +743,10 @@ export async function listOrgPeople(): Promise<OrgPerson[]> {
 
 /** Dispara um aviso. Devolve o id (para anexar arquivos em seguida). */
 export async function sendNotice(input: NoticeInput): Promise<string> {
+  const org = getActiveOrgId();
+  if (!org) throw new Error('Organização ativa não encontrada.');
   const row = {
+    org_id: org,
     title: input.title,
     body: input.body,
     audience: input.audience,
@@ -763,7 +766,7 @@ export async function uploadNoticeAttachment(noticeId: string, file: File): Prom
   const path = `${org}/${noticeId}/${Date.now()}_${safe}`;
   const up = await supabase.storage.from('avisos').upload(path, file, { upsert: false });
   if (up.error) throw new Error(up.error.message);
-  const { error } = await supabase.from('notice_attachments').insert({ notice_id: noticeId, name: file.name, path, mime: file.type });
+  const { error } = await supabase.from('notice_attachments').insert({ notice_id: noticeId, org_id: org, name: file.name, path, mime: file.type || null });
   if (error) throw new Error(error.message);
 }
 

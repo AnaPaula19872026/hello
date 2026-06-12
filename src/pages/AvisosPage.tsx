@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { cn } from '../lib/cn';
+import { assertUploadFile } from '../lib/fileSecurity';
 import { canSendNotice } from '../lib/permissions';
 import {
   deleteNotice,
@@ -176,12 +177,21 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
   const [targetUser, setTargetUser] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [fileError, setFileError] = useState('');
 
   const { data: people = [] } = useQuery({ queryKey: ['org-people'], queryFn: listOrgPeople });
 
   function addFiles(list: FileList | null) {
     if (!list || list.length === 0) return;
-    setFiles((prev) => [...prev, ...Array.from(list)]);
+    setFileError('');
+    const incoming = Array.from(list);
+    try {
+      incoming.forEach(assertUploadFile);
+    } catch (e) {
+      setFileError((e as Error).message);
+      return;
+    }
+    setFiles((prev) => [...prev, ...incoming]);
   }
 
   const send = useMutation({
@@ -190,7 +200,12 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
       if (audience === 'role') input.target_role = targetRole;
       if (audience === 'user') input.target_user = targetUser;
       const id = await sendNotice(input);
-      for (const f of files) await uploadNoticeAttachment(id, f); // anexos, na ordem
+      try {
+        for (const f of files) await uploadNoticeAttachment(id, f); // anexos, na ordem
+      } catch (e) {
+        await deleteNotice(id).catch(() => {});
+        throw e;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notices-sent', user?.id] });
@@ -290,6 +305,7 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
               id="aviso-files"
               type="file"
               multiple
+              accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.rtf,.odt,.pages,.key,.numbers,.heic,.heif"
               className="hidden"
               onChange={(e) => {
                 addFiles(e.target.files);
@@ -319,6 +335,7 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
               })}
             </div>
           ) : null}
+          {fileError ? <p className="mt-2 text-sm font-semibold text-red-600">{fileError}</p> : null}
         </Field>
 
         {send.isError ? <p className="text-sm font-semibold text-red-600">{(send.error as Error).message}</p> : null}

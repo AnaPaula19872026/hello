@@ -27,6 +27,7 @@ export function assertUploadFile(file: File): void {
     'csv',
     'doc',
     'docx',
+    'gif',
     'heic',
     'heif',
     'jpg',
