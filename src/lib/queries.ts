@@ -553,8 +553,12 @@ export async function updateProfile(userId: string, input: Partial<Profile>): Pr
 }
 
 /* ------------------------ Organizações / membros (SaaS) ------------------------ */
-export async function listMyMemberships(): Promise<Membership[]> {
-  return unwrap(await supabase.from('memberships').select('*'));
+// IMPORTANTE: filtra pelo próprio usuário. A RLS deixa um membro enxergar os
+// vínculos dos COLEGAS da mesma organização (para a lista de membros), então sem
+// o filtro viriam vários — e o papel do usuário seria calculado errado (herdando
+// o de outra pessoa da organização).
+export async function listMyMemberships(userId: string): Promise<Membership[]> {
+  return unwrap(await supabase.from('memberships').select('*').eq('user_id', userId));
 }
 
 /** Organizações que o usuário enxerga (membro) ou todas (superadmin). */

@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const [{ data: prof }, mems, orgs] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-        listMyMemberships().catch(() => [] as Membership[]),
+        listMyMemberships(userId).catch(() => [] as Membership[]),
         listOrganizations().catch(() => [] as Organization[]),
       ]);
       const p = (prof as Profile) ?? null;
