@@ -176,6 +176,41 @@ export interface EventAttachment {
   url?: string;
 }
 
+/* ------------------------ Planejamento do professor (Fase 3) ------------------ */
+export type PlanStatus = 'rascunho' | 'enviado' | 'aprovado' | 'devolvido';
+
+export const PLAN_STATUS: Record<PlanStatus, { label: string; cls: string }> = {
+  rascunho: { label: 'Rascunho', cls: 'bg-slate-100 text-slate-600' },
+  enviado: { label: 'Enviado', cls: 'bg-blue-100 text-blue-700' },
+  aprovado: { label: 'Aprovado', cls: 'bg-emerald-100 text-emerald-700' },
+  devolvido: { label: 'Devolvido', cls: 'bg-red-100 text-red-700' },
+};
+
+export interface LessonPlan {
+  id: string;
+  org_id: string;
+  author_id: string;
+  class_id: string | null;
+  title: string;
+  week_start: string | null;
+  content: string;
+  status: PlanStatus;
+  feedback: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlanAttachment {
+  id: string;
+  plan_id: string;
+  name: string;
+  path: string;
+  mime: string | null;
+  url?: string;
+}
+
 export type CalendarUploadSlot = 'annual' | 'term1' | 'term2' | 'term3';
 
 export interface CalendarUpload {

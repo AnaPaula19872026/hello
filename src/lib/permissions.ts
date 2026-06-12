@@ -15,6 +15,7 @@ export type ModuleKey =
   | 'alunos'
   | 'configuracoes'
   | 'avisos'
+  | 'planejamentos'
   | 'permissoes'
   | 'organizacoes';
 
@@ -43,6 +44,7 @@ const ACCESS: Record<ModuleKey, AppRole[]> = {
   alunos: ['diretor', 'coordenador', 'secretaria'],
   configuracoes: ALL_ROLES,
   avisos: ALL_ROLES, // todos recebem avisos
+  planejamentos: ['diretor', 'coordenador', 'professor'],
   permissoes: [], // só superadmin
   organizacoes: [], // só superadmin
 };
@@ -92,5 +94,10 @@ export function canSendNotice(role: AppRole | null): boolean {
 
 /** Quem pode criar/editar eventos do calendário (deve casar com a RLS). */
 export function canManageCalendar(role: AppRole | null): boolean {
+  return role === 'superadmin' || role === 'diretor' || role === 'coordenador';
+}
+
+/** Quem revisa (aprova/devolve) planejamentos. */
+export function canReviewPlan(role: AppRole | null): boolean {
   return role === 'superadmin' || role === 'diretor' || role === 'coordenador';
 }

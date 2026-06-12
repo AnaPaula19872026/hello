@@ -13,12 +13,15 @@ import type {
   CalendarUploadSlot,
   EventAttachment,
   EventAudience,
+  LessonPlan,
   Membership,
   Notice,
   NoticeAttachment,
   NoticeAudience,
   Organization,
   OrgPerson,
+  PlanAttachment,
+  PlanStatus,
   Profile,
   ReportPayload,
   School,
@@ -1079,6 +1082,110 @@ export async function listEvents(): Promise<EventWithMeta[]> {
   const people = await listOrgPeople().catch(() => []);
   const nameById = new Map(people.map((p) => [p.user_id, p.full_name] as const));
   return events.map((e) => ({ ...e, attachments: byEvent.get(e.id) ?? [], authorName: nameById.get(e.author_id) ?? null }));
+}
+
+/* ----------------------- Planejamento do professor (Fase 3) ------------------- */
+export interface PlanInput {
+  id?: string;
+  title: string;
+  class_id?: string | null;
+  week_start?: string | null;
+  content: string;
+}
+
+export async function savePlan(input: PlanInput): Promise<string> {
+  const row = {
+    title: input.title,
+    class_id: input.class_id || null,
+    week_start: input.week_start || null,
+    content: input.content,
+    updated_at: new Date().toISOString(),
+  };
+  if (input.id) {
+    const { error } = await supabase.from('lesson_plans').update(row).eq('id', input.id);
+    if (error) throw new Error(error.message);
+    return input.id;
+  }
+  const data = unwrap<{ id: string }>(await supabase.from('lesson_plans').insert(row).select('id').single());
+  return data.id;
+}
+
+/** Envia para a coordenação (status -> enviado). */
+export async function submitPlan(id: string): Promise<void> {
+  const { error } = await supabase.from('lesson_plans').update({ status: 'enviado', updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Coordenação aprova ou devolve (com feedback). */
+export async function reviewPlan(id: string, status: 'aprovado' | 'devolvido', feedback: string): Promise<void> {
+  const { error } = await supabase.rpc('review_plan', { p_id: id, p_status: status, p_feedback: feedback });
+  if (error) throw new Error(error.message);
+}
+
+export async function deletePlan(id: string): Promise<void> {
+  const { error } = await supabase.from('lesson_plans').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function uploadPlanAttachment(planId: string, file: File): Promise<void> {
+  assertUploadFile(file);
+  const org = getActiveOrgId();
+  const safe = file.name.replace(/[^\w.\-]+/g, '_');
+  const path = `${org}/${planId}/${Date.now()}_${safe}`;
+  const up = await supabase.storage.from('planejamentos').upload(path, file, { upsert: false });
+  if (up.error) throw new Error(up.error.message);
+  const { error } = await supabase.from('lesson_plan_attachments').insert({ plan_id: planId, name: file.name, path, mime: file.type });
+  if (error) throw new Error(error.message);
+}
+
+export interface PlanWithMeta extends LessonPlan {
+  attachments: PlanAttachment[];
+  authorName: string | null;
+  className: string | null;
+}
+
+async function enrichPlans(plans: LessonPlan[]): Promise<PlanWithMeta[]> {
+  if (!plans.length) return [];
+  const ids = plans.map((p) => p.id);
+  const atts = unwrap<PlanAttachment[]>(
+    await supabase.from('lesson_plan_attachments').select('id, plan_id, name, path, mime').in('plan_id', ids),
+  );
+  if (atts.length) {
+    const { data: signed } = await supabase.storage.from('planejamentos').createSignedUrls(atts.map((a) => a.path), 3600);
+    const urlByPath = new Map((signed ?? []).map((s) => [s.path ?? '', s.signedUrl] as const));
+    for (const a of atts) a.url = urlByPath.get(a.path);
+  }
+  const byPlan = new Map<string, PlanAttachment[]>();
+  for (const a of atts) {
+    const l = byPlan.get(a.plan_id) ?? [];
+    l.push(a);
+    byPlan.set(a.plan_id, l);
+  }
+  const [people, classes] = await Promise.all([listOrgPeople().catch(() => []), listClasses().catch(() => [])]);
+  const nameById = new Map(people.map((p) => [p.user_id, p.full_name] as const));
+  const classById = new Map(classes.map((c) => [c.id, c.name] as const));
+  return plans.map((p) => ({
+    ...p,
+    attachments: byPlan.get(p.id) ?? [],
+    authorName: nameById.get(p.author_id) ?? null,
+    className: p.class_id ? classById.get(p.class_id) ?? null : null,
+  }));
+}
+
+/** Planejamentos do próprio professor. */
+export async function listMyPlans(userId: string): Promise<PlanWithMeta[]> {
+  const plans = unwrap<LessonPlan[]>(
+    await scoped(supabase.from('lesson_plans').select('*')).eq('author_id', userId).order('updated_at', { ascending: false }),
+  );
+  return enrichPlans(plans);
+}
+
+/** Todos os planejamentos visíveis (coordenação/diretoria veem da organização). */
+export async function listOrgPlans(status?: PlanStatus): Promise<PlanWithMeta[]> {
+  let q = scoped(supabase.from('lesson_plans').select('*'));
+  if (status) q = q.eq('status', status);
+  const plans = unwrap<LessonPlan[]>(await q.order('updated_at', { ascending: false }));
+  return enrichPlans(plans);
 }
 
 /* --------------------------------- Dashboard ----------------------------------- */

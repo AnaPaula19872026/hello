@@ -1,0 +1,343 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { BookOpen, Check, Paperclip, Pencil, Plus, Send, Trash2, Undo2, X } from 'lucide-react';
+import { useState } from 'react';
+import { useAuth } from '../auth/AuthProvider';
+import { AttachmentChips } from '../components/Attachments';
+import { Dropzone } from '../components/Dropzone';
+import { successToast } from '../components/Feedback';
+import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
+import { cn } from '../lib/cn';
+import { canReviewPlan } from '../lib/permissions';
+import {
+  deletePlan,
+  listClasses,
+  listMyPlans,
+  listOrgPlans,
+  reviewPlan,
+  savePlan,
+  submitPlan,
+  uploadPlanAttachment,
+  type PlanInput,
+  type PlanWithMeta,
+} from '../lib/queries';
+import { PLAN_STATUS } from '../lib/types';
+
+export function PlanejamentoPage() {
+  const { user, role } = useAuth();
+  const uid = user!.id;
+  const canReview = canReviewPlan(role);
+  const [tab, setTab] = useState<'meus' | 'revisar'>('meus');
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [editing, setEditing] = useState<PlanWithMeta | null>(null);
+
+  function openNew() {
+    setEditing(null);
+    setComposeOpen(true);
+  }
+  function openEdit(p: PlanWithMeta) {
+    setEditing(p);
+    setComposeOpen(true);
+  }
+
+  return (
+    <>
+      <PageHeader
+        title="Planejamento"
+        subtitle="Planejamentos do professor — envio para a coordenação."
+        action={<Button onClick={openNew}><Plus size={18} /> Novo planejamento</Button>}
+      />
+
+      {canReview ? (
+        <div className="mb-5 inline-flex rounded-xl bg-slate-100 p-1">
+          {(['meus', 'revisar'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn('rounded-lg px-4 py-2 text-sm font-bold transition', tab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500')}
+            >
+              {t === 'meus' ? 'Meus planejamentos' : 'Para revisar'}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {tab === 'meus' ? <MeusPlanos uid={uid} onEdit={openEdit} /> : <ParaRevisar />}
+
+      {composeOpen ? <ComposeModal plan={editing} onClose={() => setComposeOpen(false)} /> : null}
+    </>
+  );
+}
+
+function MeusPlanos({ uid, onEdit }: { uid: string; onEdit: (p: PlanWithMeta) => void }) {
+  const qc = useQueryClient();
+  const { data: plans = [], isLoading } = useQuery({ queryKey: ['my-plans', uid], queryFn: () => listMyPlans(uid) });
+
+  const send = useMutation({
+    mutationFn: submitPlan,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-plans', uid] });
+      qc.invalidateQueries({ queryKey: ['org-plans'] });
+      successToast('Planejamento enviado à coordenação');
+    },
+  });
+  const remove = useMutation({
+    mutationFn: deletePlan,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-plans', uid] });
+      successToast('Planejamento excluído');
+    },
+  });
+
+  if (isLoading) return <p className="text-slate-400">Carregando…</p>;
+  if (plans.length === 0)
+    return <EmptyState icon={<BookOpen size={26} />} title="Nenhum planejamento" hint="Crie seu primeiro planejamento e envie para a coordenação." />;
+
+  return (
+    <div className="space-y-3">
+      {plans.map((p) => (
+        <PlanCard
+          key={p.id}
+          plan={p}
+          footer={
+            <div className="flex flex-wrap gap-2">
+              {p.status === 'rascunho' || p.status === 'devolvido' ? (
+                <>
+                  <Button variant="ghost" onClick={() => onEdit(p)}><Pencil size={16} /> Editar</Button>
+                  <Button onClick={() => send.mutate(p.id)} disabled={send.isPending}><Send size={16} /> Enviar</Button>
+                </>
+              ) : null}
+              <button
+                onClick={() => confirm('Excluir este planejamento?') && remove.mutate(p.id)}
+                className="ml-auto grid h-10 w-10 place-items-center rounded-xl bg-red-50 text-red-600 hover:bg-red-100"
+                aria-label="Excluir"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+function ParaRevisar() {
+  const qc = useQueryClient();
+  const { data: plans = [], isLoading } = useQuery({ queryKey: ['org-plans', 'enviado'], queryFn: () => listOrgPlans('enviado') });
+  const [feedbackFor, setFeedbackFor] = useState<PlanWithMeta | null>(null);
+
+  const approve = useMutation({
+    mutationFn: (id: string) => reviewPlan(id, 'aprovado', ''),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['org-plans', 'enviado'] });
+      successToast('Planejamento aprovado');
+    },
+  });
+
+  if (isLoading) return <p className="text-slate-400">Carregando…</p>;
+  if (plans.length === 0)
+    return <EmptyState icon={<Check size={26} />} title="Nada para revisar" hint="Planejamentos enviados pelos professores aparecem aqui." />;
+
+  return (
+    <>
+      <div className="space-y-3">
+        {plans.map((p) => (
+          <PlanCard
+            key={p.id}
+            plan={p}
+            showAuthor
+            footer={
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => approve.mutate(p.id)} disabled={approve.isPending}><Check size={16} /> Aprovar</Button>
+                <Button variant="danger" onClick={() => setFeedbackFor(p)}><Undo2 size={16} /> Devolver</Button>
+              </div>
+            }
+          />
+        ))}
+      </div>
+      {feedbackFor ? <DevolverModal plan={feedbackFor} onClose={() => setFeedbackFor(null)} /> : null}
+    </>
+  );
+}
+
+function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?: React.ReactNode; showAuthor?: boolean }) {
+  const st = PLAN_STATUS[p.status];
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={cn('rounded-full px-2.5 py-1 text-[11px] font-black uppercase', st.cls)}>{st.label}</span>
+            <p className="font-black text-slate-900">{p.title}</p>
+          </div>
+          <p className="mt-0.5 text-xs font-bold text-slate-400">
+            {showAuthor && p.authorName ? `${p.authorName} · ` : ''}
+            {p.className ? `${p.className} · ` : ''}
+            {p.week_start ? `Semana de ${format(parseISO(p.week_start), 'dd/MM/yyyy')}` : 'Sem data'}
+          </p>
+        </div>
+      </div>
+      {p.content ? <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{p.content}</p> : null}
+      <AttachmentChips attachments={p.attachments} />
+      {p.feedback ? (
+        <div className={cn('mt-3 rounded-xl border p-3 text-sm', p.status === 'aprovado' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800')}>
+          <p className="text-[11px] font-black uppercase tracking-wide opacity-70">Retorno da coordenação</p>
+          <p className="mt-0.5 whitespace-pre-wrap font-semibold">{p.feedback}</p>
+        </div>
+      ) : null}
+      {footer ? <div className="mt-3 border-t border-slate-100 pt-3">{footer}</div> : null}
+    </Card>
+  );
+}
+
+function DevolverModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [feedback, setFeedback] = useState('');
+  const ret = useMutation({
+    mutationFn: () => reviewPlan(plan.id, 'devolvido', feedback.trim()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['org-plans', 'enviado'] });
+      onClose();
+      successToast('Planejamento devolvido ao professor');
+    },
+  });
+  return (
+    <Modal open onClose={onClose} title="Devolver planejamento">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-500">Explique o que precisa ser ajustado. O professor verá esse retorno.</p>
+        <Field label="Feedback">
+          <textarea
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            rows={4}
+            autoFocus
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            placeholder="Ex.: incluir os objetivos de aprendizagem da BNCC…"
+          />
+        </Field>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button variant="danger" onClick={() => ret.mutate()} disabled={!feedback.trim() || ret.isPending}>
+            <Undo2 size={16} /> {ret.isPending ? 'Devolvendo…' : 'Devolver'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function ComposeModal({ plan, onClose }: { plan: PlanWithMeta | null; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
+  const [title, setTitle] = useState(plan?.title ?? '');
+  const [classId, setClassId] = useState(plan?.class_id ?? '');
+  const [week, setWeek] = useState(plan?.week_start ?? '');
+  const [content, setContent] = useState(plan?.content ?? '');
+  const [files, setFiles] = useState<File[]>([]);
+
+  const addFiles = (l: FileList | null) => l && l.length && setFiles((p) => [...p, ...Array.from(l)]);
+
+  async function persist(andSend: boolean) {
+    const input: PlanInput = { id: plan?.id, title: title.trim(), class_id: classId || null, week_start: week || null, content: content.trim() };
+    const id = await savePlan(input);
+    for (const f of files) await uploadPlanAttachment(id, f);
+    if (andSend) await submitPlan(id);
+    return id;
+  }
+
+  const saveDraft = useMutation({
+    mutationFn: () => persist(false),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-plans', user?.id] });
+      onClose();
+      successToast('Rascunho salvo');
+    },
+  });
+  const saveSend = useMutation({
+    mutationFn: () => persist(true),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-plans', user?.id] });
+      qc.invalidateQueries({ queryKey: ['org-plans'] });
+      onClose();
+      successToast('Planejamento enviado à coordenação');
+    },
+  });
+
+  const valid = title.trim().length > 0;
+  const busy = saveDraft.isPending || saveSend.isPending;
+
+  return (
+    <Modal open onClose={onClose} title={plan ? 'Editar planejamento' : 'Novo planejamento'} size="xl">
+      <div className="space-y-4">
+        <Field label="Título">
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex.: Plano semanal — Língua Inglesa" autoFocus />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Turma (opcional)">
+            <Select value={classId} onChange={(e) => setClassId(e.target.value)}>
+              <option value="">—</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Semana (opcional)">
+            <Input type="date" value={week} onChange={(e) => setWeek(e.target.value)} />
+          </Field>
+        </div>
+        <Field label="Conteúdo / objetivos / atividades">
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={6}
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            placeholder="Objetivos de aprendizagem (BNCC), conteúdos, metodologia, recursos, avaliação…"
+          />
+        </Field>
+
+        <Field label="Anexos (plano em PDF/DOCX, materiais…)">
+          <Dropzone
+            accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.rtf,.odt,.pages,.key,.numbers,.heic,.heif"
+            hint="PDF, DOC/DOCX, PPTX, imagens…"
+            onFiles={addFiles}
+          />
+          {files.length > 0 ? (
+            <div className="mt-2 space-y-1.5">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">
+                  <Paperclip size={14} className="shrink-0 text-slate-400" />
+                  <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                  <button onClick={() => setFiles((p) => p.filter((_, j) => j !== i))} aria-label="Remover" className="text-slate-400 hover:text-red-600">
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </Field>
+
+        {plan?.attachments?.length ? (
+          <div>
+            <p className="mb-1 text-xs font-bold text-slate-500">Anexos atuais</p>
+            <AttachmentChips attachments={plan.attachments} />
+          </div>
+        ) : null}
+
+        {saveDraft.isError || saveSend.isError ? (
+          <p className="text-sm font-semibold text-red-600">{((saveDraft.error || saveSend.error) as Error).message}</p>
+        ) : null}
+
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button variant="soft" onClick={() => saveDraft.mutate()} disabled={!valid || busy}>Salvar rascunho</Button>
+          <Button onClick={() => saveSend.mutate()} disabled={!valid || busy}>
+            <Send size={16} /> {busy ? 'Salvando…' : 'Salvar e enviar'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
