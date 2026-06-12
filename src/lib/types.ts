@@ -93,6 +93,27 @@ export interface Membership {
   created_at?: string;
 }
 
+/* ------------------------------ Avisos (Fase 2) ------------------------------ */
+export type NoticeAudience = 'all' | 'role' | 'user';
+
+export interface Notice {
+  id: string;
+  org_id: string;
+  author_id: string;
+  title: string;
+  body: string;
+  audience: NoticeAudience;
+  target_role: AppRole | null;
+  target_user: string | null;
+  created_at: string;
+}
+
+export interface OrgPerson {
+  user_id: string;
+  full_name: string | null;
+  role: AppRole;
+}
+
 export interface Grade {
   id?: string;
   class_id: string;

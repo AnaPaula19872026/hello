@@ -7,7 +7,10 @@ import type {
   AttendanceSession,
   ClassRoom,
   Membership,
+  Notice,
+  NoticeAudience,
   Organization,
+  OrgPerson,
   Profile,
   ReportPayload,
   School,
@@ -620,6 +623,88 @@ export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
     full_name: byId.get(m.user_id)?.full_name ?? null,
     email: byId.get(m.user_id)?.email ?? null,
   }));
+}
+
+/* ----------------------------- Avisos (Fase 2) -------------------------------- */
+export interface NoticeInput {
+  title: string;
+  body: string;
+  audience: NoticeAudience;
+  target_role?: AppRole | null;
+  target_user?: string | null;
+}
+
+/** Pessoas da organização ativa (para escolher destinatário do aviso). */
+export async function listOrgPeople(): Promise<OrgPerson[]> {
+  const org = getActiveOrgId();
+  if (!org) return [];
+  const { data, error } = await supabase.rpc('org_people', { p_org: org });
+  if (error) throw new Error(error.message);
+  return (data as OrgPerson[]) ?? [];
+}
+
+/** Dispara um aviso. */
+export async function sendNotice(input: NoticeInput): Promise<void> {
+  const row = {
+    title: input.title,
+    body: input.body,
+    audience: input.audience,
+    target_role: input.audience === 'role' ? input.target_role ?? null : null,
+    target_user: input.audience === 'user' ? input.target_user ?? null : null,
+  };
+  const { error } = await supabase.from('notices').insert(row);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteNotice(id: string): Promise<void> {
+  const { error } = await supabase.from('notices').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Marca um aviso como lido pelo usuário atual. */
+export async function markNoticeRead(id: string): Promise<void> {
+  const { error } = await supabase.from('notice_reads').upsert({ notice_id: id }, { onConflict: 'notice_id,user_id' });
+  if (error) throw new Error(error.message);
+}
+
+export interface ReceivedNotice extends Notice {
+  read: boolean;
+}
+/** Avisos recebidos pelo usuário (exclui os que ele mesmo enviou), com status de leitura. */
+export async function listReceivedNotices(userId: string): Promise<ReceivedNotice[]> {
+  const notices = unwrap<Notice[]>(
+    await scoped(supabase.from('notices').select('*')).order('created_at', { ascending: false }),
+  );
+  const mine = notices.filter((n) => n.author_id !== userId);
+  const reads = unwrap<{ notice_id: string }[]>(
+    await supabase.from('notice_reads').select('notice_id').eq('user_id', userId),
+  );
+  const readSet = new Set(reads.map((r) => r.notice_id));
+  return mine.map((n) => ({ ...n, read: readSet.has(n.id) }));
+}
+
+export interface SentNotice extends Notice {
+  reads: number;
+}
+/** Avisos enviados pelo usuário, com contagem de confirmações de leitura. */
+export async function listSentNotices(userId: string): Promise<SentNotice[]> {
+  const notices = unwrap<Notice[]>(
+    await scoped(supabase.from('notices').select('*')).eq('author_id', userId).order('created_at', { ascending: false }),
+  );
+  if (!notices.length) return [];
+  const ids = notices.map((n) => n.id);
+  const reads = unwrap<{ notice_id: string }[]>(
+    await supabase.from('notice_reads').select('notice_id').in('notice_id', ids),
+  );
+  const count = new Map<string, number>();
+  for (const r of reads) count.set(r.notice_id, (count.get(r.notice_id) ?? 0) + 1);
+  return notices.map((n) => ({ ...n, reads: count.get(n.id) ?? 0 }));
+}
+
+/** Quantos avisos recebidos ainda não foram lidos (para o selo do menu). */
+export async function unreadNoticeCount(userId: string): Promise<number> {
+  const received = await listReceivedNotices(userId);
+  return received.filter((n) => !n.read).length;
 }
 
 /* --------------------------------- Dashboard ----------------------------------- */

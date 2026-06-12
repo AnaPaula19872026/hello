@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from '../auth/AuthProvider';
 import { AppShell } from '../components/AppShell';
 import { FeedbackHost } from '../components/Feedback';
 import { AttendancePage } from '../pages/AttendancePage';
+import { AvisosPage } from '../pages/AvisosPage';
 import { CalendarPage } from '../pages/CalendarPage';
 import { ClassesPage } from '../pages/ClassesPage';
 import { DashboardPage } from '../pages/DashboardPage';
@@ -40,6 +41,7 @@ function Protected() {
         <Route path="/chamadas" element={<AttendancePage />} />
         <Route path="/notas" element={<NotasPage />} />
         <Route path="/relatorios" element={<ReportsPage />} />
+        <Route path="/avisos" element={<AvisosPage />} />
         <Route path="/calendario" element={<CalendarPage />} />
         <Route path="/escolas" element={<SchoolsPage />} />
         <Route path="/turmas" element={<ClassesPage />} />

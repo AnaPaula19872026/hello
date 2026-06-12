@@ -8,18 +8,21 @@ import {
   GraduationCap,
   Home,
   LogOut,
+  Megaphone,
   Menu,
   Network,
   Settings,
   Users,
   X,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { Fragment, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { cn } from '../lib/cn';
 import { can, type ModuleKey } from '../lib/permissions';
+import { unreadNoticeCount } from '../lib/queries';
 import { ROLE_LABEL } from '../lib/types';
 import { signOut } from '../lib/supabase';
 
@@ -32,6 +35,7 @@ const groups: { title?: string; items: NavItem[] }[] = [
       { label: 'Chamadas', to: '/chamadas', icon: <ClipboardCheck size={18} />, module: 'chamadas' },
       { label: 'Notas', to: '/notas', icon: <Award size={18} />, module: 'notas' },
       { label: 'Relatórios', to: '/relatorios', icon: <BarChart3 size={18} />, module: 'relatorios' },
+      { label: 'Avisos', to: '/avisos', icon: <Megaphone size={18} />, module: 'avisos' },
       { label: 'Calendário', to: '/calendario', icon: <CalendarDays size={18} />, module: 'calendario' },
     ],
   },
@@ -81,6 +85,12 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const name = profile?.full_name || user?.user_metadata?.full_name || user?.email || 'Usuária';
   const avatar = profile?.avatar_url || (user?.user_metadata?.avatar_url as string | undefined);
   const orgName = organizations.find((o) => o.id === activeOrgId)?.name;
+  const { data: unread = 0 } = useQuery({
+    queryKey: ['notices-unread', user?.id],
+    queryFn: () => unreadNoticeCount(user!.id),
+    enabled: !!user,
+    refetchInterval: 60_000,
+  });
 
   const visibleGroups = groups
     .map((g) => ({ ...g, items: g.items.filter((it) => can(role, it.module)) }))
@@ -120,6 +130,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 >
                   {item.icon}
                   <span>{item.label}</span>
+                  {item.to === '/avisos' && unread > 0 ? (
+                    <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black text-white">
+                      {unread}
+                    </span>
+                  ) : null}
                 </NavLink>
               ))}
             </div>
