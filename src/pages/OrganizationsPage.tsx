@@ -1,30 +1,45 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, LogIn, Network, Plus, UserPlus } from 'lucide-react';
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Building2, GraduationCap, LogIn, Network, Plus, Power, Search, Trash2, UserPlus, Users } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
 import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
-import { addMember, createOrganization, listOrganizations, listOrgMembers, removeMember, setMemberRole } from '../lib/queries';
-import { ASSIGNABLE_ROLES, ROLE_LABEL, type AppRole, type Organization } from '../lib/types';
-import { Trash2 } from 'lucide-react';
+import { cn } from '../lib/cn';
+import {
+  addMember,
+  createOrganization,
+  listOrgAdmin,
+  listOrgMembers,
+  removeMember,
+  setMemberRole,
+  setOrgActive,
+  type OrgAdmin,
+} from '../lib/queries';
+import { ASSIGNABLE_ROLES, ROLE_LABEL, type AppRole } from '../lib/types';
+
+type Filter = 'todas' | 'ativas' | 'inativas';
 
 export function OrganizationsPage() {
   const { isSuperadmin, activeOrgId, switchOrg, ctxLoading } = useAuth();
+  const nav = useNavigate();
   const qc = useQueryClient();
-  const { data: orgs = [], isLoading } = useQuery({ queryKey: ['organizations'], queryFn: listOrganizations });
+  const { data: orgs = [], isLoading } = useQuery({ queryKey: ['org-admin'], queryFn: listOrgAdmin });
 
   const [newOpen, setNewOpen] = useState(false);
   const [name, setName] = useState('');
-  const [membersOf, setMembersOf] = useState<Organization | null>(null);
+  const [membersOf, setMembersOf] = useState<OrgAdmin | null>(null);
+  const [q, setQ] = useState('');
+  const [filter, setFilter] = useState<Filter>('todas');
 
   const create = useMutation({
     mutationFn: async () => {
       const id = await createOrganization(name.trim());
-      await switchOrg(id); // entra direto na nova organização (já vem com a escola principal)
+      await switchOrg(id);
       return id;
     },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['org-admin'] });
       qc.invalidateQueries({ queryKey: ['organizations'] });
       setNewOpen(false);
       setName('');
@@ -32,48 +47,133 @@ export function OrganizationsPage() {
     },
   });
 
+  const toggleActive = useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) => setOrgActive(id, active),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['org-admin'] });
+      qc.invalidateQueries({ queryKey: ['organizations'] });
+      successToast('Status atualizado');
+    },
+  });
+
+  const counts = useMemo(
+    () => ({ todas: orgs.length, ativas: orgs.filter((o) => o.active).length, inativas: orgs.filter((o) => !o.active).length }),
+    [orgs],
+  );
+
+  const list = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return orgs
+      .filter((o) => (filter === 'ativas' ? o.active : filter === 'inativas' ? !o.active : true))
+      .filter((o) => !term || o.name.toLowerCase().includes(term));
+  }, [orgs, q, filter]);
+
   if (!ctxLoading && !isSuperadmin) return <Navigate to="/" replace />;
+
+  async function enter(o: OrgAdmin) {
+    await switchOrg(o.id);
+    successToast(`Você está em ${o.name}`);
+    nav('/');
+  }
+
+  const tiles: { key: Filter; label: string; n: number; cls: string }[] = [
+    { key: 'todas', label: 'Todas as organizações', n: counts.todas, cls: 'border-slate-200 bg-white text-slate-700' },
+    { key: 'ativas', label: 'Ativas', n: counts.ativas, cls: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
+    { key: 'inativas', label: 'Inativas', n: counts.inativas, cls: 'border-red-200 bg-red-50 text-red-700' },
+  ];
 
   return (
     <>
       <PageHeader
         title="Organizações"
-        subtitle="Clientes do sistema. Cada organização tem suas escolas, turmas e usuários."
+        subtitle="Gerenciamento dos clientes contratantes."
         action={<AddButton onClick={() => setNewOpen(true)} label="Nova organização" />}
       />
 
+      {/* Busca */}
+      <div className="relative mb-4">
+        <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar organização…" className="pl-10" />
+      </div>
+
+      {/* Resumo / filtros */}
+      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+        {tiles.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setFilter(t.key)}
+            className={cn(
+              'flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition',
+              t.cls,
+              filter === t.key ? 'ring-2 ring-emerald-400' : 'opacity-90 hover:opacity-100',
+            )}
+          >
+            <span className="text-sm font-bold">{t.label}</span>
+            <span className="text-2xl font-black">{t.n}</span>
+          </button>
+        ))}
+      </div>
+
       {isLoading ? (
         <p className="text-slate-400">Carregando…</p>
-      ) : orgs.length === 0 ? (
-        <EmptyState icon={<Network size={26} />} title="Nenhuma organização" hint="Crie a primeira para começar a vender." />
+      ) : list.length === 0 ? (
+        <EmptyState icon={<Network size={26} />} title="Nenhuma organização" hint="Crie o primeiro cliente ou ajuste a busca." />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {orgs.map((o) => (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {list.map((o) => (
             <Card key={o.id} className="flex flex-col gap-3">
               <div className="flex items-start gap-3">
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
-                  <Building2 size={20} />
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+                  <Building2 size={22} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-black text-slate-900">{o.name}</p>
-                  <p className="mt-0.5 text-xs font-bold text-slate-400">
-                    {o.is_demo ? 'Demonstração · ' : ''}
-                    {o.plan}
-                    {o.id === activeOrgId ? ' · ativa' : ''}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-black text-slate-900">{o.name}</p>
+                    {o.id === activeOrgId ? (
+                      <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-700">atual</span>
+                    ) : null}
+                  </div>
+                  <p className="mt-0.5 text-xs font-bold text-slate-400">{o.is_demo ? 'Demonstração' : o.plan}</p>
                 </div>
+                <span
+                  className={cn(
+                    'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black uppercase',
+                    o.active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700',
+                  )}
+                >
+                  {o.active ? 'Ativo' : 'Inativo'}
+                </span>
               </div>
-              <div className="mt-auto flex gap-2">
-                <Button variant="ghost" className="flex-1" onClick={() => setMembersOf(o)}>
+
+              {/* Métricas */}
+              <div className="flex flex-wrap gap-2 text-xs font-bold text-slate-600">
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5">
+                  <Building2 size={14} /> {o.schools} escola(s)
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5">
+                  <GraduationCap size={14} /> {o.students} aluno(s)
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5">
+                  <Users size={14} /> {o.members} membro(s)
+                </span>
+              </div>
+
+              {/* Ações */}
+              <div className="mt-auto flex flex-wrap gap-2">
+                <Button variant="primary" className="flex-1" onClick={() => enter(o)}>
+                  <LogIn size={16} /> Acessar
+                </Button>
+                <Button variant="ghost" onClick={() => setMembersOf(o)}>
                   <UserPlus size={16} /> Membros
                 </Button>
                 <Button
-                  variant={o.id === activeOrgId ? 'soft' : 'primary'}
-                  className="flex-1"
-                  disabled={o.id === activeOrgId}
-                  onClick={() => switchOrg(o.id).then(() => successToast(`Entrou em ${o.name}`))}
+                  variant={o.active ? 'danger' : 'soft'}
+                  onClick={() => {
+                    if (confirm(`${o.active ? 'Inativar' : 'Ativar'} "${o.name}"?`)) toggleActive.mutate({ id: o.id, active: !o.active });
+                  }}
+                  aria-label={o.active ? 'Inativar' : 'Ativar'}
                 >
-                  <LogIn size={16} /> {o.id === activeOrgId ? 'Atual' : 'Entrar'}
+                  <Power size={16} />
                 </Button>
               </div>
             </Card>
@@ -104,7 +204,7 @@ export function OrganizationsPage() {
   );
 }
 
-function MembersModal({ org, onClose }: { org: Organization; onClose: () => void }) {
+function MembersModal({ org, onClose }: { org: OrgAdmin; onClose: () => void }) {
   const qc = useQueryClient();
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['org-members', org.id],

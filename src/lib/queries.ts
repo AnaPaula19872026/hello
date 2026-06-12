@@ -573,6 +573,30 @@ export async function listOrganizations(): Promise<Organization[]> {
   return unwrap(await supabase.from('organizations').select('*').order('created_at'));
 }
 
+export interface OrgAdmin {
+  id: string;
+  name: string;
+  plan: string;
+  is_demo: boolean;
+  active: boolean;
+  created_at: string;
+  schools: number;
+  students: number;
+  members: number;
+}
+/** Lista de clientes com métricas (só superadmin). */
+export async function listOrgAdmin(): Promise<OrgAdmin[]> {
+  const { data, error } = await supabase.rpc('org_admin_list');
+  if (error) throw new Error(error.message);
+  return (data as OrgAdmin[]) ?? [];
+}
+
+/** Ativa/inativa um cliente. */
+export async function setOrgActive(id: string, active: boolean): Promise<void> {
+  const { error } = await supabase.from('organizations').update({ active }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
 /** Cria uma organização nova (cliente). Só superadmin. Devolve o id. */
 export async function createOrganization(name: string, isDemo = false): Promise<string> {
   const { data, error } = await supabase.rpc('create_org', { p_name: name, p_is_demo: isDemo });
