@@ -18,6 +18,8 @@ import {
   listOrgPlans,
   listPlanMessages,
   listReviewedPlans,
+  markPlanRead,
+  planUnreadCounts,
   reviewPlan,
   savePlan,
   sendPlanMessage,
@@ -312,6 +314,9 @@ function SendModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void 
 function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?: React.ReactNode; showAuthor?: boolean }) {
   const st = PLAN_STATUS[p.status];
   const [chatOpen, setChatOpen] = useState(false);
+  // Query compartilhada (mesma key) — o React Query dedup: 1 fetch p/ todos os cards.
+  const { data: unreadMap = {} } = useQuery({ queryKey: ['plan-unread'], queryFn: planUnreadCounts, refetchInterval: 15000, retry: false });
+  const unread = unreadMap[p.id] ?? 0;
   return (
     <Card>
       <div className="flex items-start justify-between gap-3">
@@ -328,10 +333,18 @@ function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?
         </div>
         <button
           onClick={() => setChatOpen(true)}
-          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-emerald-50 hover:text-emerald-700"
-          title="Abrir conversa com a coordenação"
+          className={cn(
+            'relative flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition',
+            unread > 0 ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700',
+          )}
+          title={unread > 0 ? `${unread} mensagem(ns) nova(s)` : 'Abrir conversa'}
         >
           <MessageSquare size={15} /> Conversa
+          {unread > 0 ? (
+            <span className="grid min-w-5 place-items-center rounded-full bg-white px-1.5 text-[11px] font-black leading-5 text-emerald-700">
+              {unread > 9 ? '9+' : unread}
+            </span>
+          ) : null}
         </button>
       </div>
       {p.content ? <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{p.content}</p> : null}
@@ -371,6 +384,14 @@ function ChatModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void 
       qc.invalidateQueries({ queryKey: key });
     },
   });
+
+  // Ao abrir/receber mensagens, marca como lido e zera o badge de não lidas.
+  useEffect(() => {
+    if (!messages.length) return;
+    markPlanRead(plan.id)
+      .then(() => qc.invalidateQueries({ queryKey: ['plan-unread'] }))
+      .catch(() => {});
+  }, [plan.id, messages.length, qc]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });

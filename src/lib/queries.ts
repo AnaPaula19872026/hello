@@ -1235,6 +1235,21 @@ export async function sendPlanMessage(planId: string, body: string): Promise<voi
   if (error) throw error;
 }
 
+/** Mensagens não lidas por planejamento: { [planId]: quantidade }. */
+export async function planUnreadCounts(): Promise<Record<string, number>> {
+  const { data, error } = await supabase.rpc('plan_unread_counts');
+  if (error) throw new Error(error.message);
+  const out: Record<string, number> = {};
+  for (const r of (data as { plan_id: string; unread: number }[]) ?? []) out[r.plan_id] = r.unread;
+  return out;
+}
+
+/** Marca o planejamento como lido (zera as não lidas) para o usuário atual. */
+export async function markPlanRead(planId: string): Promise<void> {
+  const { error } = await supabase.rpc('mark_plan_read', { p_plan: planId });
+  if (error) throw new Error(error.message);
+}
+
 /* --------------------------------- Dashboard ----------------------------------- */
 export async function dashboardCounts() {
   const [schools, classes, students] = await Promise.all([

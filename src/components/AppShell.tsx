@@ -24,7 +24,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { cn } from '../lib/cn';
 import { canAccessModule, type ModuleKey } from '../lib/permissions';
-import { listSchools, unreadNoticeCount } from '../lib/queries';
+import { listSchools, planUnreadCounts, unreadNoticeCount } from '../lib/queries';
 import { ROLE_LABEL } from '../lib/types';
 import { signOut } from '../lib/supabase';
 
@@ -96,6 +96,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     enabled: !!user,
     refetchInterval: 60_000,
   });
+  const { data: planUnreadMap = {} } = useQuery({
+    queryKey: ['plan-unread'],
+    queryFn: planUnreadCounts,
+    enabled: !!user,
+    refetchInterval: 30_000,
+    retry: false,
+  });
+  const planUnread = Object.values(planUnreadMap).reduce((a, b) => a + b, 0);
   // "Escolas" só faz sentido para rede/secretaria (2+ escolas). Numa base de uma
   // escola só, o cadastro é redundante (a base já é a escola).
   const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: listSchools, enabled: !!user && !isHq });
@@ -149,6 +157,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                   {item.to === '/avisos' && unread > 0 ? (
                     <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black text-white">
                       {unread}
+                    </span>
+                  ) : null}
+                  {item.to === '/planejamento' && planUnread > 0 ? (
+                    <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-black text-white">
+                      {planUnread > 9 ? '9+' : planUnread}
                     </span>
                   ) : null}
                 </NavLink>
