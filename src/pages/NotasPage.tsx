@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Award, Plus, Save, Search, Sliders, Trash2 } from 'lucide-react';
+import { Award, Lock, Pencil, Plus, Save, Search, Sliders, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { successToast } from '../components/Feedback';
@@ -27,6 +27,7 @@ export function NotasPage() {
   const [q, setQ] = useState('');
   const [scores, setScores] = useState<Record<string, Record<string, string>>>({});
   const [saved, setSaved] = useState(false);
+  const [editingGrades, setEditingGrades] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
 
   const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
@@ -56,9 +57,9 @@ export function NotasPage() {
   const studentsSig = students.map((s) => s.id).join(',');
   const gradesSig = termGrades.map((g) => `${g.student_id}:${JSON.stringify(g.scores)}:${g.updated_at ?? ''}`).join('|');
   const gradeByStudent = useMemo(() => new Map(termGrades.map((g) => [g.student_id, g])), [termGrades]);
+  const hasSavedGrades = termGrades.length > 0;
 
-  // Preenche inputs com as notas salvas.
-  useEffect(() => {
+  function resetScoresFromSaved() {
     const map: Record<string, Record<string, string>> = {};
     students.forEach((s) => {
       const g = termGrades.find((x) => x.student_id === s.id);
@@ -71,6 +72,12 @@ export function NotasPage() {
     });
     setScores(map);
     setSaved(false);
+    setEditingGrades(termGrades.length === 0);
+  }
+
+  // Preenche inputs com as notas salvas.
+  useEffect(() => {
+    resetScoresFromSaved();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentsSig, gradesSig, orderedActivities.map((a) => a.name).join(',')]);
 
@@ -89,6 +96,7 @@ export function NotasPage() {
   }
 
   function setScore(id: string, act: string, raw: string, max: number) {
+    if (!editingGrades) return;
     let v = raw.replace(',', '.').replace(/[^0-9.]/g, '');
     if (v !== '' && Number(v) > max) v = String(max);
     setScores((p) => ({ ...p, [id]: { ...p[id], [act]: v } }));
@@ -113,6 +121,7 @@ export function NotasPage() {
     },
     onSuccess: () => {
       setSaved(true);
+      setEditingGrades(false);
       qc.invalidateQueries({ queryKey: ['term-grades', classId, year, term] });
       successToast('Notas salvas com sucesso');
     },
@@ -191,7 +200,15 @@ export function NotasPage() {
           ) : students.length === 0 ? (
             <EmptyState icon={<Award size={26} />} title="Turma sem alunos" hint="Cadastre alunos nesta turma para lançar notas." />
           ) : (
-            <Card className="overflow-x-auto p-0">
+            <>
+              {hasSavedGrades && !editingGrades ? (
+                <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
+                  <Lock size={16} className="text-slate-400" />
+                  Notas bloqueadas para evitar alterações acidentais. Clique em Editar notas para reabrir.
+                </div>
+              ) : null}
+
+              <Card className="overflow-x-auto p-0">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
                   <tr>
@@ -204,7 +221,7 @@ export function NotasPage() {
                       </th>
                     ))}
                     <th className="p-3 text-center">Média</th>
-                    <th className="p-3 text-center">Lançado em</th>
+                    <th className="p-3 text-center">Últ. mov.</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -222,8 +239,12 @@ export function NotasPage() {
                               inputMode="decimal"
                               value={scores[s.id]?.[a.name] ?? ''}
                               onChange={(e) => setScore(s.id, a.name, e.target.value, a.max)}
+                              disabled={!editingGrades}
                               placeholder="–"
-                              className="h-10 w-14 rounded-lg border border-slate-200 bg-white text-center font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                              className={cn(
+                                'h-10 w-14 rounded-lg border border-slate-200 bg-white text-center font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 disabled:shadow-none',
+                                !editingGrades && 'border-slate-100',
+                              )}
                             />
                           </td>
                         ))}
@@ -236,8 +257,11 @@ export function NotasPage() {
                         </td>
                         <td className="p-3 text-center">
                           {launchedAt ? (
-                            <span className="text-xs font-bold text-slate-500">
-                              {format(new Date(launchedAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                            <span
+                              className="text-[11px] font-bold text-slate-400"
+                              title={format(new Date(launchedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                            >
+                              {format(new Date(launchedAt), 'dd/MM', { locale: ptBR })}
                             </span>
                           ) : (
                             <span className="text-slate-400">–</span>
@@ -248,7 +272,8 @@ export function NotasPage() {
                   })}
                 </tbody>
               </table>
-            </Card>
+              </Card>
+            </>
           )}
         </>
       )}
@@ -256,15 +281,41 @@ export function NotasPage() {
       {students.length > 0 && orderedActivities.length > 0 ? (
         <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:pl-72">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-1">
-            <p className="hidden text-sm font-semibold text-slate-500 sm:block">{saved ? '✓ Notas salvas' : `${TERM_LABEL[term]} • ${year}`}</p>
-            <button
-              onClick={() => save.mutate()}
-              disabled={save.isPending}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-4 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:flex-none sm:px-8"
-            >
-              <Save size={20} />
-              {save.isPending ? 'Salvando…' : saved ? 'Salvar novamente' : 'Salvar notas'}
-            </button>
+            <p className="hidden text-sm font-semibold text-slate-500 sm:block">
+              {saved ? '✓ Notas salvas e bloqueadas' : editingGrades ? 'Edição aberta' : `${TERM_LABEL[term]} • ${year}`}
+            </p>
+            {editingGrades ? (
+              <>
+                {hasSavedGrades ? (
+                  <button
+                    onClick={resetScoresFromSaved}
+                    disabled={save.isPending}
+                    className="hidden rounded-xl border border-slate-200 px-4 py-4 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-60 sm:inline-flex"
+                  >
+                    Cancelar
+                  </button>
+                ) : null}
+                <button
+                  onClick={() => save.mutate()}
+                  disabled={save.isPending}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-4 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:flex-none sm:px-8"
+                >
+                  <Save size={20} />
+                  {save.isPending ? 'Salvando…' : 'Salvar e bloquear'}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => {
+                  setEditingGrades(true);
+                  setSaved(false);
+                }}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-4 text-base font-black text-white transition hover:bg-slate-800 sm:flex-none sm:px-8"
+              >
+                <Pencil size={20} />
+                Editar notas
+              </button>
+            )}
           </div>
           {save.isError ? <p className="mx-auto mt-2 max-w-5xl px-1 text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
         </footer>
