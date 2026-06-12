@@ -13,8 +13,8 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Flag, Mail, Paperclip, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { CalendarCheck2, CalendarDays, CalendarRange, CheckCircle2, ChevronLeft, ChevronRight, Clock, Download, FileSpreadsheet, FileText, Flag, Mail, Paperclip, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { AttachmentChips } from '../components/Attachments';
 import { Dropzone } from '../components/Dropzone';
@@ -322,28 +322,50 @@ function CalImportModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-const CALENDAR_UPLOAD_SLOTS: { slot: CalendarUploadSlot; title: string; description: string }[] = [
+type SlotMeta = {
+  slot: CalendarUploadSlot;
+  title: string;
+  description: string;
+  color: string;
+  soft: string;
+  icon: typeof CalendarDays;
+};
+const CALENDAR_UPLOAD_SLOTS: SlotMeta[] = [
   {
     slot: 'annual',
-    title: 'Calendário geral anual',
-    description: 'Arquivo principal do ano letivo completo, visível para todos os perfis envolvidos.',
+    title: 'Calendário anual',
+    description: 'Ano letivo completo. Visível para todos os perfis.',
+    color: '#059669',
+    soft: '#ecfdf5',
+    icon: CalendarDays,
   },
   {
     slot: 'term1',
-    title: 'Calendário do 1º trimestre',
-    description: 'Planejamento fechado do primeiro trimestre.',
+    title: '1º trimestre',
+    description: 'Planejamento fechado do 1º trimestre.',
+    color: '#2563eb',
+    soft: '#eff6ff',
+    icon: CalendarRange,
   },
   {
     slot: 'term2',
-    title: 'Calendário do 2º trimestre',
-    description: 'Planejamento fechado do segundo trimestre.',
+    title: '2º trimestre',
+    description: 'Planejamento fechado do 2º trimestre.',
+    color: '#7c3aed',
+    soft: '#f5f3ff',
+    icon: CalendarRange,
   },
   {
     slot: 'term3',
-    title: 'Calendário do 3º trimestre',
-    description: 'Planejamento fechado do terceiro trimestre.',
+    title: '3º trimestre',
+    description: 'Planejamento fechado do 3º trimestre.',
+    color: '#ea580c',
+    soft: '#fff7ed',
+    icon: CalendarCheck2,
   },
 ];
+
+const CAL_UPLOAD_ACCEPT = 'image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.rtf,.odt,.pages,.key,.numbers,.heic,.heif';
 
 function CalendarUploadCenter({ canManage }: { canManage: boolean }) {
   const qc = useQueryClient();
@@ -375,21 +397,22 @@ function CalendarUploadCenter({ canManage }: { canManage: boolean }) {
     return map;
   }, [uploads]);
 
+  const ready = uploads.length;
   return (
     <Card className="mb-5">
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase tracking-wide text-emerald-700">Centro de uploads</p>
-          <h2 className="mt-1 text-lg font-black text-slate-900">Calendários prontos</h2>
-          <p className="mt-1 max-w-3xl text-sm font-medium text-slate-500">
-            Coordenação ou administração anexa aqui o calendário anual e os calendários por trimestre. Professores, secretaria e demais perfis autorizados visualizam no próprio login.
-          </p>
-        </div>
-        {!canManage ? (
-          <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-black text-slate-500">
-            Visualização
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+            <FileText size={22} />
           </span>
-        ) : null}
+          <div>
+            <h2 className="text-lg font-black text-slate-900">Calendários prontos</h2>
+            <p className="mt-0.5 max-w-2xl text-sm font-medium text-slate-500">
+              Anexe o calendário anual e os de cada trimestre. Todos os perfis autorizados visualizam no próprio login.
+            </p>
+          </div>
+        </div>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{ready}/4 enviados</span>
       </div>
 
       {isError ? (
@@ -398,11 +421,11 @@ function CalendarUploadCenter({ canManage }: { canManage: boolean }) {
         </p>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         {CALENDAR_UPLOAD_SLOTS.map((slot) => (
           <CalendarUploadSlotCard
             key={slot.slot}
-            slot={slot}
+            meta={slot}
             uploads={bySlot.get(slot.slot) ?? []}
             canManage={canManage}
             busy={upload.isPending || remove.isPending}
@@ -416,77 +439,118 @@ function CalendarUploadCenter({ canManage }: { canManage: boolean }) {
 }
 
 function CalendarUploadSlotCard({
-  slot,
+  meta,
   uploads,
   canManage,
   busy,
   onUpload,
   onDelete,
 }: {
-  slot: { slot: CalendarUploadSlot; title: string; description: string };
+  meta: SlotMeta;
   uploads: CalendarUpload[];
   canManage: boolean;
   busy: boolean;
   onUpload: (file: File) => void;
   onDelete: (item: CalendarUpload) => void;
 }) {
+  const replaceRef = useRef<HTMLInputElement>(null);
+  const Icon = meta.icon;
+  const filled = uploads.length > 0;
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div className="mb-3 flex items-start gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-emerald-700 shadow-sm">
-          <CalendarDays size={20} />
-        </span>
-        <div>
-          <h3 className="font-black text-slate-900">{slot.title}</h3>
-          <p className="text-sm font-medium text-slate-500">{slot.description}</p>
+    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg">
+      <span className="h-1.5 w-full" style={{ backgroundColor: meta.color }} />
+      <div className="flex flex-1 flex-col p-4">
+        {/* Cabeçalho */}
+        <div className="flex items-start gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: meta.soft, color: meta.color }}>
+            <Icon size={22} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate font-black text-slate-900">{meta.title}</h3>
+            <p className="mt-0.5 line-clamp-2 text-xs font-medium text-slate-500">{meta.description}</p>
+          </div>
+          <span
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black uppercase',
+              filled ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700',
+            )}
+          >
+            {filled ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+            {filled ? 'Disponível' : 'Pendente'}
+          </span>
         </div>
-      </div>
 
-      {canManage ? (
-        <Dropzone
-          accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.rtf,.odt,.pages,.key,.numbers,.heic,.heif"
-          multiple={false}
-          title="Arraste e solte o calendário aqui"
-          hint="Ou clique em Procurar arquivo"
-          onFiles={(files) => {
-            const file = files?.[0];
-            if (file) onUpload(file);
-          }}
-        />
-      ) : null}
-
-      {busy ? <p className="mt-3 text-xs font-bold text-slate-500">Processando arquivo...</p> : null}
-
-      {uploads.length ? (
-        <div className="mt-3 space-y-2">
-          {uploads.map((item) => (
-            <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-black text-slate-800">{item.name}</p>
-                  <p className="text-xs font-bold text-slate-400">
-                    Enviado em {format(parseISO(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                  </p>
+        {/* Corpo */}
+        <div className="mt-4 flex-1">
+          {filled ? (
+            <div className="space-y-2">
+              {uploads.map((item) => (
+                <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-slate-500 shadow-sm">
+                      <FileText size={16} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-black text-slate-800">{item.name}</p>
+                      <p className="text-xs font-bold text-slate-400">
+                        {format(parseISO(item.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+                    {canManage ? (
+                      <button
+                        onClick={() => onDelete(item)}
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                        aria-label="Excluir calendário"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    ) : null}
+                  </div>
+                  <AttachmentChips attachments={[item]} />
                 </div>
-                {canManage ? (
-                  <button
-                    onClick={() => onDelete(item)}
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
-                    aria-label="Excluir calendário"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                ) : null}
-              </div>
-              <AttachmentChips attachments={[item]} />
+              ))}
             </div>
-          ))}
+          ) : canManage ? (
+            <Dropzone
+              accept={CAL_UPLOAD_ACCEPT}
+              multiple={false}
+              title="Arraste o calendário aqui"
+              hint="ou clique para procurar"
+              onFiles={(files) => files?.[0] && onUpload(files[0])}
+            />
+          ) : (
+            <div className="grid place-items-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center">
+              <CalendarDays size={20} className="mb-1 text-slate-300" />
+              <p className="text-xs font-bold text-slate-400">Ainda não disponibilizado</p>
+            </div>
+          )}
         </div>
-      ) : (
-        <p className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm font-bold text-slate-400">
-          Nenhum arquivo anexado.
-        </p>
-      )}
+
+        {/* Rodapé: trocar (quando já tem arquivo) */}
+        {filled && canManage ? (
+          <div className="mt-3 border-t border-slate-100 pt-3">
+            <button
+              onClick={() => replaceRef.current?.click()}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 text-xs font-black text-slate-500 hover:text-emerald-700 disabled:opacity-50"
+            >
+              <RefreshCw size={14} /> {busy ? 'Enviando…' : 'Enviar outro / substituir'}
+            </button>
+            <input
+              ref={replaceRef}
+              type="file"
+              accept={CAL_UPLOAD_ACCEPT}
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (f) onUpload(f);
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
