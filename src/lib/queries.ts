@@ -423,11 +423,12 @@ export async function saveTermConfig(year: number, term: number, activities: Gra
 export interface TermGradeRow {
   student_id: string;
   scores: Record<string, number>;
+  observacao?: string | null;
   updated_at?: string | null;
 }
 export async function listTermGrades(classId: string, year: number, term: number): Promise<TermGradeRow[]> {
   return unwrap(
-    await scoped(supabase.from('term_grades').select('student_id, scores, updated_at')).eq('class_id', classId).eq('year', year).eq('term', term),
+    await scoped(supabase.from('term_grades').select('student_id, scores, observacao, updated_at')).eq('class_id', classId).eq('year', year).eq('term', term),
   );
 }
 
@@ -444,6 +445,7 @@ export async function saveTermGrades(
     year,
     term,
     scores: r.scores,
+    observacao: r.observacao ?? null,
     updated_at: new Date().toISOString(),
     ...(org ? { org_id: org } : {}),
   }));

@@ -1801,3 +1801,9 @@ begin
   end if;
 end $$;
 grant execute on function public.decide_access_request(uuid, boolean, public.user_role) to authenticated;
+-- ============================================================================
+-- hello — Notas: campo de observações por aluno/trimestre
+-- Rodar no Supabase → SQL Editor. Idempotente.
+-- ============================================================================
+
+alter table public.term_grades add column if not exists observacao text;

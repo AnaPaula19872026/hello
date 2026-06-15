@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Award, Lock, Pencil, Plus, Save, Search, Sliders, Trash2 } from 'lucide-react';
+import { Award, FileText, Lock, Pencil, Plus, Printer, Save, Search, Share2, Sliders, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
+import { printDocument, escapeHtml } from '../lib/print';
 import { usePersistentState } from '../lib/usePersistentState';
 import {
   getTermConfig,
@@ -28,9 +29,11 @@ export function NotasPage() {
   const [year, setYear] = usePersistentState('hello:notas:year', now.getFullYear());
   const [q, setQ] = useState('');
   const [scores, setScores] = useState<Record<string, Record<string, string>>>({});
+  const [obs, setObs] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [editingGrades, setEditingGrades] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
+  const [boletimOpen, setBoletimOpen] = useState(false);
   const orgReady = !ctxLoading && !!activeOrgId;
 
   const { data: classes = [] } = useQuery({ queryKey: ['classes', activeOrgId], queryFn: listClasses, enabled: orgReady });
@@ -71,6 +74,7 @@ export function NotasPage() {
 
   function resetScoresFromSaved() {
     const map: Record<string, Record<string, string>> = {};
+    const obsMap: Record<string, string> = {};
     students.forEach((s) => {
       const g = termGrades.find((x) => x.student_id === s.id);
       const row: Record<string, string> = {};
@@ -79,8 +83,10 @@ export function NotasPage() {
         row[a.name] = v != null ? String(v) : '';
       });
       map[s.id] = row;
+      obsMap[s.id] = g?.observacao ?? '';
     });
     setScores(map);
+    setObs(obsMap);
     setSaved(false);
     setEditingGrades(termGrades.length === 0);
   }
@@ -125,9 +131,9 @@ export function NotasPage() {
           orderedActivities.forEach((a) => {
             if (row[a.name] !== '' && row[a.name] != null) obj[a.name] = Number(row[a.name]);
           });
-          return { student_id: s.id, scores: obj };
+          return { student_id: s.id, scores: obj, observacao: (obs[s.id] ?? '').trim() || null };
         })
-        .filter((r) => Object.keys(r.scores).length > 0);
+        .filter((r) => Object.keys(r.scores).length > 0 || r.observacao);
       return saveTermGrades(classId, year, term, rows);
     },
     onSuccess: () => {
@@ -164,9 +170,14 @@ export function NotasPage() {
         title="Notas"
         subtitle={`${TERM_LABEL[term]} • ${year} • média ${MEDIA_APROVACAO} (recuperação substitui a menor nota quando melhora a média)`}
         action={
-          <Button variant="ghost" onClick={() => setConfigOpen(true)}>
-            <Sliders size={18} /> Composição de notas
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="soft" onClick={() => setBoletimOpen(true)}>
+              <FileText size={18} /> Boletim / Relatório
+            </Button>
+            <Button variant="ghost" onClick={() => setConfigOpen(true)}>
+              <Sliders size={18} /> Composição de notas
+            </Button>
+          </div>
         }
       />
 
@@ -281,6 +292,7 @@ export function NotasPage() {
                     ))}
                     <th className="px-3 py-3 text-center">Média</th>
                     <th className="px-3 py-3 text-center">Situação</th>
+                    <th className="min-w-[160px] px-3 py-3 text-center">Observações</th>
                     <th className="px-3 py-3 text-center">Últ. mov.</th>
                   </tr>
                 </thead>
@@ -307,8 +319,8 @@ export function NotasPage() {
                                 placeholder="–"
                                 className={cn(
                                   'h-10 w-14 rounded-lg border text-center font-bold tabular-nums outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed',
-                                  val !== '' ? 'border-slate-200 bg-white text-slate-900' : 'border-slate-200 bg-white text-slate-400',
-                                  !editingGrades && 'border-transparent bg-transparent disabled:bg-transparent',
+                                  Number(val) === 0 && val !== '' ? 'border-red-200 bg-red-50 text-red-600' : val !== '' ? 'border-slate-200 bg-white text-slate-900' : 'border-slate-200 bg-white text-slate-400',
+                                  !editingGrades && 'bg-transparent disabled:bg-transparent',
                                 )}
                               />
                             </td>
@@ -331,6 +343,22 @@ export function NotasPage() {
                           ) : (
                             <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-black uppercase text-red-700">Recuperação</span>
                           )}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <input
+                            value={obs[s.id] ?? ''}
+                            onChange={(e) => {
+                              if (!editingGrades) return;
+                              setObs((p) => ({ ...p, [s.id]: e.target.value }));
+                              setSaved(false);
+                            }}
+                            disabled={!editingGrades}
+                            placeholder={editingGrades ? 'Anotação…' : '–'}
+                            className={cn(
+                              'h-10 w-full min-w-[150px] rounded-lg border px-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100',
+                              editingGrades ? 'border-slate-200 bg-white text-slate-800' : 'border-transparent bg-transparent text-slate-500',
+                            )}
+                          />
                         </td>
                         <td className="px-3 py-3 text-center">
                           {launchedAt ? (
@@ -411,7 +439,142 @@ export function NotasPage() {
         initial={activities}
         onSaved={() => qc.invalidateQueries({ queryKey: ['term-config', activeOrgId, year, term] })}
       />
+
+      <BoletimModal
+        open={boletimOpen}
+        onClose={() => setBoletimOpen(false)}
+        className={classes.find((c) => c.id === classId)?.name ?? 'Turma'}
+        term={term}
+        year={year}
+        activities={orderedActivities}
+        rows={list.map((s) => ({
+          name: s.full_name,
+          scores: Object.fromEntries(orderedActivities.map((a) => [a.name, scores[s.id]?.[a.name] ?? ''])),
+          media: mediaOf(s.id),
+          obs: obs[s.id] ?? '',
+        }))}
+      />
     </div>
+  );
+}
+
+type BoletimRow = { name: string; scores: Record<string, string>; media: number | null; obs: string };
+
+function BoletimModal({
+  open,
+  onClose,
+  className,
+  term,
+  year,
+  activities,
+  rows,
+}: {
+  open: boolean;
+  onClose: () => void;
+  className: string;
+  term: number;
+  year: number;
+  activities: GradeActivity[];
+  rows: BoletimRow[];
+}) {
+  const [mode, setMode] = useState<'completo' | 'resumido'>('completo');
+  const titulo = `Boletim — ${className}`;
+  const sub = `${TERM_LABEL[term]} • ${year} • aprovação a partir de ${MEDIA_APROVACAO.toFixed(1)}`;
+
+  function situacao(m: number | null): 'Aprovado' | 'Recuperação' | '–' {
+    if (m == null) return '–';
+    return m >= MEDIA_APROVACAO ? 'Aprovado' : 'Recuperação';
+  }
+
+  function buildHtml(): string {
+    const cols =
+      mode === 'completo'
+        ? ['#', 'Aluno', ...activities.map((a) => `${a.name} (0–${a.max})`), 'Média', 'Situação', 'Observações']
+        : ['#', 'Aluno', 'Média', 'Situação'];
+    const head = `<tr>${cols.map((c, i) => `<th class="${i === 1 ? 'name' : ''}">${escapeHtml(c)}</th>`).join('')}</tr>`;
+    const body = rows
+      .map((r, i) => {
+        const m = r.media;
+        const mediaCell = m == null ? '–' : `<span class="${m >= MEDIA_APROVACAO ? 'ok' : 'fail'}">${m.toFixed(1)}</span>`;
+        const sit = situacao(m);
+        const sitCell = sit === '–' ? '–' : `<span class="${sit === 'Aprovado' ? 'ok' : 'fail'}">${sit}</span>`;
+        if (mode === 'resumido') {
+          return `<tr><td>${i + 1}</td><td class="name">${escapeHtml(r.name)}</td><td>${mediaCell}</td><td>${sitCell}</td></tr>`;
+        }
+        const acts = activities
+          .map((a) => {
+            const v = r.scores[a.name];
+            if (v === '' || v == null) return '<td>–</td>';
+            return `<td class="${Number(v) === 0 ? 'zero' : ''}">${escapeHtml(v)}</td>`;
+          })
+          .join('');
+        return `<tr><td>${i + 1}</td><td class="name">${escapeHtml(r.name)}</td>${acts}<td>${mediaCell}</td><td>${sitCell}</td><td class="name">${escapeHtml(r.obs)}</td></tr>`;
+      })
+      .join('');
+    return `<h1>${escapeHtml(titulo)}</h1><p class="sub">${escapeHtml(sub)} • ${rows.length} aluno(s)</p>
+      <table><thead>${head}</thead><tbody>${body}</tbody></table>
+      <p class="foot">Gerado pelo hello • ${new Date().toLocaleDateString('pt-BR')}</p>`;
+  }
+
+  function shareText(): string {
+    const linhas = rows.map((r, i) => `${i + 1}. ${r.name} — ${r.media == null ? 's/ nota' : `média ${r.media.toFixed(1)} (${situacao(r.media)})`}`);
+    return `*${titulo}*\n${sub}\n\n${linhas.join('\n')}`;
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Boletim / Relatório" size="xl">
+      <div className="space-y-4">
+        <div className="inline-flex rounded-xl bg-slate-100 p-1">
+          {(['completo', 'resumido'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={cn('rounded-lg px-4 py-2 text-sm font-bold capitalize transition', mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500')}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+        <p className="text-sm text-slate-500">
+          {mode === 'completo' ? 'Todas as notas, média, situação e observações.' : 'Apenas média e situação por aluno.'} {rows.length} aluno(s) na turma {className}.
+        </p>
+
+        {rows.length === 0 ? (
+          <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Sem alunos para gerar o boletim.</p>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => printDocument(titulo, buildHtml())}>
+                <Printer size={16} /> Imprimir
+              </Button>
+              <Button variant="soft" onClick={() => printDocument(titulo, buildHtml())}>
+                <FileText size={16} /> Baixar PDF
+              </Button>
+            </div>
+            <div className="border-t border-slate-100 pt-3">
+              <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-400">Enviar resumo</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText())}`, '_blank', 'noopener')}
+                >
+                  <Share2 size={16} /> WhatsApp
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    window.location.href = `mailto:?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(shareText())}`;
+                  }}
+                >
+                  <Share2 size={16} /> E-mail
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-slate-400">Para baixar em PDF, use Imprimir e escolha "Salvar como PDF".</p>
+            </div>
+          </>
+        )}
+      </div>
+    </Modal>
   );
 }
 
