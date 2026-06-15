@@ -39,6 +39,12 @@ export function ReportView({ payload, compact = false }: { payload: ReportPayloa
         </div>
       </div>
 
+      {kind === 'freq' && payload.examDates?.length ? (
+        <div className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-800 print:bg-transparent">
+          🗓 Semana de Provas — chamada com turmas misturadas em: {payload.examDates.map(fmtDM).join(', ')}
+        </div>
+      ) : null}
+
       <ReportSummary payload={payload} minPct={minPct} />
 
       {kind === 'freq' ? <FreqBody payload={payload} compact={compact} minPct={minPct} /> : <NotasBody payload={payload} compact={compact} />}
@@ -97,6 +103,8 @@ function ReportSummary({ payload, minPct }: { payload: ReportPayload; minPct: nu
 
 function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compact: boolean; minPct: number }) {
   const rows = payload.freqRows ?? [];
+  const examSet = new Set(payload.examDates ?? []);
+  const fmtDate = (d: string) => `${fmtDM(d)}${examSet.has(d) ? ' (prova)' : ''}`;
   if (rows.length === 0) return <p className="text-center text-slate-400">Nenhum dado no período.</p>;
 
   if (compact) {
@@ -121,7 +129,7 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
                   <span className={cn('font-black', r.pct < minPct ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</span>
                 </td>
                 <td className="p-2.5 text-center font-bold text-red-600">{r.absent}</td>
-                <td className="p-2.5 text-xs text-slate-600">{r.absentDates.map(fmtDM).join(', ') || '—'}</td>
+                <td className="p-2.5 text-xs text-slate-600">{r.absentDates.map(fmtDate).join(', ') || '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -147,7 +155,13 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
               <p className="text-sm font-bold text-red-600">{r.absent} falta(s):</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {r.absentDates.map((d) => (
-                  <span key={d} className="rounded-lg bg-red-50 px-2 py-1 text-xs font-bold text-red-700">{fmtDM(d)}</span>
+                  <span
+                    key={d}
+                    className={cn('rounded-lg px-2 py-1 text-xs font-bold', examSet.has(d) ? 'bg-amber-100 text-amber-800' : 'bg-red-50 text-red-700')}
+                    title={examSet.has(d) ? 'Semana de provas (turmas misturadas)' : undefined}
+                  >
+                    {fmtDM(d)}{examSet.has(d) ? ' ⚑' : ''}
+                  </span>
                 ))}
               </div>
             </div>

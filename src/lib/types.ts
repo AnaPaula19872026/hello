@@ -324,6 +324,7 @@ export interface ReportPayload {
   minPct?: number;
   sessions?: number;
   freqRows?: ReportFreqRow[];
+  examDates?: string[]; // dias em Modo prova (semana de provas) — relatório de frequência
   subject?: string;
   notasRows?: ReportNotasRow[];
   notasTerm?: number; // 0 = todos os trimestres; 1-4 = só aquele trimestre

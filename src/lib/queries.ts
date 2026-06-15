@@ -479,6 +479,7 @@ export interface AttendanceReportRow {
 export interface AttendanceReport {
   sessions: number;
   rows: AttendanceReportRow[];
+  examDates?: string[]; // dias feitos em Modo prova (semana de provas)
 }
 
 export interface AttendanceAlert {
@@ -524,12 +525,13 @@ export async function listAttendanceAlerts(minPct = 75, year = new Date().getFul
 }
 
 export async function reportAttendance(classId: string, from: string, to: string): Promise<AttendanceReport> {
-  const sessions = unwrap<{ id: string; session_date: string }[]>(
-    await scoped(supabase.from('attendance_sessions').select('id, session_date'))
+  const sessions = unwrap<{ id: string; session_date: string; exam_mode?: boolean }[]>(
+    await scoped(supabase.from('attendance_sessions').select('id, session_date, exam_mode'))
       .eq('class_id', classId)
       .gte('session_date', from)
       .lte('session_date', to),
   );
+  const examDates = [...new Set(sessions.filter((s) => s.exam_mode).map((s) => s.session_date))].sort();
   const ids = sessions.map((s) => s.id);
   const records = ids.length
     ? unwrap<{ student_id: string; status: string; session_id: string }[]>(
@@ -552,7 +554,7 @@ export async function reportAttendance(classId: string, from: string, to: string
     return { student_id: s.id, name: s.full_name, present, absent: absentRecs.length, total, pct, absentDates };
   });
 
-  return { sessions: sessions.length, rows };
+  return { sessions: sessions.length, rows, examDates };
 }
 
 /** Apaga uma chamada (sessão) e seus registros. */
