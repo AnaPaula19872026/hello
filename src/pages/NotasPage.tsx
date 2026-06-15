@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Award, FileText, Lock, Pencil, Plus, Printer, Save, Search, Share2, Sliders, Trash2 } from 'lucide-react';
+import { Award, FileText, GraduationCap, Lock, Pencil, Plus, Printer, Save, Search, Share2, Sliders, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
@@ -13,10 +13,13 @@ import {
   getTermConfig,
   getSavedTermConfig,
   listClasses,
+  listSchools,
   listStudentsByClass,
   listTermGrades,
+  reportTerms,
   saveTermConfig,
   saveTermGrades,
+  type TermsReportRow,
 } from '../lib/queries';
 import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, calcMedia, isRecoveryActivity, orderGradeActivities, type GradeActivity } from '../lib/types';
 
@@ -34,6 +37,7 @@ export function NotasPage() {
   const [editingGrades, setEditingGrades] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [boletimOpen, setBoletimOpen] = useState(false);
+  const [boletimEscolarOpen, setBoletimEscolarOpen] = useState(false);
   const orgReady = !ctxLoading && !!activeOrgId;
 
   const { data: classes = [] } = useQuery({ queryKey: ['classes', activeOrgId], queryFn: listClasses, enabled: orgReady });
@@ -171,8 +175,11 @@ export function NotasPage() {
         subtitle={`${TERM_LABEL[term]} • ${year} • média ${MEDIA_APROVACAO} (recuperação substitui a menor nota quando melhora a média)`}
         action={
           <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setBoletimEscolarOpen(true)}>
+              <GraduationCap size={18} /> Boletins escolares
+            </Button>
             <Button variant="soft" onClick={() => setBoletimOpen(true)}>
-              <FileText size={18} /> Boletim / Relatório
+              <FileText size={18} /> Relatório do trimestre
             </Button>
             <Button variant="ghost" onClick={() => setConfigOpen(true)}>
               <Sliders size={18} /> Composição de notas
@@ -454,11 +461,139 @@ export function NotasPage() {
           obs: obs[s.id] ?? '',
         }))}
       />
+
+      <BoletimEscolarModal
+        open={boletimEscolarOpen}
+        onClose={() => setBoletimEscolarOpen(false)}
+        classId={classId}
+        schoolId={classes.find((c) => c.id === classId)?.school_id ?? ''}
+        className={classes.find((c) => c.id === classId)?.name ?? 'Turma'}
+        year={year}
+      />
     </div>
   );
 }
 
 type BoletimRow = { name: string; scores: Record<string, string>; media: number | null; obs: string };
+
+/** Gerador de boletins escolares: um boletim por aluno, com os 3 trimestres,
+ *  média final e situação — um por página, pronto para imprimir/baixar. */
+function BoletimEscolarModal({
+  open,
+  onClose,
+  classId,
+  schoolId,
+  className,
+  year,
+}: {
+  open: boolean;
+  onClose: () => void;
+  classId: string;
+  schoolId: string;
+  className: string;
+  year: number;
+}) {
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['boletim-anual', classId, year],
+    queryFn: () => reportTerms(classId, year),
+    enabled: open && !!classId,
+    retry: false,
+  });
+  const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: listSchools, enabled: open });
+  const schoolName = schools.find((s) => s.id === schoolId)?.name ?? 'Escola';
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (open) setSelected(new Set(rows.map((r) => r.student_id)));
+  }, [open, rows]);
+
+  const allOn = rows.length > 0 && selected.size === rows.length;
+  function toggle(id: string) {
+    setSelected((p) => {
+      const n = new Set(p);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  }
+
+  function sit(m: number | null): { txt: string; cls: string } {
+    if (m == null) return { txt: '—', cls: '' };
+    return m >= MEDIA_APROVACAO ? { txt: 'Aprovado', cls: 'ok' } : { txt: 'Recuperação', cls: 'fail' };
+  }
+
+  function boletimHtml(r: TermsReportRow, last: boolean): string {
+    const linhas = TERMS.map((t) => {
+      const m = r.terms[t - 1] ?? null;
+      const s = sit(m);
+      return `<tr><td class="name">${escapeHtml(TERM_LABEL[t])}</td><td>${m == null ? '—' : m.toFixed(1)}</td><td><span class="${s.cls}">${s.txt}</span></td></tr>`;
+    }).join('');
+    const sf = sit(r.final);
+    return `<section style="${last ? '' : 'page-break-after: always;'} max-width: 720px; margin: 0 auto;">
+      <div style="text-align:center; border-bottom:2px solid #0f172a; padding-bottom:10px; margin-bottom:14px;">
+        <div style="font-size:18px; font-weight:800;">${escapeHtml(schoolName)}</div>
+        <div style="font-size:14px; font-weight:700; letter-spacing:.08em; color:#475569;">BOLETIM ESCOLAR — ${year}</div>
+      </div>
+      <p style="font-size:13px; margin:0 0 12px;"><strong>Aluno(a):</strong> ${escapeHtml(r.name)} &nbsp;·&nbsp; <strong>Turma:</strong> ${escapeHtml(className)}</p>
+      <table><thead><tr><th class="name">Período</th><th>Média</th><th>Situação</th></tr></thead>
+      <tbody>${linhas}
+        <tr style="background:#f1f5f9; font-weight:800;"><td class="name">Média final</td><td>${r.final == null ? '—' : r.final.toFixed(1)}</td><td><span class="${sf.cls}">${sf.txt}</span></td></tr>
+      </tbody></table>
+      <p style="font-size:13px; margin:14px 0;"><strong>Resultado final:</strong> <span class="${sf.cls}">${sf.txt}</span> &nbsp; (média de aprovação: ${MEDIA_APROVACAO.toFixed(1)})</p>
+      <div style="display:flex; gap:40px; margin-top:46px; font-size:12px; color:#475569;">
+        <div style="flex:1; border-top:1px solid #94a3b8; padding-top:6px; text-align:center;">Coordenação</div>
+        <div style="flex:1; border-top:1px solid #94a3b8; padding-top:6px; text-align:center;">Responsável</div>
+      </div>
+    </section>`;
+  }
+
+  function gerar() {
+    const sel = rows.filter((r) => selected.has(r.student_id));
+    if (!sel.length) return;
+    const body = sel.map((r, i) => boletimHtml(r, i === sel.length - 1)).join('');
+    printDocument(`Boletins — ${className} ${year}`, body);
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Boletins escolares" size="xl">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-500">
+          Gera um boletim por aluno ({className} · {year}) com os 3 trimestres, média final e situação — um por página, pronto para imprimir ou salvar em PDF.
+        </p>
+
+        {isLoading ? (
+          <p className="py-6 text-center text-sm text-slate-400">Carregando notas do ano…</p>
+        ) : rows.length === 0 ? (
+          <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma nota lançada nesta turma em {year}.</p>
+        ) : (
+          <>
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-700">
+              <input type="checkbox" checked={allOn} onChange={() => setSelected(allOn ? new Set() : new Set(rows.map((r) => r.student_id)))} className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+              Selecionar todos ({rows.length})
+            </label>
+            <div className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2">
+              {rows.map((r) => (
+                <label key={r.student_id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50">
+                  <input type="checkbox" checked={selected.has(r.student_id)} onChange={() => toggle(r.student_id)} className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                  <span className="flex-1 font-bold text-slate-800">{r.name}</span>
+                  <span className={cn('text-xs font-black', r.final == null ? 'text-slate-300' : r.final >= MEDIA_APROVACAO ? 'text-emerald-600' : 'text-red-600')}>
+                    {r.final == null ? '–' : r.final.toFixed(1)}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+              <Button variant="ghost" onClick={onClose}>Fechar</Button>
+              <Button onClick={gerar} disabled={selected.size === 0}>
+                <Printer size={16} /> Gerar {selected.size} boletim(ns)
+              </Button>
+            </div>
+            <p className="text-xs text-slate-400">Para PDF: na caixa de impressão escolha "Salvar como PDF".</p>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
 
 function BoletimModal({
   open,
