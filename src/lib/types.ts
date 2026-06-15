@@ -343,6 +343,7 @@ export const MONTHS = [
 export interface GradeActivity {
   name: string;
   max: number; // valor máximo da atividade naquele trimestre
+  credito?: boolean; // compõe o "crédito variável" (Centro de Avaliações)
 }
 
 export const RECOVERY_ACTIVITY_NAME = 'RECUPERAÇÃO';

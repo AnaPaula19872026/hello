@@ -76,6 +76,7 @@ export function EvaluationsPage() {
   }, [orgReady, isLoading, marksLoading, studentsSig, marksSig, actNames]);
 
   const list = useMemo(() => students.filter((s) => s.full_name.toLowerCase().includes(q.toLowerCase())), [students, q]);
+  const hasCredito = activities.some((a) => a.credito);
 
   function toggleDone(id: string, act: string) {
     setCells((p) => ({ ...p, [id]: { ...p[id], [act]: { ...p[id]?.[act], done: !p[id]?.[act]?.done, score: p[id]?.[act]?.score ?? '' } } }));
@@ -217,14 +218,19 @@ export function EvaluationsPage() {
                         <th key={a.name} className="min-w-[120px] px-2 py-3 text-center align-bottom">
                           <span className="block leading-tight text-slate-600">{a.name}</span>
                           {a.max > 0 ? <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span> : null}
+                          {a.credito ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">crédito variável</span> : null}
                         </th>
                       ))}
+                      {hasCredito ? <th className="min-w-[96px] px-3 py-3 text-center">Crédito Variável</th> : null}
                       <th className="px-3 py-3 text-center">Feitas</th>
                     </tr>
                   </thead>
                   <tbody>
                     {list.map((s, i) => {
                       const doneCount = activities.filter((a) => cells[s.id]?.[a.name]?.done).length;
+                      const creditoTotal = activities
+                        .filter((a) => a.credito)
+                        .reduce((acc, a) => acc + (Number(cells[s.id]?.[a.name]?.score) || 0), 0);
                       return (
                         <tr key={s.id} className="border-t border-slate-100 transition hover:bg-emerald-50/30 even:bg-slate-50/40">
                           <td className="sticky left-0 z-10 bg-inherit p-3 font-bold text-slate-800 shadow-[2px_0_0_0_rgba(241,245,249,1)]">
@@ -259,6 +265,13 @@ export function EvaluationsPage() {
                               </td>
                             );
                           })}
+                          {hasCredito ? (
+                            <td className="px-3 py-3 text-center">
+                              <span className="inline-block min-w-[44px] rounded-lg bg-amber-50 px-2 py-1 text-sm font-black tabular-nums text-amber-700">
+                                {creditoTotal % 1 === 0 ? creditoTotal : creditoTotal.toFixed(1)}
+                              </span>
+                            </td>
+                          ) : null}
                           <td className="px-3 py-3 text-center">
                             <span className={cn('inline-block min-w-[44px] rounded-lg px-2 py-1 text-sm font-black tabular-nums', doneCount ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400')}>
                               {doneCount}/{activities.length}
@@ -338,7 +351,7 @@ function ComposicaoAvaliacoesModal({
 
   const save = useMutation({
     mutationFn: () =>
-      saveEvalConfig(classId, year, term, items.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), max: Number(a.max) || 0 }))),
+      saveEvalConfig(classId, year, term, items.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), max: Number(a.max) || 0, credito: !!a.credito }))),
     onSuccess: () => {
       onSaved();
       onClose();
@@ -351,30 +364,42 @@ function ComposicaoAvaliacoesModal({
       <div className="space-y-4">
         <p className="text-sm text-slate-500">
           Dê nome às atividades que a turma vai fazer. A pontuação (valor) é opcional — deixe 0 para apenas marcar quem fez.
+          Marque <strong>Crédito variável</strong> nas atividades que, juntas, formam uma única nota (ex.: Simulado + Projeto + Crédito variável).
         </p>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {items.map((a, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <Input
-                value={a.name}
-                onChange={(e) => setItems((p) => p.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
-                placeholder="Nome da atividade (ex.: Trabalho de Ciências)"
-                className="flex-1"
-              />
-              <Input
-                value={String(a.max)}
-                onChange={(e) => setItems((p) => p.map((x, j) => (j === i ? { ...x, max: Number(e.target.value.replace(/[^0-9.]/g, '')) || 0 } : x)))}
-                inputMode="decimal"
-                className="w-20 text-center"
-                placeholder="Valor"
-              />
-              <button
-                onClick={() => setItems((p) => p.filter((_, j) => j !== i))}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
-                aria-label="Remover"
-              >
-                <Trash2 size={16} />
-              </button>
+            <div key={i} className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+              <div className="flex items-center gap-2">
+                <Input
+                  value={a.name}
+                  onChange={(e) => setItems((p) => p.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+                  placeholder="Nome da atividade (ex.: Simulado)"
+                  className="flex-1"
+                />
+                <Input
+                  value={String(a.max)}
+                  onChange={(e) => setItems((p) => p.map((x, j) => (j === i ? { ...x, max: Number(e.target.value.replace(/[^0-9.]/g, '')) || 0 } : x)))}
+                  inputMode="decimal"
+                  className="w-20 text-center"
+                  placeholder="Valor"
+                />
+                <button
+                  onClick={() => setItems((p) => p.filter((_, j) => j !== i))}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                  aria-label="Remover"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+              <label className="mt-2 flex cursor-pointer items-center gap-2 px-1 text-xs font-bold text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={!!a.credito}
+                  onChange={(e) => setItems((p) => p.map((x, j) => (j === i ? { ...x, credito: e.target.checked } : x)))}
+                  className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                />
+                Compõe o crédito variável
+              </label>
             </div>
           ))}
         </div>
