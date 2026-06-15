@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Check, CheckCheck, ClipboardCheck, Lock, Pencil, Save, Search, X } from 'lucide-react';
+import { Check, CheckCheck, ClipboardCheck, Layers, Lock, Pencil, Save, Search, Users, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { Card, EmptyState, PageHeader, Select } from '../components/ui';
@@ -8,7 +8,7 @@ import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { getRecords, getSession, listClasses, listStudentsByClass, saveAttendance } from '../lib/queries';
 import { usePersistentState } from '../lib/usePersistentState';
-import type { AttendanceStatus } from '../lib/types';
+import type { AttendanceStatus, ClassRoom } from '../lib/types';
 
 export function AttendancePage() {
   const qc = useQueryClient();
@@ -17,6 +17,7 @@ export function AttendancePage() {
   const orgReady = !ctxLoading && !!activeOrgId;
   const { data: classes = [] } = useQuery({ queryKey: ['classes', activeOrgId], queryFn: listClasses, enabled: orgReady });
 
+  const [mode, setMode] = usePersistentState<'turma' | 'prova'>('hello:attendance:mode', 'turma');
   const [classId, setClassId] = usePersistentState('hello:attendance:classId', '');
   const [date, setDate] = usePersistentState('hello:attendance:date', today);
   const [q, setQ] = useState('');
@@ -138,9 +139,13 @@ export function AttendancePage() {
     );
   }
 
+  if (mode === 'prova') return <ExamRoll classes={classes} today={today} mode={mode} setMode={setMode} />;
+
   return (
     <div className="pb-28">
       <PageHeader title="Chamadas" subtitle="Toque no aluno para marcar falta. As faltas ficam salvas por dia." />
+
+      <ModeToggle mode={mode} setMode={setMode} />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
         <Select value={classId} onChange={(e) => setClassId(e.target.value)}>
@@ -292,6 +297,231 @@ export function AttendancePage() {
                 Editar chamada
               </button>
             )}
+          </div>
+          {save.isError ? <p className="mx-auto mt-2 max-w-5xl px-1 text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
+        </footer>
+      ) : null}
+    </div>
+  );
+}
+
+function ModeToggle({ mode, setMode }: { mode: 'turma' | 'prova'; setMode: (m: 'turma' | 'prova') => void }) {
+  return (
+    <div className="mb-4 inline-flex rounded-xl bg-slate-100 p-1">
+      <button
+        onClick={() => setMode('turma')}
+        className={cn('flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition', mode === 'turma' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500')}
+      >
+        <Users size={16} /> Por turma
+      </button>
+      <button
+        onClick={() => setMode('prova')}
+        className={cn('flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition', mode === 'prova' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500')}
+      >
+        <Layers size={16} /> Modo prova
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Modo prova: em dias de avaliação as turmas se misturam nas salas. Aqui a
+ * coordenação escolhe VÁRIAS turmas, vê todos os alunos numa lista única
+ * (com a etiqueta da turma) e faz a chamada de uma vez. Ao salvar, cada falta
+ * é gravada na chamada da turma correta, na data escolhida.
+ */
+function ExamRoll({
+  classes,
+  today,
+  mode,
+  setMode,
+}: {
+  classes: ClassRoom[];
+  today: string;
+  mode: 'turma' | 'prova';
+  setMode: (m: 'turma' | 'prova') => void;
+}) {
+  const qc = useQueryClient();
+  const { activeOrgId } = useAuth();
+  const [selected, setSelected] = usePersistentState<string[]>('hello:attendance:exam:classes', []);
+  const [date, setDate] = usePersistentState('hello:attendance:exam:date', today);
+  const [q, setQ] = useState('');
+  const [records, setRecords] = useState<Record<string, AttendanceStatus>>({});
+
+  const selIds = useMemo(() => [...selected].filter((id) => classes.some((c) => c.id === id)).sort(), [selected, classes]);
+  const classNameById = useMemo(() => new Map(classes.map((c) => [c.id, c.name] as const)), [classes]);
+
+  const { data: students = [], isLoading } = useQuery({
+    queryKey: ['exam-students', activeOrgId, selIds.join(','), date],
+    queryFn: async () => {
+      const groups = await Promise.all(selIds.map((id) => listStudentsByClass(id)));
+      return groups
+        .flat()
+        .sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt-BR'));
+    },
+    enabled: !!activeOrgId && selIds.length > 0,
+  });
+
+  // Todos presentes ao carregar a lista.
+  const studentsSig = students.map((s) => s.id).join(',');
+  useEffect(() => {
+    const base: Record<string, AttendanceStatus> = {};
+    students.forEach((s) => (base[s.id] = 'present'));
+    setRecords(base);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentsSig]);
+
+  const counts = useMemo(() => {
+    let present = 0;
+    let absent = 0;
+    Object.values(records).forEach((s) => (s === 'present' ? present++ : absent++));
+    return { present, absent };
+  }, [records]);
+
+  const list = useMemo(() => students.filter((s) => s.full_name.toLowerCase().includes(q.toLowerCase())), [students, q]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const byClass = new Map<string, { student_id: string; status: AttendanceStatus; note: null }[]>();
+      students.forEach((s) => {
+        const arr = byClass.get(s.class_id) ?? [];
+        arr.push({ student_id: s.id, status: records[s.id] ?? 'present', note: null });
+        byClass.set(s.class_id, arr);
+      });
+      for (const [cid, rows] of byClass) await saveAttendance(cid, date, rows);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['session'] });
+      qc.invalidateQueries({ queryKey: ['recent-sessions'] });
+      successToast('Chamada da prova salva — faltas gravadas em cada turma');
+    },
+  });
+
+  function toggleClass(id: string) {
+    setSelected((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  }
+  function toggleStudent(id: string) {
+    setRecords((prev) => ({ ...prev, [id]: prev[id] === 'absent' ? 'present' : 'absent' }));
+  }
+
+  return (
+    <div className="pb-28">
+      <PageHeader title="Chamadas" subtitle="Modo prova: turmas misturadas na mesma sala, chamada única." />
+
+      <ModeToggle mode={mode} setMode={setMode} />
+
+      {/* Seleção de turmas que estão na sala */}
+      <Card className="mb-4">
+        <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Turmas nesta sala</p>
+        <div className="flex flex-wrap gap-2">
+          {classes.map((c) => {
+            const on = selected.includes(c.id);
+            return (
+              <button
+                key={c.id}
+                onClick={() => toggleClass(c.id)}
+                className={cn(
+                  'rounded-xl border px-3 py-2 text-sm font-bold transition',
+                  on ? 'border-emerald-300 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                )}
+              >
+                {c.name}
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-3">
+          <label className="mb-1 block text-xs font-black uppercase tracking-wide text-slate-500">Data</label>
+          <input
+            type="date"
+            value={date}
+            max={today}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 sm:w-56"
+          />
+        </div>
+      </Card>
+
+      {selIds.length === 0 ? (
+        <EmptyState icon={<Layers size={26} />} title="Selecione as turmas" hint="Marque as turmas que estão fazendo prova nesta sala para montar a lista única." />
+      ) : (
+        <>
+          <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
+              <p className="text-2xl font-black text-slate-900">{students.length}</p>
+              <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Alunos</p>
+            </div>
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center">
+              <p className="text-2xl font-black text-emerald-700">{counts.present}</p>
+              <p className="text-[11px] font-black uppercase tracking-wide text-emerald-700/70">Presentes</p>
+            </div>
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-center">
+              <p className="text-2xl font-black text-red-600">{counts.absent}</p>
+              <p className="text-[11px] font-black uppercase tracking-wide text-red-600/70">Faltas</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
+              <p className="text-2xl font-black text-slate-900">{selIds.length}</p>
+              <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Turmas</p>
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <Search size={18} className="text-slate-400" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar aluno…" className="w-full bg-transparent text-sm outline-none" />
+            </label>
+          </div>
+
+          {isLoading ? (
+            <p className="text-sm text-slate-500">Carregando alunos…</p>
+          ) : students.length === 0 ? (
+            <EmptyState icon={<ClipboardCheck size={26} />} title="Turmas sem alunos" hint="As turmas selecionadas não têm alunos cadastrados." />
+          ) : (
+            <div className="space-y-2">
+              {list.map((s, i) => {
+                const absent = records[s.id] === 'absent';
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => toggleStudent(s.id)}
+                    className={cn(
+                      'flex w-full items-center gap-3 rounded-2xl border p-3 text-left shadow-sm transition active:scale-[.99]',
+                      absent ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white hover:border-emerald-200',
+                    )}
+                  >
+                    <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-black tabular-nums', absent ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700')}>
+                      {i + 1}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className={cn('block truncate text-base font-bold', absent ? 'text-red-800' : 'text-slate-800')}>{s.full_name}</span>
+                      <span className="text-xs font-bold text-slate-400">{classNameById.get(s.class_id) ?? 'Turma'}</span>
+                    </span>
+                    <span className={cn('flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-black', absent ? 'bg-red-600 text-white' : 'bg-emerald-50 text-emerald-700')}>
+                      {absent ? <X size={18} /> : <Check size={18} />}
+                      {absent ? 'Falta' : 'Presente'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {students.length > 0 ? (
+        <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:pl-72">
+          <div className="mx-auto flex max-w-5xl items-center gap-2 px-1 sm:gap-3">
+            <div className="hidden min-w-0 flex-1 sm:block">
+              <p className="truncate text-sm font-bold text-slate-700">Chamada de prova • {selIds.length} turma(s)</p>
+              <p className="truncate text-xs text-slate-400">{counts.absent} falta(s) • {students.length} alunos • {format(new Date(date + 'T00:00:00'), 'dd/MM')}</p>
+            </div>
+            <button
+              onClick={() => save.mutate()}
+              disabled={save.isPending}
+              className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:flex-none sm:px-8"
+            >
+              <Save size={20} /> {save.isPending ? 'Salvando…' : 'Salvar chamada'}
+            </button>
           </div>
           {save.isError ? <p className="mx-auto mt-2 max-w-5xl px-1 text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
         </footer>
