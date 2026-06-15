@@ -500,7 +500,8 @@ function BoletimEscolarModal({
     retry: false,
   });
   const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: listSchools, enabled: open });
-  const schoolName = schools.find((s) => s.id === schoolId)?.name ?? 'Escola';
+  const school = schools.find((s) => s.id === schoolId);
+  const schoolName = school?.name ?? 'Escola';
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   useEffect(() => {
@@ -528,10 +529,19 @@ function BoletimEscolarModal({
       return `<tr><td class="name">${escapeHtml(TERM_LABEL[t])}</td><td>${m == null ? '—' : m.toFixed(1)}</td><td><span class="${s.cls}">${s.txt}</span></td></tr>`;
     }).join('');
     const sf = sit(r.final);
+    const contato = [school?.address, school?.city, school?.phone].filter(Boolean).map((x) => escapeHtml(String(x))).join(' • ');
+    const logo = school?.logo_url
+      ? `<img src="${escapeHtml(school.logo_url)}" alt="" style="height:60px;width:60px;object-fit:contain;border:1px solid #e2e8f0;border-radius:10px;padding:3px;background:#fff;" />`
+      : `<div style="height:60px;width:60px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#f1f5f9;font-size:24px;font-weight:800;color:#94a3b8;">${escapeHtml(schoolName.slice(0, 1))}</div>`;
     return `<section style="${last ? '' : 'page-break-after: always;'} max-width: 720px; margin: 0 auto;">
-      <div style="text-align:center; border-bottom:2px solid #0f172a; padding-bottom:10px; margin-bottom:14px;">
-        <div style="font-size:18px; font-weight:800;">${escapeHtml(schoolName)}</div>
-        <div style="font-size:14px; font-weight:700; letter-spacing:.08em; color:#475569;">BOLETIM ESCOLAR — ${year}</div>
+      <div style="display:flex; align-items:center; gap:14px; border-bottom:2px solid #0f172a; padding-bottom:12px; margin-bottom:14px;">
+        ${logo}
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:18px; font-weight:800; line-height:1.1;">${escapeHtml(schoolName)}</div>
+          <div style="font-size:13px; font-weight:700; letter-spacing:.08em; color:#475569;">BOLETIM ESCOLAR — ${year}</div>
+          ${contato ? `<div style="font-size:11px; color:#94a3b8; margin-top:2px;">${contato}</div>` : ''}
+        </div>
+        <div style="text-align:right; font-size:10px; color:#94a3b8;">Gerado em<br/>${new Date().toLocaleDateString('pt-BR')}</div>
       </div>
       <p style="font-size:13px; margin:0 0 12px;"><strong>Aluno(a):</strong> ${escapeHtml(r.name)} &nbsp;·&nbsp; <strong>Turma:</strong> ${escapeHtml(className)}</p>
       <table><thead><tr><th class="name">Período</th><th>Média</th><th>Situação</th></tr></thead>
