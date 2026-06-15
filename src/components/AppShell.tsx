@@ -32,12 +32,20 @@ type NavItem = { label: string; to: string; icon: ReactNode; module: ModuleKey }
 
 const groups: { title?: string; items: NavItem[] }[] = [
   {
+    items: [{ label: 'Início', to: '/', icon: <Home size={18} />, module: 'dashboard' }],
+  },
+  {
+    title: 'Pedagógico',
     items: [
-      { label: 'Início', to: '/', icon: <Home size={18} />, module: 'dashboard' },
       { label: 'Chamadas', to: '/chamadas', icon: <ClipboardCheck size={18} />, module: 'chamadas' },
       { label: 'Notas', to: '/notas', icon: <Award size={18} />, module: 'notas' },
       { label: 'Planejamento', to: '/planejamento', icon: <BookOpen size={18} />, module: 'planejamentos' },
       { label: 'Relatórios', to: '/relatorios', icon: <BarChart3 size={18} />, module: 'relatorios' },
+    ],
+  },
+  {
+    title: 'Comunicação',
+    items: [
       { label: 'Avisos', to: '/avisos', icon: <Megaphone size={18} />, module: 'avisos' },
       { label: 'Calendário', to: '/calendario', icon: <CalendarDays size={18} />, module: 'calendario' },
     ],
