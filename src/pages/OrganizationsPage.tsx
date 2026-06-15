@@ -11,6 +11,7 @@ import { fileToCompressedDataUrl } from '../lib/image';
 import {
   addMember,
   createOrganization,
+  deleteOrganization,
   listOrgAdmin,
   listOrgMembers,
   removeMember,
@@ -59,6 +60,23 @@ export function OrganizationsPage() {
       successToast('Status atualizado');
     },
   });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => deleteOrganization(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['org-admin'] });
+      qc.invalidateQueries({ queryKey: ['organizations'] });
+      successToast('Organização excluída');
+    },
+    onError: (e) => alert((e as Error).message),
+  });
+
+  function confirmDelete(o: OrgAdmin) {
+    const ok = confirm(
+      `EXCLUIR "${o.name}"?\n\nIsso apaga DEFINITIVAMENTE todos os dados do cliente: ${o.schools} escola(s), ${o.students} aluno(s), turmas, notas, avisos, planejamentos e membros.\n\nEsta ação é irreversível.`,
+    );
+    if (ok) remove.mutate(o.id);
+  }
 
   const counts = useMemo(
     () => ({ todas: orgs.length, ativas: orgs.filter((o) => o.active).length, inativas: orgs.filter((o) => !o.active).length }),
@@ -190,8 +208,18 @@ export function OrganizationsPage() {
                     if (confirm(`${o.active ? 'Inativar' : 'Ativar'} "${o.name}"?`)) toggleActive.mutate({ id: o.id, active: !o.active });
                   }}
                   aria-label={o.active ? 'Inativar' : 'Ativar'}
+                  title={o.active ? 'Inativar' : 'Ativar'}
                 >
                   <Power size={16} />
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => confirmDelete(o)}
+                  disabled={remove.isPending}
+                  aria-label="Excluir organização"
+                  title="Excluir organização"
+                >
+                  <Trash2 size={16} />
                 </Button>
               </div>
             </Card>

@@ -783,6 +783,12 @@ export async function setOrgActive(id: string, active: boolean): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Exclui uma organização (cliente) e TODOS os seus dados. Só superadmin (validado no banco). */
+export async function deleteOrganization(id: string): Promise<void> {
+  const { error } = await supabase.rpc('delete_org', { p_org: id });
+  if (error) throw new Error(error.message);
+}
+
 /** Cria uma organização nova (cliente). Só superadmin. Devolve o id. */
 export async function createOrganization(name: string, isDemo = false): Promise<string> {
   const { data, error } = await supabase.rpc('create_org', { p_name: name, p_is_demo: isDemo });
