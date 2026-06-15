@@ -21,7 +21,25 @@ import {
   saveTermGrades,
   type TermsReportRow,
 } from '../lib/queries';
-import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, calcMedia, isRecoveryActivity, orderGradeActivities, type GradeActivity } from '../lib/types';
+import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, calcMedia, isRecoveryActivity, orderGradeActivities, type GradeActivity, type School } from '../lib/types';
+
+/** Cabeçalho profissional para impressão (logo, escola, contato) — usado no boletim e no relatório. */
+function schoolHeaderHtml(school: School | undefined, label: string): string {
+  const name = school?.name ?? 'Escola';
+  const contato = [school?.address, school?.city, school?.phone].filter(Boolean).map((x) => escapeHtml(String(x))).join(' • ');
+  const logo = school?.logo_url
+    ? `<img src="${escapeHtml(school.logo_url)}" alt="" style="height:60px;width:60px;object-fit:contain;border:1px solid #e2e8f0;border-radius:10px;padding:3px;background:#fff;" />`
+    : `<div style="height:60px;width:60px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#f1f5f9;font-size:24px;font-weight:800;color:#94a3b8;">${escapeHtml(name.slice(0, 1))}</div>`;
+  return `<div style="display:flex; align-items:center; gap:14px; border-bottom:2px solid #0f172a; padding-bottom:12px; margin-bottom:14px;">
+    ${logo}
+    <div style="flex:1; min-width:0;">
+      <div style="font-size:18px; font-weight:800; line-height:1.1;">${escapeHtml(name)}</div>
+      <div style="font-size:13px; font-weight:700; letter-spacing:.08em; color:#475569;">${escapeHtml(label)}</div>
+      ${contato ? `<div style="font-size:11px; color:#94a3b8; margin-top:2px;">${contato}</div>` : ''}
+    </div>
+    <div style="text-align:right; font-size:10px; color:#94a3b8;">Gerado em<br/>${new Date().toLocaleDateString('pt-BR')}</div>
+  </div>`;
+}
 
 export function NotasPage() {
   const qc = useQueryClient();
@@ -451,6 +469,7 @@ export function NotasPage() {
         open={boletimOpen}
         onClose={() => setBoletimOpen(false)}
         className={classes.find((c) => c.id === classId)?.name ?? 'Turma'}
+        schoolId={classes.find((c) => c.id === classId)?.school_id ?? ''}
         term={term}
         year={year}
         activities={orderedActivities}
@@ -501,7 +520,6 @@ function BoletimEscolarModal({
   });
   const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: listSchools, enabled: open });
   const school = schools.find((s) => s.id === schoolId);
-  const schoolName = school?.name ?? 'Escola';
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   useEffect(() => {
@@ -529,20 +547,8 @@ function BoletimEscolarModal({
       return `<tr><td class="name">${escapeHtml(TERM_LABEL[t])}</td><td>${m == null ? '—' : m.toFixed(1)}</td><td><span class="${s.cls}">${s.txt}</span></td></tr>`;
     }).join('');
     const sf = sit(r.final);
-    const contato = [school?.address, school?.city, school?.phone].filter(Boolean).map((x) => escapeHtml(String(x))).join(' • ');
-    const logo = school?.logo_url
-      ? `<img src="${escapeHtml(school.logo_url)}" alt="" style="height:60px;width:60px;object-fit:contain;border:1px solid #e2e8f0;border-radius:10px;padding:3px;background:#fff;" />`
-      : `<div style="height:60px;width:60px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#f1f5f9;font-size:24px;font-weight:800;color:#94a3b8;">${escapeHtml(schoolName.slice(0, 1))}</div>`;
     return `<section style="${last ? '' : 'page-break-after: always;'} max-width: 720px; margin: 0 auto;">
-      <div style="display:flex; align-items:center; gap:14px; border-bottom:2px solid #0f172a; padding-bottom:12px; margin-bottom:14px;">
-        ${logo}
-        <div style="flex:1; min-width:0;">
-          <div style="font-size:18px; font-weight:800; line-height:1.1;">${escapeHtml(schoolName)}</div>
-          <div style="font-size:13px; font-weight:700; letter-spacing:.08em; color:#475569;">BOLETIM ESCOLAR — ${year}</div>
-          ${contato ? `<div style="font-size:11px; color:#94a3b8; margin-top:2px;">${contato}</div>` : ''}
-        </div>
-        <div style="text-align:right; font-size:10px; color:#94a3b8;">Gerado em<br/>${new Date().toLocaleDateString('pt-BR')}</div>
-      </div>
+      ${schoolHeaderHtml(school, `BOLETIM ESCOLAR — ${year}`)}
       <p style="font-size:13px; margin:0 0 12px;"><strong>Aluno(a):</strong> ${escapeHtml(r.name)} &nbsp;·&nbsp; <strong>Turma:</strong> ${escapeHtml(className)}</p>
       <table><thead><tr><th class="name">Período</th><th>Média</th><th>Situação</th></tr></thead>
       <tbody>${linhas}
@@ -609,6 +615,7 @@ function BoletimModal({
   open,
   onClose,
   className,
+  schoolId,
   term,
   year,
   activities,
@@ -617,13 +624,16 @@ function BoletimModal({
   open: boolean;
   onClose: () => void;
   className: string;
+  schoolId: string;
   term: number;
   year: number;
   activities: GradeActivity[];
   rows: BoletimRow[];
 }) {
   const [mode, setMode] = useState<'completo' | 'resumido'>('completo');
-  const titulo = `Boletim — ${className}`;
+  const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: listSchools, enabled: open });
+  const school = schools.find((s) => s.id === schoolId);
+  const titulo = `Relatório — ${className}`;
   const sub = `${TERM_LABEL[term]} • ${year} • aprovação a partir de ${MEDIA_APROVACAO.toFixed(1)}`;
 
   function situacao(m: number | null): 'Aprovado' | 'Recuperação' | '–' {
@@ -656,9 +666,10 @@ function BoletimModal({
         return `<tr><td>${i + 1}</td><td class="name">${escapeHtml(r.name)}</td>${acts}<td>${mediaCell}</td><td>${sitCell}</td><td class="name">${escapeHtml(r.obs)}</td></tr>`;
       })
       .join('');
-    return `<h1>${escapeHtml(titulo)}</h1><p class="sub">${escapeHtml(sub)} • ${rows.length} aluno(s)</p>
+    return `${schoolHeaderHtml(school, `RELATÓRIO DE NOTAS — ${TERM_LABEL[term]} / ${year}`)}
+      <p style="font-size:13px; margin:0 0 12px;"><strong>Turma:</strong> ${escapeHtml(className)} &nbsp;·&nbsp; ${rows.length} aluno(s) &nbsp;·&nbsp; ${mode === 'completo' ? 'Completo' : 'Resumido'}</p>
       <table><thead>${head}</thead><tbody>${body}</tbody></table>
-      <p class="foot">Gerado pelo hello • ${new Date().toLocaleDateString('pt-BR')}</p>`;
+      <p class="foot">${escapeHtml(sub)}</p>`;
   }
 
   function shareText(): string {
