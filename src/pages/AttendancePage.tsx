@@ -348,7 +348,9 @@ function ExamRoll({
   const [q, setQ] = useState('');
   const [records, setRecords] = useState<Record<string, AttendanceStatus>>({});
 
-  const selIds = useMemo(() => [...selected].filter((id) => classes.some((c) => c.id === id)).sort(), [selected, classes]);
+  // Só turmas que fazem prova entram no Modo prova.
+  const examClasses = useMemo(() => classes.filter((c) => c.does_exams !== false), [classes]);
+  const selIds = useMemo(() => [...selected].filter((id) => examClasses.some((c) => c.id === id)).sort(), [selected, examClasses]);
   const classNameById = useMemo(() => new Map(classes.map((c) => [c.id, c.name] as const)), [classes]);
 
   const { data: students = [], isLoading } = useQuery({
@@ -413,8 +415,11 @@ function ExamRoll({
       {/* Seleção de turmas que estão na sala */}
       <Card className="mb-4">
         <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Turmas nesta sala</p>
+        {examClasses.length === 0 ? (
+          <p className="text-sm text-slate-500">Nenhuma turma faz provas. Marque "Esta turma faz provas" no cadastro da turma.</p>
+        ) : null}
         <div className="flex flex-wrap gap-2">
-          {classes.map((c) => {
+          {examClasses.map((c) => {
             const on = selected.includes(c.id);
             return (
               <button

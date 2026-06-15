@@ -19,6 +19,7 @@ export interface ClassRoom {
   name: string;
   shift: string;
   year: number | null;
+  does_exams?: boolean;
   created_at?: string;
 }
 

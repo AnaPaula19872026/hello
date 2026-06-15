@@ -97,6 +97,7 @@ export async function saveClass(input: Partial<ClassRoom> & { name: string; scho
     school_id: input.school_id,
     shift: input.shift ?? 'Manhã',
     year: input.year ?? null,
+    does_exams: input.does_exams ?? true,
   };
   if (input.id) return unwrap(await scoped(supabase.from('classes').update(row)).eq('id', input.id).select().single());
   return unwrap(await supabase.from('classes').insert(row).select().single());
