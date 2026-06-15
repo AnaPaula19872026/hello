@@ -11,6 +11,7 @@ import { cn } from '../lib/cn';
 import { printDocument, escapeHtml } from '../lib/print';
 import { usePersistentState } from '../lib/usePersistentState';
 import {
+  getCreditoTotals,
   getTermConfig,
   getSavedTermConfig,
   listClasses,
@@ -73,6 +74,8 @@ export function NotasPage() {
     enabled: orgReady,
   });
   const orderedActivities = useMemo(() => orderGradeActivities(activities), [activities]);
+  // Coluna de nota que recebe o crédito variável do Centro de Avaliações.
+  const creditActivity = useMemo(() => orderedActivities.find((a) => a.fromCredito), [orderedActivities]);
 
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students-by-class', activeOrgId, classId],
@@ -91,10 +94,26 @@ export function NotasPage() {
     enabled: orgReady && !!classId,
   });
 
+  const { data: creditTotals = {} } = useQuery({
+    queryKey: ['credito-totals', activeOrgId, classId, year, term],
+    queryFn: () => getCreditoTotals(classId, year, term),
+    enabled: orgReady && !!classId && !!creditActivity,
+  });
+
   const studentsSig = students.map((s) => s.id).join(',');
   const gradesSig = termGrades.map((g) => `${g.student_id}:${JSON.stringify(g.scores)}:${g.updated_at ?? ''}`).join('|');
+  const creditSig = `${creditActivity?.name ?? ''}|${JSON.stringify(creditTotals)}`;
   const gradeByStudent = useMemo(() => new Map(termGrades.map((g) => [g.student_id, g])), [termGrades]);
   const hasSavedGrades = termGrades.length > 0;
+
+  // Aplica o crédito variável (do Centro de Avaliações) na coluna marcada, com teto no máximo da coluna.
+  function creditValueFor(studentId: string): string | null {
+    if (!creditActivity) return null;
+    const t = creditTotals[studentId];
+    if (t == null) return null;
+    const capped = creditActivity.max > 0 ? Math.min(t, creditActivity.max) : t;
+    return String(capped);
+  }
 
   function resetScoresFromSaved() {
     const map: Record<string, Record<string, string>> = {};
@@ -106,6 +125,11 @@ export function NotasPage() {
         const v = g?.scores?.[a.name];
         row[a.name] = v != null ? String(v) : '';
       });
+      // Coluna ligada ao Centro de Avaliações: usa o total de lá quando existir (autoridade).
+      if (creditActivity) {
+        const cv = creditValueFor(s.id);
+        if (cv != null) row[creditActivity.name] = cv;
+      }
       map[s.id] = row;
       obsMap[s.id] = g?.observacao ?? '';
     });
@@ -120,7 +144,7 @@ export function NotasPage() {
     if (!orgReady || isLoading || gradesLoading) return;
     resetScoresFromSaved();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgReady, isLoading, gradesLoading, studentsSig, gradesSig, orderedActivities.map((a) => a.name).join(',')]);
+  }, [orgReady, isLoading, gradesLoading, studentsSig, gradesSig, creditSig, orderedActivities.map((a) => a.name).join(',')]);
 
   function mediaOf(id: string): number | null {
     const row = scores[id];
@@ -318,6 +342,7 @@ export function NotasPage() {
                         <span className="block leading-tight text-slate-600">{a.name}</span>
                         <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
                         {isRecoveryActivity(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span> : null}
+                        {a.fromCredito ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">do Centro de Avaliações</span> : null}
                       </th>
                     ))}
                     <th className="px-3 py-3 text-center">Média</th>
@@ -339,18 +364,22 @@ export function NotasPage() {
                         </td>
                         {orderedActivities.map((a) => {
                           const val = scores[s.id]?.[a.name] ?? '';
+                          const locked = !!a.fromCredito; // vem do Centro de Avaliações — não editável aqui
                           return (
                             <td key={a.name} className="px-1.5 py-1.5 text-center">
                               <input
                                 inputMode="decimal"
                                 value={val}
                                 onChange={(e) => setScore(s.id, a.name, e.target.value, a.max)}
-                                disabled={!editingGrades}
+                                disabled={!editingGrades || locked}
                                 placeholder="–"
+                                title={locked ? 'Vem do Centro de Avaliações (crédito variável)' : undefined}
                                 className={cn(
                                   'h-10 w-14 rounded-lg border text-center font-bold tabular-nums outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed',
-                                  Number(val) === 0 && val !== '' ? 'border-red-200 bg-red-50 text-red-600' : val !== '' ? 'border-slate-200 bg-white text-slate-900' : 'border-slate-200 bg-white text-slate-400',
-                                  !editingGrades && 'bg-transparent disabled:bg-transparent',
+                                  locked
+                                    ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                    : Number(val) === 0 && val !== '' ? 'border-red-200 bg-red-50 text-red-600' : val !== '' ? 'border-slate-200 bg-white text-slate-900' : 'border-slate-200 bg-white text-slate-400',
+                                  !editingGrades && !locked && 'bg-transparent disabled:bg-transparent',
                                 )}
                               />
                             </td>
@@ -409,6 +438,11 @@ export function NotasPage() {
               <p className="mt-3 text-xs text-slate-400">
                 Média final = soma das notas ÷ 3 · aprovação a partir de {MEDIA_APROVACAO.toFixed(1)} · a nota de recuperação substitui a menor quando melhora a média.
               </p>
+              {creditActivity ? (
+                <p className="mt-1 text-xs font-semibold text-amber-600">
+                  A coluna “{creditActivity.name}” é preenchida automaticamente com o crédito variável do Centro de Avaliações (teto {creditActivity.max || '—'}). Confira e salve para registrar na nota.
+                </p>
+              ) : null}
             </>
           )}
         </>
@@ -781,7 +815,7 @@ function ComposicaoModal({
       saveTermConfig(
         year,
         term,
-        orderGradeActivities(items.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), max: Number(a.max) || 0 }))),
+        orderGradeActivities(items.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), max: Number(a.max) || 0, fromCredito: !!a.fromCredito }))),
       ),
     onSuccess: () => {
       onSaved();
@@ -844,33 +878,49 @@ function ComposicaoModal({
           {clone.isError ? <p className="mt-2 text-xs font-semibold text-red-600">{(clone.error as Error).message}</p> : null}
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {items.map((a, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <Input
-                value={a.name}
-                onChange={(e) => setItems((p) => p.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
-                placeholder="Nome da atividade"
-                className="flex-1"
-                disabled={isRecoveryActivity(a.name)}
-              />
-              <Input
-                value={String(a.max)}
-                onChange={(e) =>
-                  setItems((p) => p.map((x, j) => (j === i ? { ...x, max: Number(e.target.value.replace(/[^0-9.]/g, '')) || 0 } : x)))
-                }
-                inputMode="decimal"
-                className="w-20 text-center"
-                placeholder="Valor"
-              />
-              <button
-                onClick={() => setItems((p) => p.filter((_, j) => j !== i))}
-                disabled={isRecoveryActivity(a.name)}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
-                aria-label="Remover"
-              >
-                <Trash2 size={16} />
-              </button>
+            <div key={i} className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+              <div className="flex items-center gap-2">
+                <Input
+                  value={a.name}
+                  onChange={(e) => setItems((p) => p.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+                  placeholder="Nome da atividade"
+                  className="flex-1"
+                  disabled={isRecoveryActivity(a.name)}
+                />
+                <Input
+                  value={String(a.max)}
+                  onChange={(e) =>
+                    setItems((p) => p.map((x, j) => (j === i ? { ...x, max: Number(e.target.value.replace(/[^0-9.]/g, '')) || 0 } : x)))
+                  }
+                  inputMode="decimal"
+                  className="w-20 text-center"
+                  placeholder="Valor"
+                />
+                <button
+                  onClick={() => setItems((p) => p.filter((_, j) => j !== i))}
+                  disabled={isRecoveryActivity(a.name)}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                  aria-label="Remover"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+              {!isRecoveryActivity(a.name) ? (
+                <label className="mt-2 flex cursor-pointer items-center gap-2 px-1 text-xs font-bold text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={!!a.fromCredito}
+                    onChange={(e) =>
+                      // único: marcar este desmarca os outros (evita somar o crédito em 2 colunas)
+                      setItems((p) => p.map((x, j) => ({ ...x, fromCredito: j === i ? e.target.checked : false })))
+                    }
+                    className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  Receber o crédito variável do Centro de Avaliações
+                </label>
+              ) : null}
             </div>
           ))}
         </div>

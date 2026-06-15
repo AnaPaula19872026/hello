@@ -521,6 +521,30 @@ export async function saveEvalGrades(classId: string, year: number, term: number
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Total do "crédito variável" por aluno, vindo do Centro de Avaliações
+ * (soma das atividades marcadas como crédito naquela turma/ano/trimestre).
+ * Só inclui alunos que têm algum registro — os demais ficam de fora (sem nota).
+ */
+export async function getCreditoTotals(classId: string, year: number, term: number): Promise<Record<string, number>> {
+  const [acts, grades] = await Promise.all([getEvalConfig(classId, year, term), listEvalGrades(classId, year, term)]);
+  const creditNames = acts.filter((a) => a.credito).map((a) => a.name);
+  if (!creditNames.length) return {};
+  const out: Record<string, number> = {};
+  for (const g of grades) {
+    let sum = 0;
+    let any = false;
+    for (const n of creditNames) {
+      const m = g.marks?.[n];
+      if (!m) continue;
+      if (m.score != null) sum += Number(m.score) || 0;
+      if (m.done || m.score != null) any = true;
+    }
+    if (any) out[g.student_id] = Math.round(sum * 10) / 10;
+  }
+  return out;
+}
+
 /* --------------------------------- Relatórios ---------------------------------- */
 export interface AttendanceReportRow {
   student_id: string;
