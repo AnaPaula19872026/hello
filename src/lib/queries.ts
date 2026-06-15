@@ -466,6 +466,61 @@ export async function bulkDeleteTermGrades(classId: string, year: number, term: 
   if (error) throw new Error(error.message);
 }
 
+/* ------------------------- Centro de Avaliações (sem média) -------------------- */
+export interface EvalMark {
+  done: boolean;
+  score: number | null;
+}
+export interface EvalGradeRow {
+  student_id: string;
+  marks: Record<string, EvalMark>;
+  updated_at?: string | null;
+}
+
+/** Composição (atividades) das avaliações de uma turma/ano/trimestre. */
+export async function getEvalConfig(classId: string, year: number, term: number): Promise<GradeActivity[]> {
+  const { data, error } = await scoped(supabase.from('evaluation_terms').select('activities'))
+    .eq('class_id', classId)
+    .eq('year', year)
+    .eq('term', term)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return ((data?.activities as GradeActivity[]) ?? []).filter((a) => a && a.name);
+}
+
+export async function saveEvalConfig(classId: string, year: number, term: number, activities: GradeActivity[]): Promise<void> {
+  const org = getActiveOrgId();
+  const row: Record<string, unknown> = { class_id: classId, year, term, activities, updated_at: new Date().toISOString() };
+  if (org) row.org_id = org;
+  const { error } = await supabase.from('evaluation_terms').upsert(row, { onConflict: 'org_id,class_id,year,term' });
+  if (error) throw new Error(error.message);
+}
+
+export async function listEvalGrades(classId: string, year: number, term: number): Promise<EvalGradeRow[]> {
+  return unwrap(
+    await scoped(supabase.from('evaluation_grades').select('student_id, marks, updated_at'))
+      .eq('class_id', classId)
+      .eq('year', year)
+      .eq('term', term),
+  );
+}
+
+export async function saveEvalGrades(classId: string, year: number, term: number, rows: EvalGradeRow[]): Promise<void> {
+  const org = getActiveOrgId();
+  const payload = rows.map((r) => ({
+    class_id: classId,
+    student_id: r.student_id,
+    year,
+    term,
+    marks: r.marks,
+    updated_at: new Date().toISOString(),
+    ...(org ? { org_id: org } : {}),
+  }));
+  if (!payload.length) return;
+  const { error } = await supabase.from('evaluation_grades').upsert(payload, { onConflict: 'org_id,class_id,student_id,year,term' });
+  if (error) throw new Error(error.message);
+}
+
 /* --------------------------------- Relatórios ---------------------------------- */
 export interface AttendanceReportRow {
   student_id: string;

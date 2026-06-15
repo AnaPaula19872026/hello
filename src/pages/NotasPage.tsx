@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Award, FileText, GraduationCap, Lock, Pencil, Plus, Printer, Save, Search, Share2, Sliders, Trash2 } from 'lucide-react';
+import { Award, ClipboardList, FileText, GraduationCap, Lock, Pencil, Plus, Printer, Save, Search, Share2, Sliders, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { successToast } from '../components/Feedback';
@@ -43,6 +44,7 @@ function schoolHeaderHtml(school: School | undefined, label: string): string {
 
 export function NotasPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { activeOrgId, ctxLoading } = useAuth();
   const now = new Date();
   const [classId, setClassId] = usePersistentState('hello:notas:classId', '');
@@ -193,6 +195,9 @@ export function NotasPage() {
         subtitle={`${TERM_LABEL[term]} • ${year} • média ${MEDIA_APROVACAO} (recuperação substitui a menor nota quando melhora a média)`}
         action={
           <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" onClick={() => navigate('/avaliacoes')}>
+              <ClipboardList size={18} /> Centro de Avaliações
+            </Button>
             <Button onClick={() => setBoletimEscolarOpen(true)}>
               <GraduationCap size={18} /> Boletins escolares
             </Button>

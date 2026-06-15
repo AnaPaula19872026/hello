@@ -10,6 +10,7 @@ import { AvisosPage } from '../pages/AvisosPage';
 import { CalendarPage } from '../pages/CalendarPage';
 import { ClassesPage } from '../pages/ClassesPage';
 import { DashboardPage } from '../pages/DashboardPage';
+import { EvaluationsPage } from '../pages/EvaluationsPage';
 import { LoginPage } from '../pages/LoginPage';
 import { NotasPage } from '../pages/NotasPage';
 import { PlanejamentoPage } from '../pages/PlanejamentoPage';
@@ -48,6 +49,7 @@ function Protected() {
         <Route path="/" element={<ModuleGate module="dashboard" role={role} isHq={isHq}><DashboardPage /></ModuleGate>} />
         <Route path="/chamadas" element={<ModuleGate module="chamadas" role={role} isHq={isHq}><AttendancePage /></ModuleGate>} />
         <Route path="/notas" element={<ModuleGate module="notas" role={role} isHq={isHq}><NotasPage /></ModuleGate>} />
+        <Route path="/avaliacoes" element={<ModuleGate module="notas" role={role} isHq={isHq}><EvaluationsPage /></ModuleGate>} />
         <Route path="/planejamento" element={<ModuleGate module="planejamentos" role={role} isHq={isHq}><PlanejamentoPage /></ModuleGate>} />
         <Route path="/relatorios" element={<ModuleGate module="relatorios" role={role} isHq={isHq}><ReportsPage /></ModuleGate>} />
         <Route path="/avisos" element={<ModuleGate module="avisos" role={role} isHq={isHq}><AvisosPage /></ModuleGate>} />
