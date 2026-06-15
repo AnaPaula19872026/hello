@@ -79,7 +79,7 @@ export function PlanejamentoPage() {
         </div>
       ) : null}
 
-      {tab === 'meus' ? <MeusPlanos uid={uid} onEdit={openEdit} /> : tab === 'revisar' ? <Pendentes /> : <Revisados />}
+      {tab === 'meus' ? <MeusPlanos uid={uid} onEdit={openEdit} /> : tab === 'revisar' ? <Pendentes onEdit={openEdit} /> : <Revisados onEdit={openEdit} />}
 
       {composeOpen ? <ComposeModal plan={editing} onClose={() => setComposeOpen(false)} /> : null}
     </>
@@ -140,7 +140,23 @@ function MeusPlanos({ uid, onEdit }: { uid: string; onEdit: (p: PlanWithMeta) =>
   );
 }
 
-function Pendentes() {
+/** Botão de excluir reaproveitado nas visões da coordenação/admin. */
+function DeletePlanButton({ id, onDeleted }: { id: string; onDeleted: () => void }) {
+  const remove = useMutation({ mutationFn: () => deletePlan(id), onSuccess: () => { onDeleted(); successToast('Planejamento excluído'); } });
+  return (
+    <button
+      onClick={() => confirm('Excluir este planejamento?') && remove.mutate()}
+      disabled={remove.isPending}
+      className="ml-auto grid h-10 w-10 place-items-center rounded-xl bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-60"
+      aria-label="Excluir"
+      title="Excluir"
+    >
+      <Trash2 size={16} />
+    </button>
+  );
+}
+
+function Pendentes({ onEdit }: { onEdit: (p: PlanWithMeta) => void }) {
   const qc = useQueryClient();
   const { data: plans = [], isLoading, isError, error } = useQuery({ queryKey: ['org-plans', 'enviado'], queryFn: () => listOrgPlans('enviado'), retry: false });
   const [feedbackFor, setFeedbackFor] = useState<PlanWithMeta | null>(null);
@@ -153,6 +169,7 @@ function Pendentes() {
       successToast('Planejamento aprovado');
     },
   });
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['org-plans'] });
 
   if (isLoading) return <p className="text-slate-400">Carregando…</p>;
   if (isError) return <EmptyState icon={<BookOpen size={26} />} title="Planejamento indisponível" hint={friendly(error)} />;
@@ -168,9 +185,11 @@ function Pendentes() {
             plan={p}
             showAuthor
             footer={
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button onClick={() => approve.mutate(p.id)} disabled={approve.isPending}><Check size={16} /> Aprovar</Button>
                 <Button variant="danger" onClick={() => setFeedbackFor(p)}><Undo2 size={16} /> Devolver</Button>
+                <Button variant="ghost" onClick={() => onEdit(p)}><Pencil size={16} /> Editar</Button>
+                <DeletePlanButton id={p.id} onDeleted={invalidate} />
               </div>
             }
           />
@@ -181,9 +200,11 @@ function Pendentes() {
   );
 }
 
-function Revisados() {
+function Revisados({ onEdit }: { onEdit: (p: PlanWithMeta) => void }) {
+  const qc = useQueryClient();
   const { data: plans = [], isLoading, isError, error } = useQuery({ queryKey: ['org-plans', 'revisados'], queryFn: listReviewedPlans, retry: false });
   const [sendFor, setSendFor] = useState<PlanWithMeta | null>(null);
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['org-plans'] });
 
   if (isLoading) return <p className="text-slate-400">Carregando…</p>;
   if (isError) return <EmptyState icon={<BookOpen size={26} />} title="Planejamento indisponível" hint={friendly(error)} />;
@@ -199,8 +220,10 @@ function Revisados() {
             plan={p}
             showAuthor
             footer={
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button variant="soft" onClick={() => setSendFor(p)}><Share2 size={16} /> Enviar</Button>
+                <Button variant="ghost" onClick={() => onEdit(p)}><Pencil size={16} /> Editar</Button>
+                <DeletePlanButton id={p.id} onDeleted={invalidate} />
               </div>
             }
           />
