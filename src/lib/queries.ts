@@ -545,6 +545,52 @@ export async function getCreditoTotals(classId: string, year: number, term: numb
   return out;
 }
 
+/**
+ * Grava o crédito variável (Centro de Avaliações) DENTRO das notas, na coluna
+ * marcada como fromCredito na composição de notas. Preserva as demais notas e a
+ * observação de cada aluno (faz merge — não sobrescreve a linha inteira).
+ * Não faz nada se nenhuma coluna de nota estiver ligada ao crédito.
+ */
+export async function applyCreditoToGrades(classId: string, year: number, term: number): Promise<number> {
+  const acts = await getTermConfig(year, term);
+  const target = acts.find((a) => a.fromCredito);
+  if (!target) return 0;
+  const totals = await getCreditoTotals(classId, year, term);
+  const ids = Object.keys(totals);
+  if (!ids.length) return 0;
+
+  // Linhas existentes (para não perder outras notas nem a observação).
+  const existing = unwrap<{ student_id: string; scores: Record<string, number>; observacao: string | null }[]>(
+    await scoped(supabase.from('term_grades').select('student_id, scores, observacao'))
+      .eq('class_id', classId)
+      .eq('year', year)
+      .eq('term', term)
+      .in('student_id', ids),
+  );
+  const byId = new Map(existing.map((r) => [r.student_id, r]));
+  const org = getActiveOrgId();
+
+  const payload = ids.map((sid) => {
+    const cur = byId.get(sid);
+    const scores = { ...(cur?.scores ?? {}) };
+    const capped = target.max > 0 ? Math.min(totals[sid], target.max) : totals[sid];
+    scores[target.name] = capped;
+    return {
+      class_id: classId,
+      student_id: sid,
+      year,
+      term,
+      scores,
+      observacao: cur?.observacao ?? null,
+      updated_at: new Date().toISOString(),
+      ...(org ? { org_id: org } : {}),
+    };
+  });
+  const { error } = await supabase.from('term_grades').upsert(payload, { onConflict: 'student_id,year,term' });
+  if (error) throw new Error(error.message);
+  return payload.length;
+}
+
 /* --------------------------------- Relatórios ---------------------------------- */
 export interface AttendanceReportRow {
   student_id: string;

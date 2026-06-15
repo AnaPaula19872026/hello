@@ -6,6 +6,7 @@ import { successToast } from '../components/Feedback';
 import { Button, Card, EmptyState, Input, Modal, PageHeader, Select } from '../components/ui';
 import { cn } from '../lib/cn';
 import {
+  applyCreditoToGrades,
   getEvalConfig,
   listClasses,
   listEvalGrades,
@@ -88,7 +89,7 @@ export function EvaluationsPage() {
   }
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const rows: EvalGradeRow[] = students
         .map((s) => {
           const row = cells[s.id] || {};
@@ -100,11 +101,16 @@ export function EvaluationsPage() {
           return { student_id: s.id, marks };
         })
         .filter((r) => Object.keys(r.marks).length > 0);
-      return saveEvalGrades(classId, year, term, rows);
+      await saveEvalGrades(classId, year, term, rows);
+      // Se houver coluna de nota ligada ao crédito variável, grava o total já nas notas.
+      const applied = await applyCreditoToGrades(classId, year, term);
+      return applied;
     },
-    onSuccess: () => {
+    onSuccess: (applied) => {
       qc.invalidateQueries({ queryKey: ['eval-grades', activeOrgId, classId, year, term] });
-      successToast('Avaliações salvas com sucesso');
+      qc.invalidateQueries({ queryKey: ['term-grades'] });
+      qc.invalidateQueries({ queryKey: ['credito-totals'] });
+      successToast(applied ? 'Avaliações salvas e crédito lançado nas notas' : 'Avaliações salvas com sucesso');
     },
   });
 
