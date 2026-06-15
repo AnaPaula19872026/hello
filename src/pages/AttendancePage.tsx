@@ -164,6 +164,12 @@ export function AttendancePage() {
         />
       </div>
 
+      {existing?.session?.exam_mode ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800">
+          <Layers size={16} /> Chamada feita em MODO PROVA — turmas misturadas nesta sala.
+        </div>
+      ) : null}
+
       {hasSavedAttendance && !editingAttendance ? (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
           <Lock size={16} className="text-slate-400" />
@@ -390,7 +396,7 @@ function ExamRoll({
         arr.push({ student_id: s.id, status: records[s.id] ?? 'present', note: null });
         byClass.set(s.class_id, arr);
       });
-      for (const [cid, rows] of byClass) await saveAttendance(cid, date, rows);
+      for (const [cid, rows] of byClass) await saveAttendance(cid, date, rows, { examMode: true });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['session'] });
@@ -411,6 +417,10 @@ function ExamRoll({
       <PageHeader title="Chamadas" subtitle="Modo prova: turmas misturadas na mesma sala, chamada única." />
 
       <ModeToggle mode={mode} setMode={setMode} />
+
+      <div className="mb-4 flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800">
+        <Layers size={16} /> MODO PROVA ativo — a chamada será marcada como turmas misturadas.
+      </div>
 
       {/* Seleção de turmas que estão na sala */}
       <Card className="mb-4">

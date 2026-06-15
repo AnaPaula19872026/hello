@@ -1814,3 +1814,9 @@ alter table public.term_grades add column if not exists observacao text;
 -- ============================================================================
 
 alter table public.classes add column if not exists does_exams boolean not null default true;
+-- ============================================================================
+-- hello — Chamada: sinalizar sessões feitas em "Modo prova" (turmas misturadas)
+-- Rodar no Supabase → SQL Editor. Idempotente.
+-- ============================================================================
+
+alter table public.attendance_sessions add column if not exists exam_mode boolean not null default false;

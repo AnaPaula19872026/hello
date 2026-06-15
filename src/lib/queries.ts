@@ -328,14 +328,14 @@ export async function saveAttendance(
   classId: string,
   date: string,
   records: AttendanceRecord[],
-  note?: string,
+  opts?: { note?: string; examMode?: boolean },
 ): Promise<void> {
   const org = getActiveOrgId();
   const session = unwrap<AttendanceSession>(
     await supabase
       .from('attendance_sessions')
       .upsert(
-        { class_id: classId, session_date: date, note: note ?? null, updated_at: new Date().toISOString(), ...(org ? { org_id: org } : {}) },
+        { class_id: classId, session_date: date, note: opts?.note ?? null, exam_mode: opts?.examMode ?? false, updated_at: new Date().toISOString(), ...(org ? { org_id: org } : {}) },
         { onConflict: 'class_id,session_date' },
       )
       .select()

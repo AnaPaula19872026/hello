@@ -40,6 +40,7 @@ export interface AttendanceSession {
   class_id: string;
   session_date: string;
   note: string | null;
+  exam_mode?: boolean;
   updated_at?: string | null;
 }
 
