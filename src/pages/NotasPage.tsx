@@ -11,7 +11,7 @@ import { cn } from '../lib/cn';
 import { printDocument, escapeHtml } from '../lib/print';
 import { usePersistentState } from '../lib/usePersistentState';
 import {
-  getCreditoTotals,
+  getCreditoScores,
   getTermConfig,
   getSavedTermConfig,
   listClasses,
@@ -74,8 +74,6 @@ export function NotasPage() {
     enabled: orgReady,
   });
   const orderedActivities = useMemo(() => orderGradeActivities(activities), [activities]);
-  // Coluna de nota que recebe o crédito variável do Centro de Avaliações.
-  const creditActivity = useMemo(() => orderedActivities.find((a) => a.fromCredito), [orderedActivities]);
 
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students-by-class', activeOrgId, classId],
@@ -94,28 +92,24 @@ export function NotasPage() {
     enabled: orgReady && !!classId,
   });
 
-  const { data: creditTotals = {} } = useQuery({
-    queryKey: ['credito-totals', activeOrgId, classId, year, term],
-    queryFn: () => getCreditoTotals(classId, year, term),
+  const { data: creditScores = { names: [], byStudent: {} } } = useQuery({
+    queryKey: ['credito-scores', activeOrgId, classId, year, term],
+    queryFn: () => getCreditoScores(classId, year, term),
     enabled: orgReady && !!classId,
   });
-  // Há crédito variável lançado no Centro de Avaliações?
-  const hasCreditData = Object.keys(creditTotals).length > 0;
+  // Nomes de atividades do crédito variável que TÊM coluna de mesmo nome nas notas.
+  const creditNameSet = useMemo(() => {
+    const gradeNames = new Set(orderedActivities.map((a) => a.name));
+    return new Set(creditScores.names.filter((n) => gradeNames.has(n)));
+  }, [creditScores.names, orderedActivities]);
+  const hasCreditData = Object.keys(creditScores.byStudent).length > 0;
 
   const studentsSig = students.map((s) => s.id).join(',');
   const gradesSig = termGrades.map((g) => `${g.student_id}:${JSON.stringify(g.scores)}:${g.updated_at ?? ''}`).join('|');
-  const creditSig = `${creditActivity?.name ?? ''}|${JSON.stringify(creditTotals)}`;
+  const creditSig = `${[...creditNameSet].join(',')}|${JSON.stringify(creditScores.byStudent)}`;
   const gradeByStudent = useMemo(() => new Map(termGrades.map((g) => [g.student_id, g])), [termGrades]);
   const hasSavedGrades = termGrades.length > 0;
-
-  // Aplica o crédito variável (do Centro de Avaliações) na coluna marcada, com teto no máximo da coluna.
-  function creditValueFor(studentId: string): string | null {
-    if (!creditActivity) return null;
-    const t = creditTotals[studentId];
-    if (t == null) return null;
-    const capped = creditActivity.max > 0 ? Math.min(t, creditActivity.max) : t;
-    return String(capped);
-  }
+  const maxByName = useMemo(() => new Map(orderedActivities.map((a) => [a.name, a.max] as const)), [orderedActivities]);
 
   function resetScoresFromSaved() {
     const map: Record<string, Record<string, string>> = {};
@@ -127,10 +121,15 @@ export function NotasPage() {
         const v = g?.scores?.[a.name];
         row[a.name] = v != null ? String(v) : '';
       });
-      // Coluna ligada ao Centro de Avaliações: usa o total de lá quando existir (autoridade).
-      if (creditActivity) {
-        const cv = creditValueFor(s.id);
-        if (cv != null) row[creditActivity.name] = cv;
+      // Colunas ligadas ao Centro de Avaliações (mesmo nome): usam a nota de lá quando existir.
+      const cv = creditScores.byStudent[s.id];
+      if (cv) {
+        creditNameSet.forEach((n) => {
+          if (cv[n] != null) {
+            const max = maxByName.get(n) ?? 0;
+            row[n] = String(max > 0 ? Math.min(cv[n], max) : cv[n]);
+          }
+        });
       }
       map[s.id] = row;
       obsMap[s.id] = g?.observacao ?? '';
@@ -275,9 +274,9 @@ export function NotasPage() {
         />
       ) : (
         <>
-          {hasCreditData && !creditActivity ? (
+          {hasCreditData && creditNameSet.size === 0 ? (
             <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-              Há crédito variável lançado no Centro de Avaliações para esta turma. Para puxá-lo, abra <strong>Composição de notas</strong> e marque <strong>uma</strong> coluna como “Receber o crédito variável” (e remova as colunas pequenas duplicadas).
+              Há crédito variável lançado no Centro de Avaliações, mas nenhuma coluna de notas tem o <strong>mesmo nome</strong> das atividades de lá. Use os mesmos nomes (ex.: SIMULADO, PROJETO, CRÉDITO VARIÁVEL) na <strong>Composição de notas</strong> para que as notas apareçam aqui automaticamente.
             </div>
           ) : null}
 
@@ -350,7 +349,7 @@ export function NotasPage() {
                         <span className="block leading-tight text-slate-600">{a.name}</span>
                         <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
                         {isRecoveryActivity(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span> : null}
-                        {a.fromCredito ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">do Centro de Avaliações</span> : null}
+                        {creditNameSet.has(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">do Centro de Avaliações</span> : null}
                       </th>
                     ))}
                     <th className="px-3 py-3 text-center">Média</th>
@@ -372,7 +371,7 @@ export function NotasPage() {
                         </td>
                         {orderedActivities.map((a) => {
                           const val = scores[s.id]?.[a.name] ?? '';
-                          const locked = !!a.fromCredito; // vem do Centro de Avaliações — não editável aqui
+                          const locked = creditNameSet.has(a.name); // vem do Centro de Avaliações — não editável aqui
                           return (
                             <td key={a.name} className="px-1.5 py-1.5 text-center">
                               <input
@@ -446,9 +445,9 @@ export function NotasPage() {
               <p className="mt-3 text-xs text-slate-400">
                 Média final = soma das notas ÷ 3 · aprovação a partir de {MEDIA_APROVACAO.toFixed(1)} · a nota de recuperação substitui a menor quando melhora a média.
               </p>
-              {creditActivity ? (
+              {creditNameSet.size > 0 ? (
                 <p className="mt-1 text-xs font-semibold text-amber-600">
-                  A coluna “{creditActivity.name}” é preenchida automaticamente com o crédito variável do Centro de Avaliações (teto {creditActivity.max || '—'}). Confira e salve para registrar na nota.
+                  As colunas {[...creditNameSet].join(', ')} vêm do Centro de Avaliações (crédito variável) e juntas contam como uma nota. São preenchidas automaticamente; confira e salve.
                 </p>
               ) : null}
             </>
@@ -823,7 +822,7 @@ function ComposicaoModal({
       saveTermConfig(
         year,
         term,
-        orderGradeActivities(items.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), max: Number(a.max) || 0, fromCredito: !!a.fromCredito }))),
+        orderGradeActivities(items.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), max: Number(a.max) || 0 }))),
       ),
     onSuccess: () => {
       onSaved();
@@ -915,20 +914,6 @@ function ComposicaoModal({
                   <Trash2 size={16} />
                 </button>
               </div>
-              {!isRecoveryActivity(a.name) ? (
-                <label className="mt-2 flex cursor-pointer items-center gap-2 px-1 text-xs font-bold text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={!!a.fromCredito}
-                    onChange={(e) =>
-                      // único: marcar este desmarca os outros (evita somar o crédito em 2 colunas)
-                      setItems((p) => p.map((x, j) => ({ ...x, fromCredito: j === i ? e.target.checked : false })))
-                    }
-                    className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
-                  />
-                  Receber o crédito variável do Centro de Avaliações
-                </label>
-              ) : null}
             </div>
           ))}
         </div>

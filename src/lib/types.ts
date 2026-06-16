@@ -344,7 +344,6 @@ export interface GradeActivity {
   name: string;
   max: number; // valor máximo da atividade naquele trimestre
   credito?: boolean; // (Centro de Avaliações) atividade compõe o "crédito variável"
-  fromCredito?: boolean; // (Notas) esta coluna recebe o total do crédito variável do Centro de Avaliações
 }
 
 export const RECOVERY_ACTIVITY_NAME = 'RECUPERAÇÃO';
