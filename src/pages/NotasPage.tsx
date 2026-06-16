@@ -342,14 +342,17 @@ export function NotasPage() {
                 <thead className="bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="sticky left-0 z-10 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
-                    {columns.map((a) => (
-                      <th key={actKey(a)} className="min-w-[88px] px-2 py-3 text-center align-bottom">
-                        <span className="block leading-tight text-slate-600">{a.name}</span>
-                        <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
-                        {isRecoveryActivity(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span> : null}
-                        {creditIdSet.has(actKey(a)) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">do Centro de Avaliações</span> : null}
-                      </th>
-                    ))}
+                    {columns.map((a) => {
+                      const credit = creditIdSet.has(actKey(a));
+                      return (
+                        <th key={actKey(a)} className={cn('min-w-[92px] px-2 py-3 text-center align-bottom', credit && 'bg-amber-50')}>
+                          <span className="block leading-tight text-slate-600">{a.name}</span>
+                          <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
+                          {isRecoveryActivity(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span> : null}
+                          {credit ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">crédito variável</span> : null}
+                        </th>
+                      );
+                    })}
                     <th className="px-3 py-3 text-center">Média</th>
                     <th className="px-3 py-3 text-center">Situação</th>
                     <th className="min-w-[160px] px-3 py-3 text-center">Observações</th>
@@ -372,7 +375,7 @@ export function NotasPage() {
                           const val = scores[s.id]?.[k] ?? '';
                           const locked = creditIdSet.has(k); // vem do Centro de Avaliações — não editável aqui
                           return (
-                            <td key={k} className="px-1.5 py-1.5 text-center">
+                            <td key={k} className={cn('px-1.5 py-1.5 text-center', locked && 'bg-amber-50/40')}>
                               <input
                                 inputMode="decimal"
                                 value={val}

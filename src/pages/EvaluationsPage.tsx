@@ -223,13 +223,13 @@ export function EvaluationsPage() {
                     <tr>
                       <th className="sticky left-0 z-10 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
                       {activities.map((a) => (
-                        <th key={actKey(a)} className="min-w-[120px] px-2 py-3 text-center align-bottom">
+                        <th key={actKey(a)} className={cn('min-w-[112px] px-2 py-3 text-center align-bottom', a.credito && 'bg-amber-50')}>
                           <span className="block leading-tight text-slate-600">{a.name}</span>
                           {a.max > 0 ? <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span> : null}
                           {a.credito ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">crédito variável</span> : null}
                         </th>
                       ))}
-                      {hasCredito ? <th className="min-w-[96px] px-3 py-3 text-center">Crédito Variável</th> : null}
+                      {hasCredito ? <th className="min-w-[96px] bg-amber-50 px-3 py-3 text-center text-amber-700">Crédito Variável</th> : null}
                       <th className="px-3 py-3 text-center">Feitas</th>
                     </tr>
                   </thead>
@@ -240,7 +240,7 @@ export function EvaluationsPage() {
                         .filter((a) => a.credito)
                         .reduce((acc, a) => acc + (Number(cells[s.id]?.[actKey(a)]?.score) || 0), 0);
                       return (
-                        <tr key={s.id} className="border-t border-slate-100 transition hover:bg-emerald-50/30 even:bg-slate-50/40">
+                        <tr key={s.id} className="border-t border-slate-100 transition even:bg-slate-50/40 hover:bg-emerald-50/30">
                           <td className="sticky left-0 z-10 bg-inherit p-3 font-bold text-slate-800 shadow-[2px_0_0_0_rgba(241,245,249,1)]">
                             <span className="mr-2 inline-block w-6 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>
                             {s.full_name}
@@ -249,7 +249,7 @@ export function EvaluationsPage() {
                             const k = actKey(a);
                             const c = cells[s.id]?.[k] ?? { done: false, score: '' };
                             return (
-                              <td key={k} className="px-2 py-2 text-center">
+                              <td key={k} className={cn('px-2 py-2 text-center', a.credito && 'bg-amber-50/40')}>
                                 <div className="flex items-center justify-center gap-1.5">
                                   <button
                                     onClick={() => toggleDone(s.id, k)}
@@ -275,8 +275,8 @@ export function EvaluationsPage() {
                             );
                           })}
                           {hasCredito ? (
-                            <td className="px-3 py-3 text-center">
-                              <span className="inline-block min-w-[44px] rounded-lg bg-amber-50 px-2 py-1 text-sm font-black tabular-nums text-amber-700">
+                            <td className="bg-amber-50/40 px-3 py-3 text-center">
+                              <span className="inline-block min-w-[44px] rounded-lg bg-amber-100 px-2 py-1 text-sm font-black tabular-nums text-amber-700">
                                 {creditoTotal % 1 === 0 ? creditoTotal : creditoTotal.toFixed(1)}
                               </span>
                             </td>
