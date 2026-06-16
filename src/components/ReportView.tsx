@@ -71,13 +71,14 @@ function ReportSummary({ payload, minPct }: { payload: ReportPayload; minPct: nu
     if (!rows.length) return null;
     const presMed = Math.round((rows.reduce((a, r) => a + r.pct, 0) / rows.length) * 10) / 10;
     const faltas = rows.reduce((a, r) => a + r.absent, 0);
+    const presencas = rows.reduce((a, r) => a + r.present, 0);
     return (
       <SummaryGrid
         stats={[
           { label: 'Alunos', value: rows.length },
           { label: 'Presença média', value: `${presMed}%`, color: presMed < minPct ? 'text-amber-600' : 'text-emerald-700', box: 'border-emerald-200 bg-emerald-50' },
+          { label: 'Total de presenças', value: presencas, color: 'text-emerald-700', box: 'border-emerald-200 bg-emerald-50' },
           { label: 'Total de faltas', value: faltas, color: 'text-red-600', box: 'border-red-200 bg-red-50' },
-          { label: 'Aulas no período', value: payload.sessions ?? '–' },
         ]}
       />
     );
@@ -115,6 +116,7 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
             <tr>
               <th className="p-2.5">Aluno</th>
               <th className="p-2.5 text-center">%</th>
+              <th className="p-2.5 text-center">Presenças</th>
               <th className="p-2.5 text-center">Faltas</th>
               <th className="p-2.5">Dias de falta</th>
             </tr>
@@ -128,6 +130,7 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
                 <td className="p-2.5 text-center">
                   <span className={cn('font-black', r.pct < minPct ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</span>
                 </td>
+                <td className="p-2.5 text-center font-bold text-emerald-700">{r.present}</td>
                 <td className="p-2.5 text-center font-bold text-red-600">{r.absent}</td>
                 <td className="p-2.5 text-xs text-slate-600">{r.absentDates.map(fmtDate).join(', ') || '—'}</td>
               </tr>
@@ -148,11 +151,16 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
             </p>
             <span className={cn('text-lg font-black', r.pct < minPct ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</span>
           </div>
+          <div className="mt-1.5 flex flex-wrap gap-2 text-xs font-bold">
+            <span className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700">{r.present} presença(s)</span>
+            <span className="rounded-lg bg-red-50 px-2 py-1 text-red-700">{r.absent} falta(s)</span>
+            <span className="rounded-lg bg-slate-100 px-2 py-1 text-slate-500">{r.total} aula(s)</span>
+          </div>
           {r.absent === 0 ? (
-            <p className="mt-1 text-sm font-semibold text-emerald-700">Sem faltas · {r.present}/{r.total} aulas</p>
+            <p className="mt-2 text-sm font-semibold text-emerald-700">Frequência completa — sem faltas.</p>
           ) : (
             <div className="mt-2">
-              <p className="text-sm font-bold text-red-600">{r.absent} falta(s):</p>
+              <p className="text-sm font-bold text-red-600">Dias de falta:</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {r.absentDates.map((d) => (
                   <span
