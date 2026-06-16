@@ -744,18 +744,31 @@ export interface TermsReportRow {
 }
 
 export async function reportTerms(classId: string, year: number): Promise<TermsReportRow[]> {
-  const [grades, configs, students] = await Promise.all([
+  const [grades, configs, evalConfigs, students] = await Promise.all([
     unwrap<{ student_id: string; term: number; scores: Record<string, number> }[]>(
       await scoped(supabase.from('term_grades').select('student_id, term, scores')).eq('class_id', classId).eq('year', year),
     ),
     unwrap<{ term: number; activities: GradeActivity[] }[]>(
       await scoped(supabase.from('grade_terms').select('term, activities')).eq('year', year),
     ),
+    // Atividades de crédito variável (Centro de Avaliações) por trimestre — entram na média.
+    (async () => {
+      const { data, error } = await scoped(supabase.from('evaluation_terms').select('term, activities')).eq('class_id', classId).eq('year', year);
+      if (error) return [] as { term: number; activities: GradeActivity[] }[];
+      return (data as { term: number; activities: GradeActivity[] }[]) ?? [];
+    })(),
     listStudentsByClass(classId),
   ]);
-  // Composição (atividades) por trimestre, para agrupar as notas no cálculo da média.
+  const creditByTerm = new Map(
+    evalConfigs.map((c) => [c.term, ((c.activities as GradeActivity[]) ?? []).filter((a) => a && a.name && a.credito && a.id)]),
+  );
+  // Composição por trimestre = colunas próprias + atividades de crédito (mesma regra das Notas).
   const actByTerm = new Map(
-    configs.map((c) => [c.term, withRecoveryActivity(((c.activities as GradeActivity[]) ?? []).filter((a) => a && a.name))]),
+    [1, 2, 3].map((t) => {
+      const gradeActs = (configs.find((c) => c.term === t)?.activities as GradeActivity[] | undefined ?? []).filter((a) => a && a.name);
+      const creditActs = creditByTerm.get(t) ?? [];
+      return [t, withRecoveryActivity([...gradeActs, ...creditActs])] as const;
+    }),
   );
   return students.map((s) => {
     const terms: (number | null)[] = [1, 2, 3].map((t) => {
