@@ -1,6 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { Award, ClipboardList, FileText, GraduationCap, Lock, Pencil, Plus, Printer, Save, Share2, Sliders, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -41,6 +39,11 @@ function schoolHeaderHtml(school: School | undefined, label: string): string {
     </div>
     <div style="text-align:right; font-size:10px; color:#94a3b8;">Gerado em<br/>${new Date().toLocaleDateString('pt-BR')}</div>
   </div>`;
+}
+
+/** yyyy-mm-dd → dd/mm (curto, para prazos no cabeçalho). */
+function fmtDM(d: string): string {
+  return `${d.slice(8, 10)}/${d.slice(5, 7)}`;
 }
 
 export function NotasPage() {
@@ -110,7 +113,6 @@ export function NotasPage() {
   const studentsSig = students.map((s) => s.id).join(',');
   const gradesSig = termGrades.map((g) => `${g.student_id}:${JSON.stringify(g.scores)}:${g.updated_at ?? ''}`).join('|');
   const creditSig = `${[...creditIdSet].join(',')}|${JSON.stringify(creditData.byStudent)}`;
-  const gradeByStudent = useMemo(() => new Map(termGrades.map((g) => [g.student_id, g])), [termGrades]);
   const hasSavedGrades = termGrades.length > 0;
   const maxByKey = useMemo(() => new Map(columns.map((a) => [actKey(a), a.max] as const)), [columns]);
 
@@ -345,19 +347,20 @@ export function NotasPage() {
                               <span className="block leading-tight text-slate-600">{a.name}</span>
                               <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
                               {isRecoveryActivity(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span> : null}
+                              {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
                             </th>
                           );
                         })}
                         <th rowSpan={2} className="px-3 py-3 text-center">Média</th>
                         <th rowSpan={2} className="px-3 py-3 text-center">Situação</th>
                         <th rowSpan={2} className="min-w-[160px] px-3 py-3 text-center">Observações</th>
-                        <th rowSpan={2} className="px-3 py-3 text-center">Últ. mov.</th>
                       </tr>
                       <tr>
                         {columns.filter((a) => creditIdSet.has(actKey(a))).map((a) => (
                           <th key={actKey(a)} className="min-w-[92px] bg-amber-50 px-2 py-2 text-center align-bottom">
                             <span className="block leading-tight text-amber-800">{a.name}</span>
                             <span className="mt-1 inline-block rounded bg-amber-200/60 px-1.5 py-0.5 text-[9px] font-black text-amber-700">0–{a.max}</span>
+                            {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
                           </th>
                         ))}
                       </tr>
@@ -370,19 +373,18 @@ export function NotasPage() {
                           <span className="block leading-tight text-slate-600">{a.name}</span>
                           <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
                           {isRecoveryActivity(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span> : null}
+                          {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
                         </th>
                       ))}
                       <th className="px-3 py-3 text-center">Média</th>
                       <th className="px-3 py-3 text-center">Situação</th>
                       <th className="min-w-[160px] px-3 py-3 text-center">Observações</th>
-                      <th className="px-3 py-3 text-center">Últ. mov.</th>
                     </tr>
                   )}
                 </thead>
                 <tbody>
                   {list.map((s, i) => {
                     const m = mediaOf(s.id);
-                    const launchedAt = gradeByStudent.get(s.id)?.updated_at;
                     const ok = m != null && m >= MEDIA_APROVACAO;
                     return (
                       <tr key={s.id} className="border-t border-slate-100 transition hover:bg-emerald-50/30 even:bg-slate-50/40">
@@ -447,15 +449,6 @@ export function NotasPage() {
                               editingGrades ? 'border-slate-200 bg-white text-slate-800' : 'border-transparent bg-transparent text-slate-500',
                             )}
                           />
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          {launchedAt ? (
-                            <span className="text-[11px] font-bold text-slate-400" title={format(new Date(launchedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}>
-                              {format(new Date(launchedAt), 'dd/MM', { locale: ptBR })}
-                            </span>
-                          ) : (
-                            <span className="text-slate-300">–</span>
-                          )}
                         </td>
                       </tr>
                     );
@@ -844,7 +837,7 @@ function ComposicaoModal({
       saveTermConfig(
         year,
         term,
-        orderGradeActivities(items.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), max: Number(a.max) || 0 }))),
+        orderGradeActivities(items.filter((a) => a.name.trim()).map((a) => ({ id: a.id, name: a.name.trim(), max: Number(a.max) || 0, date: a.date }))),
       ),
     onSuccess: () => {
       onSaved();
@@ -936,6 +929,17 @@ function ComposicaoModal({
                   <Trash2 size={16} />
                 </button>
               </div>
+              {!isRecoveryActivity(a.name) ? (
+                <label className="mt-2 flex items-center gap-2 px-1 text-xs font-bold text-slate-500">
+                  Prazo / entrega
+                  <Input
+                    type="date"
+                    value={a.date ?? ''}
+                    onChange={(e) => setItems((p) => p.map((x, j) => (j === i ? { ...x, date: e.target.value || undefined } : x)))}
+                    className="h-9 w-auto py-1"
+                  />
+                </label>
+              ) : null}
             </div>
           ))}
         </div>

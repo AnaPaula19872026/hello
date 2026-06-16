@@ -344,6 +344,7 @@ export interface GradeActivity {
   id?: string; // identificador estável da coluna (liga Centro de Avaliações ↔ Notas sem depender do nome)
   name: string;
   max: number; // valor máximo da atividade naquele trimestre
+  date?: string; // prazo / data de entrega (yyyy-mm-dd) — opcional
   credito?: boolean; // (Centro de Avaliações) atividade compõe o "crédito variável"
 }
 

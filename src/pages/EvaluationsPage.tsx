@@ -20,6 +20,11 @@ import { usePersistentState } from '../lib/usePersistentState';
 
 type CellState = { done: boolean; score: string };
 
+/** yyyy-mm-dd → dd/mm (prazo curto no cabeçalho). */
+function fmtDM(d: string): string {
+  return `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+}
+
 export function EvaluationsPage() {
   const qc = useQueryClient();
   const { activeOrgId, ctxLoading } = useAuth();
@@ -252,6 +257,7 @@ export function EvaluationsPage() {
                               <th key={actKey(a)} rowSpan={2} className="min-w-[112px] px-2 py-3 text-center align-bottom">
                                 <span className="block leading-tight text-slate-600">{a.name}</span>
                                 {a.max > 0 ? <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span> : null}
+                                {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
                               </th>
                             );
                           })}
@@ -263,6 +269,7 @@ export function EvaluationsPage() {
                             <th key={actKey(a)} className="min-w-[112px] bg-amber-50 px-2 py-2 text-center align-bottom">
                               <span className="block leading-tight text-amber-800">{a.name}</span>
                               {a.max > 0 ? <span className="mt-1 inline-block rounded bg-amber-200/60 px-1.5 py-0.5 text-[9px] font-black text-amber-700">0–{a.max}</span> : null}
+                              {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
                             </th>
                           ))}
                         </tr>
@@ -275,6 +282,7 @@ export function EvaluationsPage() {
                             <span className="block leading-tight text-slate-600">{a.name}</span>
                             {a.max > 0 ? <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span> : null}
                             {a.credito ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">crédito variável</span> : null}
+                            {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
                           </th>
                         ))}
                         {hasCredito ? <th className="min-w-[96px] bg-amber-50 px-3 py-3 text-center text-amber-700">Crédito Variável</th> : null}
@@ -437,7 +445,7 @@ function ComposicaoAvaliacoesModal({
 
   const save = useMutation({
     mutationFn: () =>
-      saveEvalConfig(classId, year, term, items.filter((a) => a.name.trim()).map((a) => ({ id: a.id ?? crypto.randomUUID(), name: a.name.trim(), max: Number(a.max) || 0, credito: !!a.credito }))),
+      saveEvalConfig(classId, year, term, items.filter((a) => a.name.trim()).map((a) => ({ id: a.id ?? crypto.randomUUID(), name: a.name.trim(), max: Number(a.max) || 0, credito: !!a.credito, date: a.date }))),
     onSuccess: () => {
       onSaved();
       onClose();
@@ -510,15 +518,26 @@ function ComposicaoAvaliacoesModal({
                   <Trash2 size={16} />
                 </button>
               </div>
-              <label className="mt-2 flex cursor-pointer items-center gap-2 px-1 text-xs font-bold text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={!!a.credito}
-                  onChange={(e) => setItems((p) => p.map((x, j) => (j === i ? { ...x, credito: e.target.checked } : x)))}
-                  className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
-                />
-                Compõe o crédito variável
-              </label>
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 px-1">
+                <label className="flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={!!a.credito}
+                    onChange={(e) => setItems((p) => p.map((x, j) => (j === i ? { ...x, credito: e.target.checked } : x)))}
+                    className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  Compõe o crédito variável
+                </label>
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                  Prazo / entrega
+                  <Input
+                    type="date"
+                    value={a.date ?? ''}
+                    onChange={(e) => setItems((p) => p.map((x, j) => (j === i ? { ...x, date: e.target.value || undefined } : x)))}
+                    className="h-9 w-auto py-1"
+                  />
+                </label>
+              </div>
             </div>
           ))}
         </div>
