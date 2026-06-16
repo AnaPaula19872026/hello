@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, GraduationCap, ImagePlus, LogIn, Network, Pencil, Plus, Power, Search, Trash2, UserPlus, Users } from 'lucide-react';
+import { Building2, GraduationCap, ImagePlus, LogIn, Network, Pencil, Plus, Power, Trash2, UserPlus, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { AccessRequestsQueue } from '../components/AccessRequestsQueue';
 import { successToast } from '../components/Feedback';
-import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
+import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, SearchInput, Select } from '../components/ui';
 import { cn } from '../lib/cn';
 import { fileToCompressedDataUrl } from '../lib/image';
 import {
@@ -116,10 +116,7 @@ export function OrganizationsPage() {
       <AccessRequestsQueue />
 
       {/* Busca */}
-      <div className="relative mb-4">
-        <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar organização…" className="pl-10" />
-      </div>
+      <SearchInput value={q} onChange={setQ} placeholder="Pesquisar organização…" className="mb-4" />
 
       {/* Resumo / filtros */}
       <div className="mb-5 grid gap-3 sm:grid-cols-3">

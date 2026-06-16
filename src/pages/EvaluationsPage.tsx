@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ClipboardList, Lock, Pencil, Plus, Save, Search, Sliders, Trash2, X } from 'lucide-react';
+import { Check, ClipboardList, Lock, Pencil, Plus, Save, Sliders, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
-import { Button, Card, EmptyState, Input, Modal, PageHeader, Segmented, Select } from '../components/ui';
+import { Button, Card, EmptyState, Input, Modal, PageHeader, SearchInput, Segmented, Select } from '../components/ui';
 import { cn } from '../lib/cn';
 import {
   applyCreditoToGrades,
@@ -203,12 +203,7 @@ export function EvaluationsPage() {
         />
       ) : (
         <>
-          <div className="mb-3">
-            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <Search size={18} className="text-slate-400" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar aluno…" className="w-full bg-transparent text-sm outline-none" />
-            </label>
-          </div>
+          <SearchInput value={q} onChange={setQ} placeholder="Buscar aluno…" className="mb-3" />
 
           {isLoading || marksLoading ? (
             <p className="text-sm text-slate-500">Carregando…</p>

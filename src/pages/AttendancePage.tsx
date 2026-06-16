@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Check, CheckCheck, ClipboardCheck, Layers, Lock, Pencil, Save, Search, Users, X } from 'lucide-react';
+import { Check, CheckCheck, ClipboardCheck, Layers, Lock, Pencil, Save, Users, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { Card, EmptyState, PageHeader, Segmented, Select } from '../components/ui';
+import { Card, EmptyState, PageHeader, SearchInput, Segmented, Select } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { getRecords, getSession, listClasses, listStudentsByClass, saveAttendance } from '../lib/queries';
@@ -200,10 +200,7 @@ export function AttendancePage() {
       </div>
 
       <div className="mb-3 flex flex-col gap-2 sm:flex-row">
-        <label className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
-          <Search size={18} className="text-slate-400" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar aluno…" className="w-full bg-transparent text-sm outline-none" />
-        </label>
+        <SearchInput value={q} onChange={setQ} placeholder="Buscar aluno…" className="flex-1" />
         <button
           onClick={allPresent}
           disabled={!editingAttendance}
@@ -475,12 +472,7 @@ function ExamRoll({
             </div>
           </div>
 
-          <div className="mb-3">
-            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <Search size={18} className="text-slate-400" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar aluno…" className="w-full bg-transparent text-sm outline-none" />
-            </label>
-          </div>
+          <SearchInput value={q} onChange={setQ} placeholder="Buscar aluno…" className="mb-3" />
 
           {isLoading ? (
             <p className="text-sm text-slate-500">Carregando alunos…</p>

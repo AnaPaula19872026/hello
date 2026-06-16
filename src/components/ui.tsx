@@ -1,5 +1,5 @@
 import { Dialog, DialogPanel, DialogTitle, Menu, MenuButton, MenuItem, MenuItems, Transition, TransitionChild } from '@headlessui/react';
-import { ArrowLeft, Check, CheckSquare, MoreVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Check, CheckSquare, MoreVertical, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { Fragment, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/cn';
@@ -52,6 +52,31 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
       )}
       {...props}
     />
+  );
+}
+
+/** Caixa de busca padrão (ícone + input), usada em listas e tabelas. */
+export function SearchInput({
+  value,
+  onChange,
+  placeholder = 'Buscar…',
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  return (
+    <label className={cn('flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3', className)}>
+      <Search size={18} className="shrink-0 text-slate-400" />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full bg-transparent text-sm outline-none"
+      />
+    </label>
   );
 }
 

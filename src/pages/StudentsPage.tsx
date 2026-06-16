@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileSpreadsheet, Phone, Search, Users } from 'lucide-react';
+import { FileSpreadsheet, Phone, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
 import { successToast } from '../components/Feedback';
-import { ActionsMenu, AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar, SelectModeButton } from '../components/ui';
+import { ActionsMenu, AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, SearchInput, Select, SelectionBar, SelectModeButton } from '../components/ui';
 import { bulkDeleteStudents, bulkImportAll, importResultToModal, deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
 import { CADASTRO_COLUMNS } from '../lib/importSheet';
 import type { Student } from '../lib/types';
@@ -134,10 +134,7 @@ export function StudentsPage() {
         </div>
       ) : null}
       <div className="mb-5 flex flex-col gap-3 sm:flex-row">
-        <label className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
-          <Search size={18} className="text-slate-400" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar aluno…" className="w-full bg-transparent text-sm outline-none" />
-        </label>
+        <SearchInput value={q} onChange={setQ} placeholder="Buscar aluno…" className="flex-1" />
         <Select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="sm:w-56">
           <option value="all">Todas as turmas</option>
           {classes.map((c) => (

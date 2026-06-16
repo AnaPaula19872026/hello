@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Award, ClipboardList, FileText, GraduationCap, Lock, Pencil, Plus, Printer, Save, Search, Share2, Sliders, Trash2 } from 'lucide-react';
+import { Award, ClipboardList, FileText, GraduationCap, Lock, Pencil, Plus, Printer, Save, Share2, Sliders, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented, Select } from '../components/ui';
+import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, SearchInput, Segmented, Select } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { printDocument, escapeHtml } from '../lib/print';
@@ -270,12 +270,7 @@ export function NotasPage() {
         />
       ) : (
         <>
-          <div className="mb-3">
-            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <Search size={18} className="text-slate-400" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar aluno…" className="w-full bg-transparent text-sm outline-none" />
-            </label>
-          </div>
+          <SearchInput value={q} onChange={setQ} placeholder="Buscar aluno…" className="mb-3" />
 
           {isLoading ? (
             <p className="text-sm text-slate-500">Carregando…</p>
