@@ -15,21 +15,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Card, PageHeader } from '../components/ui';
+import { Card, PageHeader, SectionTitle, StatCard } from '../components/ui';
 import { hqAttendanceDaily, hqStats, listOrgAdmin } from '../lib/queries';
-
-function Kpi({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: React.ReactNode; sub?: string }) {
-  return (
-    <Card className="flex items-center gap-4">
-      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">{icon}</div>
-      <div className="min-w-0">
-        <p className="text-2xl font-black leading-none text-slate-900">{value}</p>
-        <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
-        {sub ? <p className="mt-0.5 text-xs font-bold text-emerald-700">{sub}</p> : null}
-      </div>
-    </Card>
-  );
-}
 
 export function HqDashboard() {
   // Tempo real: revalida periodicamente.
@@ -67,25 +54,25 @@ export function HqDashboard() {
       <PageHeader title="Administração Geral" subtitle="Visão consolidada dos clientes — atualiza em tempo real." />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi
+        <StatCard
           icon={<Network size={22} />}
           label="Clientes"
           value={totals.clients}
           sub={`${totals.active} ativos · ${totals.inactive} inativos`}
         />
-        <Kpi icon={<Building2 size={22} />} label="Escolas" value={totals.schools} />
-        <Kpi icon={<GraduationCap size={22} />} label="Alunos" value={totals.students} />
-        <Kpi icon={<Users size={22} />} label="Membros" value={totals.members} />
+        <StatCard icon={<Building2 size={22} />} label="Escolas" value={totals.schools} />
+        <StatCard icon={<GraduationCap size={22} />} label="Alunos" value={totals.students} />
+        <StatCard icon={<Users size={22} />} label="Membros" value={totals.members} />
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
-        <Kpi
+        <StatCard
           icon={<ClipboardCheck size={22} />}
           label="Chamadas (30 dias)"
           value={stats?.sessions_30d ?? 0}
           sub={`${stats?.sessions_total ?? 0} no total`}
         />
-        <Kpi
+        <StatCard
           icon={<Bell size={22} />}
           label="Avisos (30 dias)"
           value={stats?.notices_30d ?? 0}
@@ -96,7 +83,7 @@ export function HqDashboard() {
       <div className="grid gap-3 lg:grid-cols-3">
         {/* Atividade diária */}
         <Card className="lg:col-span-2">
-          <h3 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">Chamadas por dia (14 dias)</h3>
+          <SectionTitle className="mb-3">Chamadas por dia (14 dias)</SectionTitle>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dailyData} margin={{ left: -20, right: 8, top: 4 }}>
@@ -117,7 +104,7 @@ export function HqDashboard() {
 
         {/* Ativos x Inativos */}
         <Card>
-          <h3 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">Status dos clientes</h3>
+          <SectionTitle className="mb-3">Status dos clientes</SectionTitle>
           <div className="h-64">
             {pieData.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -142,12 +129,9 @@ export function HqDashboard() {
 
         {/* Alunos por cliente */}
         <Card className="lg:col-span-3">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">Alunos por cliente</h3>
-            <Link to="/organizacoes" className="text-xs font-bold text-emerald-700 hover:underline">
-              Ver todos
-            </Link>
-          </div>
+          <SectionTitle className="mb-3" action={<Link to="/organizacoes" className="text-xs font-bold text-emerald-700 hover:underline">Ver todos</Link>}>
+            Alunos por cliente
+          </SectionTitle>
           <div className="h-72">
             {topStudents.length ? (
               <ResponsiveContainer width="100%" height="100%">

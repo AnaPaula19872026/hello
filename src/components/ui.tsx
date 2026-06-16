@@ -1,7 +1,7 @@
 import { Dialog, DialogPanel, DialogTitle, Menu, MenuButton, MenuItem, MenuItems, Transition, TransitionChild } from '@headlessui/react';
 import { ArrowLeft, Check, CheckSquare, MoreVertical, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { Fragment, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/cn';
 
 /* --------------------------------- Botões -------------------------------------- */
@@ -176,6 +176,45 @@ export function Card({ className, children }: { className?: string; children: Re
   return (
     <div className={cn('rounded-2xl border border-slate-200 bg-white p-5 shadow-soft', className)}>{children}</div>
   );
+}
+
+/* ----------------------------- Título de seção -------------------------------- */
+export function SectionTitle({ children, action, className }: { children: ReactNode; action?: ReactNode; className?: string }) {
+  return (
+    <div className={cn('mb-2 flex items-center justify-between gap-2', className)}>
+      <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">{children}</h2>
+      {action}
+    </div>
+  );
+}
+
+/* ------------------------------- Cartão de KPI -------------------------------- */
+export function StatCard({
+  icon,
+  value,
+  label,
+  sub,
+  to,
+  highlight,
+}: {
+  icon: ReactNode;
+  value: ReactNode;
+  label: string;
+  sub?: string;
+  to?: string;
+  highlight?: boolean;
+}) {
+  const inner = (
+    <Card className={cn('flex items-center gap-3 p-4', to && 'transition hover:border-emerald-300', highlight && 'border-emerald-300 bg-emerald-50/50')}>
+      <div className={cn('grid h-11 w-11 shrink-0 place-items-center rounded-xl', highlight ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-50 text-emerald-700')}>{icon}</div>
+      <div className="min-w-0">
+        <p className="text-2xl font-black leading-none text-slate-900">{value}</p>
+        <p className="mt-1 truncate text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</p>
+        {sub ? <p className="mt-0.5 text-xs font-bold text-emerald-700">{sub}</p> : null}
+      </div>
+    </Card>
+  );
+  return to ? <Link to={to}>{inner}</Link> : inner;
 }
 
 export function EmptyState({ icon, title, hint, action }: { icon: ReactNode; title: string; hint?: string; action?: ReactNode }) {

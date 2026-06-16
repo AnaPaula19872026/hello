@@ -5,7 +5,7 @@ import { Award, BarChart3, Bell, CalendarDays, ChevronDown, ClipboardCheck, Grad
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { Card, PageHeader } from '../components/ui';
+import { Card, PageHeader, SectionTitle, StatCard } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { can } from '../lib/permissions';
@@ -103,10 +103,10 @@ export function DashboardPage() {
 
       {/* KPIs */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <KpiCard to="/turmas" icon={<GraduationCap size={18} />} value={counts?.classes ?? 0} label="Turmas" />
-        <KpiCard to="/alunos" icon={<Users size={18} />} value={counts?.students ?? 0} label="Alunos" />
-        <KpiCard to="/avisos" icon={<Bell size={18} />} value={unread} label="Avisos não lidos" highlight={unread > 0} />
-        <KpiCard to="/calendario" icon={<CalendarDays size={18} />} value={upcoming.length} label="Próximos eventos" />
+        <StatCard to="/turmas" icon={<GraduationCap size={18} />} value={counts?.classes ?? 0} label="Turmas" />
+        <StatCard to="/alunos" icon={<Users size={18} />} value={counts?.students ?? 0} label="Alunos" />
+        <StatCard to="/avisos" icon={<Bell size={18} />} value={unread} label="Avisos não lidos" highlight={unread > 0} />
+        <StatCard to="/calendario" icon={<CalendarDays size={18} />} value={upcoming.length} label="Próximos eventos" />
       </div>
 
       {/* Atenção: frequência baixa */}
@@ -142,10 +142,9 @@ export function DashboardPage() {
       {/* Próximos eventos + Avisos recentes */}
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">Próximos eventos</h2>
-            <Link to="/calendario" className="text-xs font-bold text-emerald-700 hover:underline">Ver calendário</Link>
-          </div>
+          <SectionTitle action={<Link to="/calendario" className="text-xs font-bold text-emerald-700 hover:underline">Ver calendário</Link>}>
+            Próximos eventos
+          </SectionTitle>
           {upcoming.length === 0 ? (
             <Card><p className="text-sm text-slate-400">Nenhum evento agendado.</p></Card>
           ) : (
@@ -166,10 +165,9 @@ export function DashboardPage() {
         </div>
 
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">Avisos recentes</h2>
-            <Link to="/avisos" className="text-xs font-bold text-emerald-700 hover:underline">Ver avisos</Link>
-          </div>
+          <SectionTitle action={<Link to="/avisos" className="text-xs font-bold text-emerald-700 hover:underline">Ver avisos</Link>}>
+            Avisos recentes
+          </SectionTitle>
           {recentNotices.length === 0 ? (
             <Card><p className="text-sm text-slate-400">Nenhum aviso recebido.</p></Card>
           ) : (
@@ -188,7 +186,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-slate-500">Chamadas recentes por turma</h2>
+      <SectionTitle className="mb-3">Chamadas recentes por turma</SectionTitle>
       {groups.length === 0 ? (
         <Card>
           <p className="text-sm text-slate-500">Nenhuma chamada registrada ainda.</p>
@@ -249,16 +247,3 @@ export function DashboardPage() {
   );
 }
 
-function KpiCard({ to, icon, value, label, highlight }: { to: string; icon: React.ReactNode; value: number; label: string; highlight?: boolean }) {
-  return (
-    <Link to={to}>
-      <Card className={cn('flex items-center gap-3 p-4 transition hover:border-emerald-300', highlight && 'border-emerald-300 bg-emerald-50/50')}>
-        <div className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl', highlight ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-50 text-emerald-700')}>{icon}</div>
-        <div className="min-w-0">
-          <p className="text-2xl font-black leading-none text-slate-900">{value}</p>
-          <p className="mt-1 truncate text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</p>
-        </div>
-      </Card>
-    </Link>
-  );
-}
