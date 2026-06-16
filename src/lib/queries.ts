@@ -522,33 +522,34 @@ export async function saveEvalGrades(classId: string, year: number, term: number
 }
 
 /**
- * Notas das atividades do "crédito variável" (Centro de Avaliações), POR atividade.
- * Devolve os nomes das atividades marcadas como crédito e, por aluno, a pontuação
- * de cada uma. São 3 notas que a média de Notas já agrupa como uma só.
+ * Crédito variável vindo do Centro de Avaliações, ligado por ID estável da coluna.
+ * - defs: as atividades marcadas como crédito (id, nome, max).
+ * - byStudent: por aluno, a pontuação de cada atividade, indexada pelo ID dela.
+ * São notas separadas que a média de Notas já agrupa como uma só.
  */
-export interface CreditoScores {
-  names: string[];
+export interface CreditoData {
+  defs: GradeActivity[];
   byStudent: Record<string, Record<string, number>>;
 }
-export async function getCreditoScores(classId: string, year: number, term: number): Promise<CreditoScores> {
+export async function getCreditoData(classId: string, year: number, term: number): Promise<CreditoData> {
   const [acts, grades] = await Promise.all([getEvalConfig(classId, year, term), listEvalGrades(classId, year, term)]);
-  const names = acts.filter((a) => a.credito).map((a) => a.name);
-  if (!names.length) return { names: [], byStudent: {} };
+  const defs = acts.filter((a) => a.credito && a.id);
+  if (!defs.length) return { defs: [], byStudent: {} };
   const byStudent: Record<string, Record<string, number>> = {};
   for (const g of grades) {
     const row: Record<string, number> = {};
     let any = false;
-    for (const n of names) {
-      const m = g.marks?.[n];
+    for (const d of defs) {
+      const m = g.marks?.[d.id as string];
       if (!m) continue;
       if (m.score != null || m.done) {
-        row[n] = m.score != null ? Number(m.score) || 0 : 0;
+        row[d.id as string] = m.score != null ? Number(m.score) || 0 : 0;
         any = true;
       }
     }
     if (any) byStudent[g.student_id] = row;
   }
-  return { names, byStudent };
+  return { defs, byStudent };
 }
 
 /**
@@ -559,13 +560,10 @@ export async function getCreditoScores(classId: string, year: number, term: numb
  * Não faz nada se nenhuma atividade de crédito casar com colunas de notas.
  */
 export async function applyCreditoToGrades(classId: string, year: number, term: number): Promise<number> {
-  const gradeActs = await getTermConfig(year, term);
-  const gradeMax = new Map(gradeActs.map((a) => [a.name, a.max] as const));
-  const { names, byStudent } = await getCreditoScores(classId, year, term);
-  // Só sincroniza atividades de crédito que têm coluna de mesmo nome nas notas.
-  const syncNames = names.filter((n) => gradeMax.has(n));
+  const { defs, byStudent } = await getCreditoData(classId, year, term);
   const ids = Object.keys(byStudent);
-  if (!syncNames.length || !ids.length) return 0;
+  if (!defs.length || !ids.length) return 0;
+  const maxById = new Map(defs.map((d) => [d.id as string, d.max] as const));
 
   // Linhas existentes (para não perder outras notas nem a observação).
   const existing = unwrap<{ student_id: string; scores: Record<string, number>; observacao: string | null }[]>(
@@ -581,11 +579,9 @@ export async function applyCreditoToGrades(classId: string, year: number, term: 
   const payload = ids.map((sid) => {
     const cur = byId.get(sid);
     const scores = { ...(cur?.scores ?? {}) };
-    for (const n of syncNames) {
-      const v = byStudent[sid]?.[n];
-      if (v == null) continue;
-      const max = gradeMax.get(n) ?? 0;
-      scores[n] = max > 0 ? Math.min(v, max) : v;
+    for (const [aid, v] of Object.entries(byStudent[sid] ?? {})) {
+      const max = maxById.get(aid) ?? 0;
+      scores[aid] = max > 0 ? Math.min(v, max) : v;
     }
     return {
       class_id: classId,

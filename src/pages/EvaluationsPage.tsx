@@ -15,7 +15,7 @@ import {
   saveEvalGrades,
   type EvalGradeRow,
 } from '../lib/queries';
-import { TERMS, TERM_LABEL, type GradeActivity } from '../lib/types';
+import { actKey, TERMS, TERM_LABEL, type GradeActivity } from '../lib/types';
 import { usePersistentState } from '../lib/usePersistentState';
 
 type CellState = { done: boolean; score: string };
@@ -58,7 +58,7 @@ export function EvaluationsPage() {
 
   const studentsSig = students.map((s) => s.id).join(',');
   const marksSig = marksRows.map((g) => `${g.student_id}:${JSON.stringify(g.marks)}`).join('|');
-  const actNames = activities.map((a) => a.name).join(',');
+  const actNames = activities.map(actKey).join(',');
 
   useEffect(() => {
     if (!orgReady || isLoading || marksLoading) return;
@@ -67,8 +67,9 @@ export function EvaluationsPage() {
       const g = marksRows.find((x) => x.student_id === s.id);
       const row: Record<string, CellState> = {};
       activities.forEach((a) => {
-        const m = g?.marks?.[a.name];
-        row[a.name] = { done: !!m?.done, score: m?.score != null ? String(m.score) : '' };
+        const k = actKey(a);
+        const m = g?.marks?.[k];
+        row[k] = { done: !!m?.done, score: m?.score != null ? String(m.score) : '' };
       });
       map[s.id] = row;
     });
@@ -95,8 +96,9 @@ export function EvaluationsPage() {
           const row = cells[s.id] || {};
           const marks: Record<string, { done: boolean; score: number | null }> = {};
           activities.forEach((a) => {
-            const c = row[a.name];
-            if (c && (c.done || c.score !== '')) marks[a.name] = { done: c.done || c.score !== '', score: c.score !== '' ? Number(c.score) : null };
+            const k = actKey(a);
+            const c = row[k];
+            if (c && (c.done || c.score !== '')) marks[k] = { done: c.done || c.score !== '', score: c.score !== '' ? Number(c.score) : null };
           });
           return { student_id: s.id, marks };
         })
@@ -119,7 +121,7 @@ export function EvaluationsPage() {
   // Resumo: entregas por atividade e total.
   const totals = useMemo(() => {
     let done = 0;
-    list.forEach((s) => activities.forEach((a) => cells[s.id]?.[a.name]?.done && done++));
+    list.forEach((s) => activities.forEach((a) => cells[s.id]?.[actKey(a)]?.done && done++));
     const possible = list.length * activities.length;
     return { done, possible, pct: possible ? Math.round((done / possible) * 100) : 0 };
   }, [list, activities, cells]);
@@ -221,7 +223,7 @@ export function EvaluationsPage() {
                     <tr>
                       <th className="sticky left-0 z-10 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
                       {activities.map((a) => (
-                        <th key={a.name} className="min-w-[120px] px-2 py-3 text-center align-bottom">
+                        <th key={actKey(a)} className="min-w-[120px] px-2 py-3 text-center align-bottom">
                           <span className="block leading-tight text-slate-600">{a.name}</span>
                           {a.max > 0 ? <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span> : null}
                           {a.credito ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">crédito variável</span> : null}
@@ -233,10 +235,10 @@ export function EvaluationsPage() {
                   </thead>
                   <tbody>
                     {list.map((s, i) => {
-                      const doneCount = activities.filter((a) => cells[s.id]?.[a.name]?.done).length;
+                      const doneCount = activities.filter((a) => cells[s.id]?.[actKey(a)]?.done).length;
                       const creditoTotal = activities
                         .filter((a) => a.credito)
-                        .reduce((acc, a) => acc + (Number(cells[s.id]?.[a.name]?.score) || 0), 0);
+                        .reduce((acc, a) => acc + (Number(cells[s.id]?.[actKey(a)]?.score) || 0), 0);
                       return (
                         <tr key={s.id} className="border-t border-slate-100 transition hover:bg-emerald-50/30 even:bg-slate-50/40">
                           <td className="sticky left-0 z-10 bg-inherit p-3 font-bold text-slate-800 shadow-[2px_0_0_0_rgba(241,245,249,1)]">
@@ -244,12 +246,13 @@ export function EvaluationsPage() {
                             {s.full_name}
                           </td>
                           {activities.map((a) => {
-                            const c = cells[s.id]?.[a.name] ?? { done: false, score: '' };
+                            const k = actKey(a);
+                            const c = cells[s.id]?.[k] ?? { done: false, score: '' };
                             return (
-                              <td key={a.name} className="px-2 py-2 text-center">
+                              <td key={k} className="px-2 py-2 text-center">
                                 <div className="flex items-center justify-center gap-1.5">
                                   <button
-                                    onClick={() => toggleDone(s.id, a.name)}
+                                    onClick={() => toggleDone(s.id, k)}
                                     title={c.done ? 'Fez' : 'Não fez'}
                                     className={cn(
                                       'grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition',
@@ -262,7 +265,7 @@ export function EvaluationsPage() {
                                     <input
                                       inputMode="decimal"
                                       value={c.score}
-                                      onChange={(e) => setScore(s.id, a.name, e.target.value, a.max)}
+                                      onChange={(e) => setScore(s.id, k, e.target.value, a.max)}
                                       placeholder="–"
                                       className="h-9 w-12 rounded-lg border border-slate-200 bg-white text-center font-bold tabular-nums text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                                     />
@@ -352,12 +355,13 @@ function ComposicaoAvaliacoesModal({
 }) {
   const [items, setItems] = useState<GradeActivity[]>([]);
   useEffect(() => {
-    if (open) setItems(initial.length ? initial.map((a) => ({ ...a })) : [{ name: '', max: 0 }]);
+    // Garante um id estável por atividade (liga ao boletim/Notas por id, não por nome).
+    if (open) setItems(initial.length ? initial.map((a) => ({ ...a, id: a.id ?? crypto.randomUUID() })) : [{ id: crypto.randomUUID(), name: '', max: 0 }]);
   }, [open, initial]);
 
   const save = useMutation({
     mutationFn: () =>
-      saveEvalConfig(classId, year, term, items.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), max: Number(a.max) || 0, credito: !!a.credito }))),
+      saveEvalConfig(classId, year, term, items.filter((a) => a.name.trim()).map((a) => ({ id: a.id ?? crypto.randomUUID(), name: a.name.trim(), max: Number(a.max) || 0, credito: !!a.credito }))),
     onSuccess: () => {
       onSaved();
       onClose();
@@ -409,7 +413,7 @@ function ComposicaoAvaliacoesModal({
             </div>
           ))}
         </div>
-        <Button variant="ghost" onClick={() => setItems((p) => [...p, { name: '', max: 0 }])}>
+        <Button variant="ghost" onClick={() => setItems((p) => [...p, { id: crypto.randomUUID(), name: '', max: 0 }])}>
           <Plus size={18} /> Adicionar atividade
         </Button>
         {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}

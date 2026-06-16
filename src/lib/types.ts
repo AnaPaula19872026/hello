@@ -341,9 +341,15 @@ export const MONTHS = [
 
 /* ---- Notas por trimestre (composição de atividades) ---- */
 export interface GradeActivity {
+  id?: string; // identificador estável da coluna (liga Centro de Avaliações ↔ Notas sem depender do nome)
   name: string;
   max: number; // valor máximo da atividade naquele trimestre
   credito?: boolean; // (Centro de Avaliações) atividade compõe o "crédito variável"
+}
+
+/** Chave estável da atividade nos mapas de notas: usa o id quando existe, senão o nome (legado). */
+export function actKey(a: GradeActivity): string {
+  return a.id ?? a.name;
 }
 
 export const RECOVERY_ACTIVITY_NAME = 'RECUPERAÇÃO';
@@ -398,7 +404,7 @@ function gradeBuckets(scores: Record<string, number>, activities?: GradeActivity
     const small: number[] = [];
     for (const a of activities) {
       if (isRecoveryActivity(a.name)) continue;
-      const v = Number(scores[a.name]) || 0;
+      const v = Number(scores[actKey(a)]) || 0;
       if (a.max < 10) small.push(v);
       else mains.push(v);
     }

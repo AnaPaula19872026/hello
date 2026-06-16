@@ -11,7 +11,7 @@ import { cn } from '../lib/cn';
 import { printDocument, escapeHtml } from '../lib/print';
 import { usePersistentState } from '../lib/usePersistentState';
 import {
-  getCreditoScores,
+  getCreditoData,
   getTermConfig,
   getSavedTermConfig,
   listClasses,
@@ -23,7 +23,7 @@ import {
   saveTermGrades,
   type TermsReportRow,
 } from '../lib/queries';
-import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, calcMedia, isRecoveryActivity, orderGradeActivities, type GradeActivity, type School } from '../lib/types';
+import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, actKey, calcMedia, isRecoveryActivity, orderGradeActivities, type GradeActivity, type School } from '../lib/types';
 
 /** Cabeçalho profissional para impressão (logo, escola, contato) — usado no boletim e no relatório. */
 function schoolHeaderHtml(school: School | undefined, label: string): string {
@@ -92,24 +92,26 @@ export function NotasPage() {
     enabled: orgReady && !!classId,
   });
 
-  const { data: creditScores = { names: [], byStudent: {} } } = useQuery({
-    queryKey: ['credito-scores', activeOrgId, classId, year, term],
-    queryFn: () => getCreditoScores(classId, year, term),
+  const { data: creditData = { defs: [], byStudent: {} } } = useQuery({
+    queryKey: ['credito-data', activeOrgId, classId, year, term],
+    queryFn: () => getCreditoData(classId, year, term),
     enabled: orgReady && !!classId,
   });
-  // Nomes de atividades do crédito variável que TÊM coluna de mesmo nome nas notas.
-  const creditNameSet = useMemo(() => {
-    const gradeNames = new Set(orderedActivities.map((a) => a.name));
-    return new Set(creditScores.names.filter((n) => gradeNames.has(n)));
-  }, [creditScores.names, orderedActivities]);
-  const hasCreditData = Object.keys(creditScores.byStudent).length > 0;
+  // Colunas finais = atividades da turma + atividades de crédito variável (vindas
+  // do Centro de Avaliações, ligadas por ID estável). A média já agrupa as <10.
+  const columns = useMemo(
+    () => orderGradeActivities([...orderedActivities, ...creditData.defs]),
+    [orderedActivities, creditData.defs],
+  );
+  const creditIdSet = useMemo(() => new Set(creditData.defs.map((d) => d.id as string)), [creditData.defs]);
+  const hasCreditData = creditData.defs.length > 0;
 
   const studentsSig = students.map((s) => s.id).join(',');
   const gradesSig = termGrades.map((g) => `${g.student_id}:${JSON.stringify(g.scores)}:${g.updated_at ?? ''}`).join('|');
-  const creditSig = `${[...creditNameSet].join(',')}|${JSON.stringify(creditScores.byStudent)}`;
+  const creditSig = `${[...creditIdSet].join(',')}|${JSON.stringify(creditData.byStudent)}`;
   const gradeByStudent = useMemo(() => new Map(termGrades.map((g) => [g.student_id, g])), [termGrades]);
   const hasSavedGrades = termGrades.length > 0;
-  const maxByName = useMemo(() => new Map(orderedActivities.map((a) => [a.name, a.max] as const)), [orderedActivities]);
+  const maxByKey = useMemo(() => new Map(columns.map((a) => [actKey(a), a.max] as const)), [columns]);
 
   function resetScoresFromSaved() {
     const map: Record<string, Record<string, string>> = {};
@@ -117,17 +119,17 @@ export function NotasPage() {
     students.forEach((s) => {
       const g = termGrades.find((x) => x.student_id === s.id);
       const row: Record<string, string> = {};
-      orderedActivities.forEach((a) => {
-        const v = g?.scores?.[a.name];
-        row[a.name] = v != null ? String(v) : '';
+      columns.forEach((a) => {
+        const v = g?.scores?.[actKey(a)];
+        row[actKey(a)] = v != null ? String(v) : '';
       });
-      // Colunas ligadas ao Centro de Avaliações (mesmo nome): usam a nota de lá quando existir.
-      const cv = creditScores.byStudent[s.id];
+      // Colunas de crédito variável (do Centro de Avaliações, por id): nota de lá quando existir.
+      const cv = creditData.byStudent[s.id];
       if (cv) {
-        creditNameSet.forEach((n) => {
-          if (cv[n] != null) {
-            const max = maxByName.get(n) ?? 0;
-            row[n] = String(max > 0 ? Math.min(cv[n], max) : cv[n]);
+        creditIdSet.forEach((id) => {
+          if (cv[id] != null) {
+            const max = maxByKey.get(id) ?? 0;
+            row[id] = String(max > 0 ? Math.min(cv[id], max) : cv[id]);
           }
         });
       }
@@ -145,20 +147,21 @@ export function NotasPage() {
     if (!orgReady || isLoading || gradesLoading) return;
     resetScoresFromSaved();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgReady, isLoading, gradesLoading, studentsSig, gradesSig, creditSig, orderedActivities.map((a) => a.name).join(',')]);
+  }, [orgReady, isLoading, gradesLoading, studentsSig, gradesSig, creditSig, columns.map(actKey).join(',')]);
 
   function mediaOf(id: string): number | null {
     const row = scores[id];
     if (!row) return null;
     const nums: Record<string, number> = {};
     let has = false;
-    orderedActivities.forEach((a) => {
-      if (row[a.name] !== '' && row[a.name] != null) {
-        nums[a.name] = Number(row[a.name]);
+    columns.forEach((a) => {
+      const k = actKey(a);
+      if (row[k] !== '' && row[k] != null) {
+        nums[k] = Number(row[k]);
         if (!isRecoveryActivity(a.name)) has = true;
       }
     });
-    return has ? calcMedia(nums, orderedActivities) : null;
+    return has ? calcMedia(nums, columns) : null;
   }
 
   function setScore(id: string, act: string, raw: string, max: number) {
@@ -177,8 +180,9 @@ export function NotasPage() {
         .map((s) => {
           const row = scores[s.id] || {};
           const obj: Record<string, number> = {};
-          orderedActivities.forEach((a) => {
-            if (row[a.name] !== '' && row[a.name] != null) obj[a.name] = Number(row[a.name]);
+          columns.forEach((a) => {
+            const k = actKey(a);
+            if (row[k] !== '' && row[k] != null) obj[k] = Number(row[k]);
           });
           return { student_id: s.id, scores: obj, observacao: (obs[s.id] ?? '').trim() || null };
         })
@@ -265,7 +269,7 @@ export function NotasPage() {
         </Select>
       </div>
 
-      {orderedActivities.length === 0 ? (
+      {columns.length === 0 ? (
         <EmptyState
           icon={<Sliders size={26} />}
           title="Configure a composição deste trimestre"
@@ -274,12 +278,6 @@ export function NotasPage() {
         />
       ) : (
         <>
-          {hasCreditData && creditNameSet.size === 0 ? (
-            <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-              Há crédito variável lançado no Centro de Avaliações, mas nenhuma coluna de notas tem o <strong>mesmo nome</strong> das atividades de lá. Use os mesmos nomes (ex.: SIMULADO, PROJETO, CRÉDITO VARIÁVEL) na <strong>Composição de notas</strong> para que as notas apareçam aqui automaticamente.
-            </div>
-          ) : null}
-
           <div className="mb-3">
             <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
               <Search size={18} className="text-slate-400" />
@@ -344,12 +342,12 @@ export function NotasPage() {
                 <thead className="bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="sticky left-0 z-10 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
-                    {orderedActivities.map((a) => (
-                      <th key={a.name} className="min-w-[88px] px-2 py-3 text-center align-bottom">
+                    {columns.map((a) => (
+                      <th key={actKey(a)} className="min-w-[88px] px-2 py-3 text-center align-bottom">
                         <span className="block leading-tight text-slate-600">{a.name}</span>
                         <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
                         {isRecoveryActivity(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span> : null}
-                        {creditNameSet.has(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">do Centro de Avaliações</span> : null}
+                        {creditIdSet.has(actKey(a)) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">do Centro de Avaliações</span> : null}
                       </th>
                     ))}
                     <th className="px-3 py-3 text-center">Média</th>
@@ -369,15 +367,16 @@ export function NotasPage() {
                           <span className="mr-2 inline-block w-6 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>
                           {s.full_name}
                         </td>
-                        {orderedActivities.map((a) => {
-                          const val = scores[s.id]?.[a.name] ?? '';
-                          const locked = creditNameSet.has(a.name); // vem do Centro de Avaliações — não editável aqui
+                        {columns.map((a) => {
+                          const k = actKey(a);
+                          const val = scores[s.id]?.[k] ?? '';
+                          const locked = creditIdSet.has(k); // vem do Centro de Avaliações — não editável aqui
                           return (
-                            <td key={a.name} className="px-1.5 py-1.5 text-center">
+                            <td key={k} className="px-1.5 py-1.5 text-center">
                               <input
                                 inputMode="decimal"
                                 value={val}
-                                onChange={(e) => setScore(s.id, a.name, e.target.value, a.max)}
+                                onChange={(e) => setScore(s.id, k, e.target.value, a.max)}
                                 disabled={!editingGrades || locked}
                                 placeholder="–"
                                 title={locked ? 'Vem do Centro de Avaliações (crédito variável)' : undefined}
@@ -445,9 +444,9 @@ export function NotasPage() {
               <p className="mt-3 text-xs text-slate-400">
                 Média final = soma das notas ÷ 3 · aprovação a partir de {MEDIA_APROVACAO.toFixed(1)} · a nota de recuperação substitui a menor quando melhora a média.
               </p>
-              {creditNameSet.size > 0 ? (
+              {creditIdSet.size > 0 ? (
                 <p className="mt-1 text-xs font-semibold text-amber-600">
-                  As colunas {[...creditNameSet].join(', ')} vêm do Centro de Avaliações (crédito variável) e juntas contam como uma nota. São preenchidas automaticamente; confira e salve.
+                  As colunas {creditData.defs.map((d) => d.name).join(', ')} vêm do Centro de Avaliações (crédito variável) e juntas contam como uma nota. São preenchidas automaticamente; confira e salve.
                 </p>
               ) : null}
             </>
@@ -455,7 +454,7 @@ export function NotasPage() {
         </>
       )}
 
-      {students.length > 0 && orderedActivities.length > 0 ? (
+      {students.length > 0 && columns.length > 0 ? (
         <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:pl-72">
           <div className="mx-auto flex max-w-5xl items-center gap-2 px-1 sm:gap-3">
             <div className="hidden min-w-0 flex-1 sm:block">
@@ -518,10 +517,10 @@ export function NotasPage() {
         schoolId={classes.find((c) => c.id === classId)?.school_id ?? ''}
         term={term}
         year={year}
-        activities={orderedActivities}
+        activities={columns}
         rows={list.map((s) => ({
           name: s.full_name,
-          scores: Object.fromEntries(orderedActivities.map((a) => [a.name, scores[s.id]?.[a.name] ?? ''])),
+          scores: Object.fromEntries(columns.map((a) => [a.name, scores[s.id]?.[actKey(a)] ?? ''])),
           media: mediaOf(s.id),
           obs: obs[s.id] ?? '',
         }))}
