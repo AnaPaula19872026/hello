@@ -314,6 +314,7 @@ export async function getSession(classId: string, date: string): Promise<Attenda
   const { data, error } = await scoped(supabase.from('attendance_sessions').select('*'))
     .eq('class_id', classId)
     .eq('session_date', date)
+    .is('deleted_at', null)
     .maybeSingle();
   if (error) throw new Error(error.message);
   return data;
@@ -335,7 +336,7 @@ export async function saveAttendance(
     await supabase
       .from('attendance_sessions')
       .upsert(
-        { class_id: classId, session_date: date, note: opts?.note ?? null, exam_mode: opts?.examMode ?? false, updated_at: new Date().toISOString(), ...(org ? { org_id: org } : {}) },
+        { class_id: classId, session_date: date, note: opts?.note ?? null, exam_mode: opts?.examMode ?? false, deleted_at: null, updated_at: new Date().toISOString(), ...(org ? { org_id: org } : {}) },
         { onConflict: 'class_id,session_date' },
       )
       .select()
@@ -370,6 +371,7 @@ export interface RecentSession {
 export async function listRecentSessions(limit = 10): Promise<RecentSession[]> {
   const sessions = unwrap<{ id: string; class_id: string; session_date: string }[]>(
     await scoped(supabase.from('attendance_sessions').select('id, class_id, session_date'))
+      .is('deleted_at', null)
       .order('session_date', { ascending: false })
       .limit(limit),
   );
@@ -639,7 +641,7 @@ export interface AttendanceAlert {
  */
 export async function listAttendanceAlerts(minPct = 75, year = new Date().getFullYear(), minSessions = 4): Promise<AttendanceAlert[]> {
   const sessions = unwrap<{ id: string; session_date: string }[]>(
-    await scoped(supabase.from('attendance_sessions').select('id, session_date')),
+    await scoped(supabase.from('attendance_sessions').select('id, session_date')).is('deleted_at', null),
   ).filter((s) => s.session_date.startsWith(String(year)));
   if (!sessions.length) return [];
   const ids = sessions.map((s) => s.id);
@@ -671,6 +673,7 @@ export async function reportAttendance(classId: string, from: string, to: string
   const sessions = unwrap<{ id: string; session_date: string; exam_mode?: boolean }[]>(
     await scoped(supabase.from('attendance_sessions').select('id, session_date, exam_mode'))
       .eq('class_id', classId)
+      .is('deleted_at', null)
       .gte('session_date', from)
       .lte('session_date', to),
   );
@@ -708,10 +711,49 @@ export async function reportAttendance(classId: string, from: string, to: string
   return { sessions: sessions.length, rows, examDates, dates };
 }
 
-/** Apaga uma chamada (sessão) e seus registros. */
+/** Envia a chamada para a lixeira (soft-delete) — recuperável. */
 export async function deleteAttendanceSession(id: string): Promise<void> {
+  const { error } = await scoped(supabase.from('attendance_sessions').update({ deleted_at: new Date().toISOString() })).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Restaura uma chamada da lixeira. */
+export async function restoreAttendanceSession(id: string): Promise<void> {
+  const { error } = await scoped(supabase.from('attendance_sessions').update({ deleted_at: null })).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Exclui a chamada DEFINITIVAMENTE (e seus registros). */
+export async function purgeAttendanceSession(id: string): Promise<void> {
   const { error } = await scoped(supabase.from('attendance_sessions').delete()).eq('id', id);
   if (error) throw new Error(error.message);
+}
+
+/** Chamadas na lixeira (excluídas), com contagens — para restaurar. */
+export async function listDeletedSessions(limit = 50): Promise<(RecentSession & { deleted_at: string | null })[]> {
+  const sessions = unwrap<{ id: string; class_id: string; session_date: string; deleted_at: string | null }[]>(
+    await scoped(supabase.from('attendance_sessions').select('id, class_id, session_date, deleted_at'))
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', { ascending: false })
+      .limit(limit),
+  );
+  if (!sessions.length) return [];
+  const ids = sessions.map((s) => s.id);
+  const recs = unwrap<{ session_id: string; status: string }[]>(
+    await scoped(supabase.from('attendance_records').select('session_id, status')).in('session_id', ids),
+  );
+  return sessions.map((s) => {
+    const mine = recs.filter((r) => r.session_id === s.id);
+    return {
+      id: s.id,
+      class_id: s.class_id,
+      session_date: s.session_date,
+      deleted_at: s.deleted_at,
+      present: mine.filter((r) => r.status === 'present' || r.status === 'late').length,
+      absent: mine.filter((r) => r.status === 'absent').length,
+      total: mine.length,
+    };
+  });
 }
 
 /* ----------------------------- Relatório por link ------------------------------ */

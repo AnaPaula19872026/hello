@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Award, BarChart3, Bell, CalendarDays, ChevronDown, ClipboardCheck, GraduationCap, Megaphone, TriangleAlert, Trash2, Users } from 'lucide-react';
+import { Award, BarChart3, Bell, CalendarDays, ChevronDown, ClipboardCheck, GraduationCap, Megaphone, RotateCcw, TriangleAlert, Trash2, Users } from 'lucide-react';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { Card, Loading, PageHeader, SectionTitle, StatCard } from '../components/ui';
+import { Button, Card, Loading, Modal, PageHeader, SectionTitle, StatCard } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { can } from '../lib/permissions';
@@ -14,9 +14,12 @@ import {
   deleteAttendanceSession,
   listAttendanceAlerts,
   listClasses,
+  listDeletedSessions,
   listEvents,
   listReceivedNotices,
   listRecentSessions,
+  purgeAttendanceSession,
+  restoreAttendanceSession,
   unreadNoticeCount,
   type RecentSession,
 } from '../lib/queries';
@@ -41,6 +44,7 @@ export function DashboardPage() {
   const { data: alerts = [] } = useQuery({ queryKey: ['attendance-alerts'], queryFn: () => listAttendanceAlerts(), enabled: showAlerts });
 
   const [open, setOpen] = useState<string | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
   const className = (id: string) => classes.find((c) => c.id === id)?.name ?? 'Turma';
 
   const delSession = useMutation({
@@ -188,7 +192,16 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <SectionTitle className="mb-3">Chamadas recentes por turma</SectionTitle>
+      <SectionTitle
+        className="mb-3"
+        action={
+          <button onClick={() => setTrashOpen(true)} className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800">
+            <Trash2 size={14} /> Lixeira
+          </button>
+        }
+      >
+        Chamadas recentes por turma
+      </SectionTitle>
       {groups.length === 0 ? (
         <Card>
           <p className="text-sm text-slate-500">Nenhuma chamada registrada ainda.</p>
@@ -245,7 +258,59 @@ export function DashboardPage() {
           })}
         </div>
       )}
+
+      {trashOpen ? <TrashModal classNameOf={className} onClose={() => setTrashOpen(false)} /> : null}
     </>
+  );
+}
+
+/** Lixeira de chamadas: restaurar ou excluir definitivamente. */
+function TrashModal({ classNameOf, onClose }: { classNameOf: (id: string) => string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { data: items = [], isLoading } = useQuery({ queryKey: ['deleted-sessions'], queryFn: () => listDeletedSessions(), retry: false });
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['deleted-sessions'] });
+    qc.invalidateQueries({ queryKey: ['recent-sessions'] });
+  };
+  const restore = useMutation({ mutationFn: restoreAttendanceSession, onSuccess: () => { refresh(); successToast('Chamada restaurada'); } });
+  const purge = useMutation({ mutationFn: purgeAttendanceSession, onSuccess: () => { refresh(); successToast('Chamada excluída definitivamente'); } });
+
+  return (
+    <Modal open onClose={onClose} title="Lixeira de chamadas">
+      <div className="space-y-3">
+        <p className="text-sm text-slate-500">Chamadas excluídas. Restaure com um clique ou exclua de vez.</p>
+        {isLoading ? (
+          <Loading />
+        ) : items.length === 0 ? (
+          <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">A lixeira está vazia.</p>
+        ) : (
+          <div className="space-y-2">
+            {items.map((s) => (
+              <div key={s.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-bold text-slate-800">{classNameOf(s.class_id)}</p>
+                  <p className="text-xs font-bold text-slate-400">
+                    {format(parseISO(s.session_date), "dd/MM/yyyy", { locale: ptBR })} · {s.present} pres. · {s.absent} falt.
+                  </p>
+                </div>
+                <Button variant="soft" onClick={() => restore.mutate(s.id)} disabled={restore.isPending}>
+                  <RotateCcw size={16} /> Restaurar
+                </Button>
+                <button
+                  onClick={() => confirm('Excluir DEFINITIVAMENTE esta chamada? Não dá pra recuperar depois.') && purge.mutate(s.id)}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-red-50 text-red-600 hover:bg-red-100"
+                  aria-label="Excluir definitivamente"
+                  title="Excluir definitivamente"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }
 
