@@ -109,62 +109,67 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
   if (rows.length === 0) return <p className="text-center text-slate-400">Nenhum dado no período.</p>;
   if (dates.length === 0) return <p className="text-center text-slate-400">Nenhuma aula registrada no período.</p>;
 
-  const cell = compact ? 'h-7 w-7 text-[11px]' : 'h-8 w-8 text-xs';
+  const chip = compact ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-1 text-xs';
 
   return (
-    <>
-      {/* Legenda */}
-      <div className="mb-3 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-500">
-        <span className="flex items-center gap-1.5"><span className="grid h-5 w-5 place-items-center rounded bg-emerald-100 text-emerald-700">✓</span> Presente</span>
-        <span className="flex items-center gap-1.5"><span className="grid h-5 w-5 place-items-center rounded bg-red-100 text-red-700">✗</span> Falta</span>
-        <span className="flex items-center gap-1.5"><span className="grid h-5 w-5 place-items-center rounded bg-amber-100 text-amber-700">⚑</span> Semana de provas</span>
-      </div>
-
-      {/* Mapa de frequência: cada coluna é um dia de aula */}
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-        <table className="border-collapse text-sm">
-          <thead>
-            <tr className="bg-slate-50">
-              <th className="sticky left-0 z-10 bg-slate-50 p-2.5 text-left text-xs font-black uppercase text-slate-500 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
-              {dates.map((d) => (
-                <th key={d} className={cn('px-1 py-2 text-center text-[10px] font-black leading-tight', examSet.has(d) ? 'bg-amber-50 text-amber-700' : 'text-slate-500')} title={d.split('-').reverse().join('/')}>
-                  {d.slice(8, 10)}<br />{d.slice(5, 7)}{examSet.has(d) ? <span className="block">⚑</span> : null}
-                </th>
-              ))}
-              <th className="px-2 py-2 text-center text-[10px] font-black uppercase text-emerald-700">Pres.</th>
-              <th className="px-2 py-2 text-center text-[10px] font-black uppercase text-red-600">Faltas</th>
-              <th className="px-2 py-2 text-center text-[10px] font-black uppercase text-slate-500">%</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={r.name} className="border-t border-slate-100 even:bg-slate-50/40">
-                <td className="sticky left-0 z-10 bg-inherit p-2.5 font-bold text-slate-800 shadow-[2px_0_0_0_rgba(241,245,249,1)]">
+    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
+          <tr>
+            <th className="p-3">Aluno</th>
+            <th className="p-3">Presenças</th>
+            <th className="p-3">Faltas</th>
+            <th className="p-3 text-center">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => {
+            const presentDates = dates.filter((d) => r.days?.[d] === true);
+            const absentDates = dates.filter((d) => r.days?.[d] === false);
+            return (
+              <tr key={r.name} className="border-t border-slate-100 align-top even:bg-slate-50/40">
+                <td className="p-3 font-bold text-slate-800">
                   <span className="mr-2 inline-block w-5 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>{r.name}
                 </td>
-                {dates.map((d) => {
-                  const v = r.days?.[d];
-                  return (
-                    <td key={d} className="px-1 py-1 text-center">
-                      {v === undefined ? (
-                        <span className="text-slate-300">–</span>
-                      ) : v ? (
-                        <span className={cn('mx-auto grid place-items-center rounded font-black bg-emerald-100 text-emerald-700', cell)} title={`Presente · ${d.split('-').reverse().join('/')}`}>✓</span>
-                      ) : (
-                        <span className={cn('mx-auto grid place-items-center rounded font-black', examSet.has(d) ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700', cell)} title={`Falta · ${d.split('-').reverse().join('/')}`}>✗</span>
-                      )}
-                    </td>
-                  );
-                })}
-                <td className="px-2 text-center font-black text-emerald-700">{r.present}</td>
-                <td className="px-2 text-center font-black text-red-600">{r.absent}</td>
-                <td className={cn('px-2 text-center font-black', r.pct < minPct ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</td>
+                <td className="p-3">
+                  <div className="mb-1 text-[11px] font-black uppercase text-emerald-700">{r.present} presença(s)</div>
+                  <div className="flex flex-wrap gap-1">
+                    {presentDates.length === 0 ? (
+                      <span className="text-slate-300">—</span>
+                    ) : (
+                      presentDates.map((d) => (
+                        <span key={d} className={cn('rounded-lg bg-emerald-50 font-bold text-emerald-700', chip)}>{fmtDM(d)}</span>
+                      ))
+                    )}
+                  </div>
+                </td>
+                <td className="p-3">
+                  <div className="mb-1 text-[11px] font-black uppercase text-red-600">{r.absent} falta(s)</div>
+                  <div className="flex flex-wrap gap-1">
+                    {absentDates.length === 0 ? (
+                      <span className="text-slate-300">—</span>
+                    ) : (
+                      absentDates.map((d) => (
+                        <span
+                          key={d}
+                          className={cn('rounded-lg font-bold', examSet.has(d) ? 'bg-amber-100 text-amber-800' : 'bg-red-50 text-red-700', chip)}
+                          title={examSet.has(d) ? 'Semana de provas' : undefined}
+                        >
+                          {fmtDM(d)}{examSet.has(d) ? ' ⚑' : ''}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </td>
+                <td className="p-3 text-center">
+                  <span className={cn('text-base font-black', r.pct < minPct ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</span>
+                </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
