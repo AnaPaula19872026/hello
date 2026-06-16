@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ReportView } from '../components/ReportView';
 import { ShareModal } from '../components/ShareModal';
-import { Button, Card, EmptyState, Field, Modal, PageHeader, Select } from '../components/ui';
+import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented, Select } from '../components/ui';
 import { cn } from '../lib/cn';
 import { downloadXlsx } from '../lib/importSheet';
 import { listClasses, listSchools, listStudentsByClass, reportAttendance, reportTerms } from '../lib/queries';
@@ -176,17 +176,15 @@ export function ReportsPage() {
 
         {/* Filtros */}
         <Card className="mb-5">
-          <div className="mb-4 flex gap-2">
-            {(['freq', 'notas'] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTipo(t)}
-                className={cn('flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition', tipo === t ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}
-              >
-                {t === 'freq' ? 'Frequência' : 'Notas'}
-              </button>
-            ))}
-          </div>
+          <Segmented<Tipo>
+            className="mb-4"
+            value={tipo}
+            onChange={setTipo}
+            options={[
+              { value: 'freq', label: 'Frequência' },
+              { value: 'notas', label: 'Notas' },
+            ]}
+          />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Turma">
@@ -209,10 +207,10 @@ export function ReportsPage() {
             {tipo === 'freq' ? (
               <>
                 <Field label="De">
-                  <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500" />
+                  <Input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
                 </Field>
                 <Field label="Até">
-                  <input type="date" value={to} min={from} max={iso(today)} onChange={(e) => setTo(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500" />
+                  <Input type="date" value={to} min={from} max={iso(today)} onChange={(e) => setTo(e.target.value)} />
                 </Field>
               </>
             ) : (
@@ -255,20 +253,17 @@ export function ReportsPage() {
           ) : null}
 
           {tipo === 'notas' ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {[0, 1, 2, 3].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setNotaTerm(t)}
-                  className={cn(
-                    'rounded-lg px-3 py-1.5 text-xs font-bold transition',
-                    notaTerm === t ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                  )}
-                >
-                  {t === 0 ? 'Todos' : `${t}º trimestre`}
-                </button>
-              ))}
-            </div>
+            <Segmented<number>
+              className="mt-3"
+              value={notaTerm}
+              onChange={setNotaTerm}
+              options={[
+                { value: 0, label: 'Todos' },
+                { value: 1, label: '1º trimestre' },
+                { value: 2, label: '2º trimestre' },
+                { value: 3, label: '3º trimestre' },
+              ]}
+            />
           ) : null}
         </Card>
 
