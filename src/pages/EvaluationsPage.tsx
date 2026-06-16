@@ -79,6 +79,11 @@ export function EvaluationsPage() {
 
   const list = useMemo(() => students.filter((s) => s.full_name.toLowerCase().includes(q.toLowerCase())), [students, q]);
   const hasCredito = activities.some((a) => a.credito);
+  // Agrupa o cabeçalho do crédito (colspan) só quando as colunas de crédito são contíguas.
+  const firstCreditoIdx = activities.findIndex((a) => a.credito);
+  const lastCreditoIdx = activities.map((a) => !!a.credito).lastIndexOf(true);
+  const creditoCount = activities.filter((a) => a.credito).length;
+  const creditoGrouped = creditoCount > 0 && lastCreditoIdx - firstCreditoIdx + 1 === creditoCount;
 
   function toggleDone(id: string, act: string) {
     setCells((p) => ({ ...p, [id]: { ...p[id], [act]: { ...p[id]?.[act], done: !p[id]?.[act]?.done, score: p[id]?.[act]?.score ?? '' } } }));
@@ -217,21 +222,55 @@ export function EvaluationsPage() {
                 </div>
               </div>
 
-              <Card className="overflow-x-auto p-0">
+              <Card className="max-h-[70vh] overflow-auto p-0">
                 <table className="w-full border-collapse text-sm">
-                  <thead className="bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="sticky left-0 z-10 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
-                      {activities.map((a) => (
-                        <th key={actKey(a)} className={cn('min-w-[112px] px-2 py-3 text-center align-bottom', a.credito && 'bg-amber-50')}>
-                          <span className="block leading-tight text-slate-600">{a.name}</span>
-                          {a.max > 0 ? <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span> : null}
-                          {a.credito ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">crédito variável</span> : null}
-                        </th>
-                      ))}
-                      {hasCredito ? <th className="min-w-[96px] bg-amber-50 px-3 py-3 text-center text-amber-700">Crédito Variável</th> : null}
-                      <th className="px-3 py-3 text-center">Feitas</th>
-                    </tr>
+                  <thead className="sticky top-0 z-20 bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
+                    {creditoGrouped ? (
+                      <>
+                        <tr>
+                          <th rowSpan={2} className="sticky left-0 top-0 z-30 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
+                          {activities.map((a, idx) => {
+                            if (a.credito) {
+                              if (idx !== firstCreditoIdx) return null;
+                              return (
+                                <th key="credito-group" colSpan={creditoCount} className="border-b border-amber-200 bg-amber-50 px-2 py-2 text-center text-amber-700">
+                                  Crédito variável <span className="font-bold normal-case text-amber-600">· vale 1 nota</span>
+                                </th>
+                              );
+                            }
+                            return (
+                              <th key={actKey(a)} rowSpan={2} className="min-w-[112px] px-2 py-3 text-center align-bottom">
+                                <span className="block leading-tight text-slate-600">{a.name}</span>
+                                {a.max > 0 ? <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span> : null}
+                              </th>
+                            );
+                          })}
+                          {hasCredito ? <th rowSpan={2} className="min-w-[96px] bg-amber-50 px-3 py-3 text-center text-amber-700">Crédito Variável</th> : null}
+                          <th rowSpan={2} className="px-3 py-3 text-center">Feitas</th>
+                        </tr>
+                        <tr>
+                          {activities.filter((a) => a.credito).map((a) => (
+                            <th key={actKey(a)} className="min-w-[112px] bg-amber-50 px-2 py-2 text-center align-bottom">
+                              <span className="block leading-tight text-amber-800">{a.name}</span>
+                              {a.max > 0 ? <span className="mt-1 inline-block rounded bg-amber-200/60 px-1.5 py-0.5 text-[9px] font-black text-amber-700">0–{a.max}</span> : null}
+                            </th>
+                          ))}
+                        </tr>
+                      </>
+                    ) : (
+                      <tr>
+                        <th className="sticky left-0 top-0 z-30 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
+                        {activities.map((a) => (
+                          <th key={actKey(a)} className={cn('min-w-[112px] px-2 py-3 text-center align-bottom', a.credito && 'bg-amber-50')}>
+                            <span className="block leading-tight text-slate-600">{a.name}</span>
+                            {a.max > 0 ? <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span> : null}
+                            {a.credito ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">crédito variável</span> : null}
+                          </th>
+                        ))}
+                        {hasCredito ? <th className="min-w-[96px] bg-amber-50 px-3 py-3 text-center text-amber-700">Crédito Variável</th> : null}
+                        <th className="px-3 py-3 text-center">Feitas</th>
+                      </tr>
+                    )}
                   </thead>
                   <tbody>
                     {list.map((s, i) => {

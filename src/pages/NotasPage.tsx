@@ -104,6 +104,7 @@ export function NotasPage() {
     [orderedActivities, creditData.defs],
   );
   const creditIdSet = useMemo(() => new Set(creditData.defs.map((d) => d.id as string)), [creditData.defs]);
+  const firstCreditIdx = useMemo(() => columns.findIndex((a) => creditIdSet.has(actKey(a))), [columns, creditIdSet]);
   const hasCreditData = creditData.defs.length > 0;
 
   const studentsSig = students.map((s) => s.id).join(',');
@@ -337,27 +338,60 @@ export function NotasPage() {
                 );
               })()}
 
-              <Card className="overflow-x-auto p-0">
+              <Card className="max-h-[70vh] overflow-auto p-0">
               <table className="w-full border-collapse text-sm">
-                <thead className="bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="sticky left-0 z-10 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
-                    {columns.map((a) => {
-                      const credit = creditIdSet.has(actKey(a));
-                      return (
-                        <th key={actKey(a)} className={cn('min-w-[92px] px-2 py-3 text-center align-bottom', credit && 'bg-amber-50')}>
+                <thead className="sticky top-0 z-20 bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
+                  {creditIdSet.size > 0 ? (
+                    <>
+                      <tr>
+                        <th rowSpan={2} className="sticky left-0 top-0 z-30 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
+                        {columns.map((a, idx) => {
+                          if (creditIdSet.has(actKey(a))) {
+                            if (idx !== firstCreditIdx) return null;
+                            return (
+                              <th key="credit-group" colSpan={creditIdSet.size} className="border-b border-amber-200 bg-amber-50 px-2 py-2 text-center text-amber-700">
+                                Crédito variável <span className="font-bold normal-case text-amber-600">· vale 1 nota</span>
+                              </th>
+                            );
+                          }
+                          return (
+                            <th key={actKey(a)} rowSpan={2} className="min-w-[92px] px-2 py-3 text-center align-bottom">
+                              <span className="block leading-tight text-slate-600">{a.name}</span>
+                              <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
+                              {isRecoveryActivity(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span> : null}
+                            </th>
+                          );
+                        })}
+                        <th rowSpan={2} className="px-3 py-3 text-center">Média</th>
+                        <th rowSpan={2} className="px-3 py-3 text-center">Situação</th>
+                        <th rowSpan={2} className="min-w-[160px] px-3 py-3 text-center">Observações</th>
+                        <th rowSpan={2} className="px-3 py-3 text-center">Últ. mov.</th>
+                      </tr>
+                      <tr>
+                        {columns.filter((a) => creditIdSet.has(actKey(a))).map((a) => (
+                          <th key={actKey(a)} className="min-w-[92px] bg-amber-50 px-2 py-2 text-center align-bottom">
+                            <span className="block leading-tight text-amber-800">{a.name}</span>
+                            <span className="mt-1 inline-block rounded bg-amber-200/60 px-1.5 py-0.5 text-[9px] font-black text-amber-700">0–{a.max}</span>
+                          </th>
+                        ))}
+                      </tr>
+                    </>
+                  ) : (
+                    <tr>
+                      <th className="sticky left-0 top-0 z-30 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
+                      {columns.map((a) => (
+                        <th key={actKey(a)} className="min-w-[92px] px-2 py-3 text-center align-bottom">
                           <span className="block leading-tight text-slate-600">{a.name}</span>
                           <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
                           {isRecoveryActivity(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span> : null}
-                          {credit ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">crédito variável</span> : null}
                         </th>
-                      );
-                    })}
-                    <th className="px-3 py-3 text-center">Média</th>
-                    <th className="px-3 py-3 text-center">Situação</th>
-                    <th className="min-w-[160px] px-3 py-3 text-center">Observações</th>
-                    <th className="px-3 py-3 text-center">Últ. mov.</th>
-                  </tr>
+                      ))}
+                      <th className="px-3 py-3 text-center">Média</th>
+                      <th className="px-3 py-3 text-center">Situação</th>
+                      <th className="min-w-[160px] px-3 py-3 text-center">Observações</th>
+                      <th className="px-3 py-3 text-center">Últ. mov.</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
                   {list.map((s, i) => {
