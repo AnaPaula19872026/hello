@@ -2,7 +2,7 @@ import { Check, Copy, Mail, MessageCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createSharedReport } from '../lib/queries';
 import type { ReportPayload } from '../lib/types';
-import { Button, Field, Input, Modal } from './ui';
+import { Button, Field, Input, Modal, Loading} from './ui';
 
 export function ShareModal({ open, onClose, payload }: { open: boolean; onClose: () => void; payload: ReportPayload | null }) {
   const [link, setLink] = useState('');
@@ -39,7 +39,7 @@ export function ShareModal({ open, onClose, payload }: { open: boolean; onClose:
   return (
     <Modal open={open} onClose={onClose} title="Enviar relatório">
       {busy ? (
-        <p className="py-6 text-center text-sm text-slate-500">Gerando link…</p>
+        <Loading label="Gerando link…" />
       ) : err ? (
         <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-600">{err}</p>
       ) : (

@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { Check, CheckCheck, ClipboardCheck, Layers, Lock, Pencil, Save, Users, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { Card, EmptyState, PageHeader, SearchInput, Segmented, Select } from '../components/ui';
+import { Card, EmptyState, PageHeader, SearchInput, Segmented, Select, Loading} from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { getRecords, getSession, listClasses, listStudentsByClass, saveAttendance } from '../lib/queries';
@@ -125,7 +125,7 @@ export function AttendancePage() {
     return (
       <>
         <PageHeader title="Chamadas" subtitle="Carregando organização ativa..." />
-        <p className="text-sm font-semibold text-slate-500">Preparando os dados da escola.</p>
+        <Loading label="Preparando os dados da escola…" />
       </>
     );
   }
@@ -211,11 +211,11 @@ export function AttendancePage() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Carregando alunos…</p>
+        <Loading label="Carregando alunos…" />
       ) : existingIsError ? (
         <EmptyState icon={<ClipboardCheck size={26} />} title="Não foi possível carregar a chamada" hint={(existingError as Error).message} />
       ) : existingLoading ? (
-        <p className="text-sm text-slate-500">Carregando chamada salva...</p>
+        <Loading label="Carregando chamada salva…" />
       ) : students.length === 0 ? (
         <EmptyState icon={<ClipboardCheck size={26} />} title="Turma sem alunos" hint="Cadastre alunos nesta turma para fazer a chamada." />
       ) : (
@@ -475,7 +475,7 @@ function ExamRoll({
           <SearchInput value={q} onChange={setQ} placeholder="Buscar aluno…" className="mb-3" />
 
           {isLoading ? (
-            <p className="text-sm text-slate-500">Carregando alunos…</p>
+            <Loading label="Carregando alunos…" />
           ) : students.length === 0 ? (
             <EmptyState icon={<ClipboardCheck size={26} />} title="Turmas sem alunos" hint="As turmas selecionadas não têm alunos cadastrados." />
           ) : (

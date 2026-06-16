@@ -178,6 +178,16 @@ export function Card({ className, children }: { className?: string; children: Re
   );
 }
 
+/* -------------------------------- Carregando ---------------------------------- */
+export function Loading({ label = 'Carregando…', className }: { label?: string; className?: string }) {
+  return (
+    <div className={cn('flex items-center justify-center gap-2 py-8 text-sm font-semibold text-slate-400', className)}>
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-emerald-600" />
+      {label}
+    </div>
+  );
+}
+
 /* ----------------------------- Título de seção -------------------------------- */
 export function SectionTitle({ children, action, className }: { children: ReactNode; action?: ReactNode; className?: string }) {
   return (

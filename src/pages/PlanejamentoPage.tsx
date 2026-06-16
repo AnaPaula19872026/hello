@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { AttachmentChips } from '../components/Attachments';
 import { Dropzone } from '../components/Dropzone';
 import { successToast } from '../components/Feedback';
-import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented, Select } from '../components/ui';
+import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented, Select, Loading} from '../components/ui';
 import { cn } from '../lib/cn';
 import { canReviewPlan } from '../lib/permissions';
 import { safeFileName } from '../lib/storage';
@@ -105,7 +105,7 @@ function MeusPlanos({ uid, onEdit }: { uid: string; onEdit: (p: PlanWithMeta) =>
     },
   });
 
-  if (isLoading) return <p className="text-slate-400">Carregando…</p>;
+  if (isLoading) return <Loading />;
   if (isError) return <EmptyState icon={<BookOpen size={26} />} title="Planejamento indisponível" hint={friendly(error)} />;
   if (plans.length === 0)
     return <EmptyState icon={<BookOpen size={26} />} title="Nenhum planejamento" hint="Crie seu primeiro planejamento e envie para a coordenação." />;
@@ -170,7 +170,7 @@ function Pendentes({ onEdit }: { onEdit: (p: PlanWithMeta) => void }) {
   });
   const invalidate = () => qc.invalidateQueries({ queryKey: ['org-plans'] });
 
-  if (isLoading) return <p className="text-slate-400">Carregando…</p>;
+  if (isLoading) return <Loading />;
   if (isError) return <EmptyState icon={<BookOpen size={26} />} title="Planejamento indisponível" hint={friendly(error)} />;
   if (plans.length === 0)
     return <EmptyState icon={<Check size={26} />} title="Nada para revisar" hint="Planejamentos enviados pelos professores aparecem aqui." />;
@@ -205,7 +205,7 @@ function Revisados({ onEdit }: { onEdit: (p: PlanWithMeta) => void }) {
   const [sendFor, setSendFor] = useState<PlanWithMeta | null>(null);
   const invalidate = () => qc.invalidateQueries({ queryKey: ['org-plans'] });
 
-  if (isLoading) return <p className="text-slate-400">Carregando…</p>;
+  if (isLoading) return <Loading />;
   if (isError) return <EmptyState icon={<BookOpen size={26} />} title="Planejamento indisponível" hint={friendly(error)} />;
   if (plans.length === 0)
     return <EmptyState icon={<Check size={26} />} title="Nenhum revisado ainda" hint="Aprovados e devolvidos ficam aqui para consulta e reenvio." />;
@@ -428,7 +428,7 @@ function ChatModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void 
       <div className="flex h-[60vh] flex-col">
         <div className="-mx-1 flex-1 space-y-2 overflow-y-auto px-1">
           {isLoading ? (
-            <p className="py-8 text-center text-sm text-slate-400">Carregando…</p>
+            <Loading />
           ) : messages.length === 0 ? (
             <div className="grid h-full place-items-center text-center">
               <div>

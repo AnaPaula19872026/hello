@@ -3,6 +3,7 @@ import { List, Printer, Rows3 } from 'lucide-react';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ReportView } from '../components/ReportView';
+import { Loading } from '../components/ui';
 import { getSharedReport } from '../lib/queries';
 
 export function SharedReportPage() {
@@ -33,7 +34,7 @@ export function SharedReportPage() {
 
       <div className="mx-auto max-w-3xl px-4 py-6">
         {isLoading ? (
-          <p className="text-center text-sm text-slate-500">Carregando relatório…</p>
+          <Loading label="Carregando relatório…" />
         ) : isError || !data ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
             <h1 className="text-lg font-black text-slate-800">Relatório não encontrado</h1>

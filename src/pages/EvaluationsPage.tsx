@@ -3,7 +3,7 @@ import { Check, ClipboardList, Lock, Pencil, Plus, Save, Sliders, Trash2, X } fr
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
-import { Button, Card, EmptyState, Input, Modal, PageHeader, SearchInput, Segmented, Select } from '../components/ui';
+import { Button, Card, EmptyState, Input, Modal, PageHeader, SearchInput, Segmented, Select, Loading} from '../components/ui';
 import { cn } from '../lib/cn';
 import {
   applyCreditoToGrades,
@@ -149,7 +149,7 @@ export function EvaluationsPage() {
     return (
       <>
         <PageHeader title="Centro de Avaliações" subtitle="Carregando organização ativa..." />
-        <p className="text-sm font-semibold text-slate-500">Preparando os dados da escola.</p>
+        <Loading label="Preparando os dados da escola…" />
       </>
     );
   }
@@ -206,7 +206,7 @@ export function EvaluationsPage() {
           <SearchInput value={q} onChange={setQ} placeholder="Buscar aluno…" className="mb-3" />
 
           {isLoading || marksLoading ? (
-            <p className="text-sm text-slate-500">Carregando…</p>
+            <Loading />
           ) : students.length === 0 ? (
             <EmptyState icon={<ClipboardList size={26} />} title="Turma sem alunos" hint="Cadastre alunos nesta turma." />
           ) : (

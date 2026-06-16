@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
 import { successToast } from '../components/Feedback';
-import { ActionsMenu, AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar, SelectModeButton } from '../components/ui';
+import { ActionsMenu, AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, Select, SelectionBar, SelectModeButton, Loading} from '../components/ui';
 import { bulkDeleteClasses, bulkImportAll, importResultToModal, deleteClass, listClasses, listSchools, saveClass } from '../lib/queries';
 import { useSelection } from '../lib/useSelection';
 import { CADASTRO_COLUMNS } from '../lib/importSheet';
@@ -106,7 +106,7 @@ export function ClassesPage() {
           }
         />
       ) : isLoading ? (
-        <p className="text-sm text-slate-500">Carregando…</p>
+        <Loading />
       ) : classes.length === 0 ? (
         <EmptyState
           icon={<GraduationCap size={26} />}

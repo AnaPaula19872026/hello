@@ -3,7 +3,7 @@ import { Building2, FileSpreadsheet, ImagePlus, MapPin, Phone, X } from 'lucide-
 import { useState } from 'react';
 import { ImportModal } from '../components/ImportModal';
 import { successToast } from '../components/Feedback';
-import { ActionsMenu, AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, SelectionBar, SelectModeButton } from '../components/ui';
+import { ActionsMenu, AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, SelectionBar, SelectModeButton, Loading} from '../components/ui';
 import { fileToCompressedDataUrl } from '../lib/image';
 import { CADASTRO_COLUMNS } from '../lib/importSheet';
 import { bulkDeleteSchools, bulkImportAll, importResultToModal, deleteSchool, listSchools, saveSchool } from '../lib/queries';
@@ -113,7 +113,7 @@ export function SchoolsPage() {
       />
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Carregando…</p>
+        <Loading />
       ) : data.length === 0 ? (
         <EmptyState
           icon={<Building2 size={26} />}

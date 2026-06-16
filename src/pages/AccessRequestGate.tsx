@@ -3,7 +3,7 @@ import { Clock, LogOut, RefreshCw, School, Send, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
-import { Button, Field, Select } from '../components/ui';
+import { Button, Field, Select, Loading} from '../components/ui';
 import { listJoinOrgs, myAccessRequest, requestAccess } from '../lib/queries';
 import { signOut } from '../lib/supabase';
 import { ASSIGNABLE_ROLES, ROLE_LABEL, type AppRole } from '../lib/types';
@@ -39,7 +39,7 @@ export function AccessRequestGate() {
           </div>
 
           {isLoading ? (
-            <p className="py-6 text-center text-sm text-slate-400">Carregando…</p>
+            <Loading />
           ) : req?.status === 'pending' ? (
             <Waiting onRefresh={() => qc.invalidateQueries({ queryKey: ['my-access-request', user?.id] }).then(() => refreshContext())} />
           ) : (

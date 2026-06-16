@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ReportView } from '../components/ReportView';
 import { ShareModal } from '../components/ShareModal';
-import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented, Select } from '../components/ui';
+import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented, Select, Loading} from '../components/ui';
 import { cn } from '../lib/cn';
 import { downloadXlsx } from '../lib/importSheet';
 import { listClasses, listSchools, listStudentsByClass, reportAttendance, reportTerms } from '../lib/queries';
@@ -293,7 +293,7 @@ export function ReportsPage() {
       {!classId ? (
         <EmptyState icon={<BarChart3 size={26} />} title="Escolha uma turma" hint="Selecione a turma para gerar o relatório." />
       ) : loading ? (
-        <p className="text-sm text-slate-500">Gerando…</p>
+        <Loading label="Gerando…" />
       ) : payload ? (
         <ReportView payload={payload} compact={compact} />
       ) : null}

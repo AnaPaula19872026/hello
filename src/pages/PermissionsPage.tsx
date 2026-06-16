@@ -3,7 +3,7 @@ import { ShieldCheck } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
-import { Card, PageHeader } from '../components/ui';
+import { Card, PageHeader, Loading} from '../components/ui';
 import { cn } from '../lib/cn';
 import { CONFIGURABLE_MODULES, defaultAllowed, type ModuleKey } from '../lib/permissions';
 import { listPermissionSettings, savePermissionSetting } from '../lib/queries';
@@ -40,7 +40,7 @@ export function PermissionsPage() {
       />
 
       {isLoading ? (
-        <p className="text-slate-400">Carregando…</p>
+        <Loading />
       ) : (
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">

@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { AttachmentChips } from '../components/Attachments';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
-import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
+import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, Loading} from '../components/ui';
 import { cn } from '../lib/cn';
 import { assertUploadFile } from '../lib/fileSecurity';
 import { canSendNotice } from '../lib/permissions';
@@ -79,7 +79,7 @@ function Recebidos({ uid }: { uid: string }) {
     },
   });
 
-  if (isLoading) return <p className="text-slate-400">Carregando…</p>;
+  if (isLoading) return <Loading />;
   if (notices.length === 0)
     return <EmptyState icon={<Megaphone size={26} />} title="Nenhum aviso" hint="Quando a coordenação enviar avisos, eles aparecem aqui." />;
 
@@ -131,7 +131,7 @@ function Enviados({ uid }: { uid: string }) {
     },
   });
 
-  if (isLoading) return <p className="text-slate-400">Carregando…</p>;
+  if (isLoading) return <Loading />;
   if (notices.length === 0)
     return <EmptyState icon={<Send size={26} />} title="Nenhum aviso enviado" hint="Crie um aviso em 'Novo aviso'." />;
 

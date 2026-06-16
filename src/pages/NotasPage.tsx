@@ -5,7 +5,7 @@ import { Award, ClipboardList, FileText, GraduationCap, Lock, Pencil, Plus, Prin
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, SearchInput, Segmented, Select } from '../components/ui';
+import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, SearchInput, Segmented, Select, Loading} from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { printDocument, escapeHtml } from '../lib/print';
@@ -203,7 +203,7 @@ export function NotasPage() {
     return (
       <>
         <PageHeader title="Notas" subtitle="Carregando organização ativa..." />
-        <p className="text-sm font-semibold text-slate-500">Preparando os dados da escola.</p>
+        <Loading label="Preparando os dados da escola…" />
       </>
     );
   }
@@ -273,7 +273,7 @@ export function NotasPage() {
           <SearchInput value={q} onChange={setQ} placeholder="Buscar aluno…" className="mb-3" />
 
           {isLoading ? (
-            <p className="text-sm text-slate-500">Carregando…</p>
+            <Loading />
           ) : gradesIsError ? (
             <EmptyState
               icon={<Award size={26} />}
@@ -281,7 +281,7 @@ export function NotasPage() {
               hint={(gradesError as Error).message}
             />
           ) : gradesLoading ? (
-            <p className="text-sm text-slate-500">Carregando notas salvas...</p>
+            <Loading label="Carregando notas salvas…" />
           ) : students.length === 0 ? (
             <EmptyState icon={<Award size={26} />} title="Turma sem alunos" hint="Cadastre alunos nesta turma para lançar notas." />
           ) : (
@@ -645,7 +645,7 @@ function BoletimEscolarModal({
         </p>
 
         {isLoading ? (
-          <p className="py-6 text-center text-sm text-slate-400">Carregando notas do ano…</p>
+          <Loading label="Carregando notas do ano…" />
         ) : rows.length === 0 ? (
           <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma nota lançada nesta turma em {year}.</p>
         ) : (

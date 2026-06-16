@@ -5,7 +5,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { AccessRequestsQueue } from '../components/AccessRequestsQueue';
 import { successToast } from '../components/Feedback';
-import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, SearchInput, Select } from '../components/ui';
+import { AddButton, Button, Card, EmptyState, Field, Input, Modal, PageHeader, SearchInput, Select, Loading} from '../components/ui';
 import { cn } from '../lib/cn';
 import { fileToCompressedDataUrl } from '../lib/image';
 import {
@@ -137,7 +137,7 @@ export function OrganizationsPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-slate-400">Carregando…</p>
+        <Loading />
       ) : list.length === 0 ? (
         <EmptyState icon={<Network size={26} />} title="Nenhuma organização" hint="Crie o primeiro cliente ou ajuste a busca." />
       ) : (
@@ -382,7 +382,7 @@ function MembersModal({ org, onClose }: { org: OrgAdmin; onClose: () => void }) 
         <div>
           <p className="mb-2 text-sm font-bold text-slate-700">Membros ({members.length})</p>
           {isLoading ? (
-            <p className="text-slate-400">Carregando…</p>
+            <Loading />
           ) : members.length === 0 ? (
             <p className="text-sm text-slate-400">Nenhum membro ainda.</p>
           ) : (
