@@ -1898,3 +1898,10 @@ begin
   delete from public.organizations where id = p_org;
 end $$;
 grant execute on function public.delete_org(uuid) to authenticated;
+-- ============================================================================
+-- hello — Permite listar escolas (clientes ativos) na TELA DE CADASTRO,
+-- antes do login, para o usuário escolher sua organização ao se cadastrar.
+-- Rodar no Supabase → SQL Editor. Idempotente.
+-- ============================================================================
+
+grant execute on function public.list_join_orgs() to anon;

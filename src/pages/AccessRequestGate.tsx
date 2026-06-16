@@ -6,7 +6,6 @@ import { successToast } from '../components/Feedback';
 import { Button, Field, Select, Loading} from '../components/ui';
 import { listJoinOrgs, myAccessRequest, requestAccess } from '../lib/queries';
 import { signOut } from '../lib/supabase';
-import { ASSIGNABLE_ROLES, ROLE_LABEL, type AppRole } from '../lib/types';
 
 /**
  * Mostrado quando o usuário está autenticado mas ainda NÃO tem vínculo com
@@ -77,11 +76,10 @@ function Waiting({ onRefresh }: { onRefresh: () => void }) {
 function RequestForm({ rejected, onDone }: { rejected: boolean; onDone: () => void }) {
   const { data: orgs = [], isLoading } = useQuery({ queryKey: ['join-orgs'], queryFn: listJoinOrgs, retry: false });
   const [orgId, setOrgId] = useState('');
-  const [role, setRole] = useState<AppRole>('professor');
   const [note, setNote] = useState('');
 
   const send = useMutation({
-    mutationFn: () => requestAccess(orgId, role, note),
+    mutationFn: () => requestAccess(orgId, 'professor', note),
     onSuccess: () => {
       successToast('Solicitação enviada!');
       onDone();
@@ -104,14 +102,6 @@ function RequestForm({ rejected, onDone }: { rejected: boolean; onDone: () => vo
           <option value="">{isLoading ? 'Carregando…' : 'Selecione a escola'}</option>
           {orgs.map((o) => (
             <option key={o.id} value={o.id}>{o.name}</option>
-          ))}
-        </Select>
-      </Field>
-
-      <Field label="Sua função">
-        <Select value={role} onChange={(e) => setRole(e.target.value as AppRole)}>
-          {ASSIGNABLE_ROLES.map((r) => (
-            <option key={r} value={r}>{ROLE_LABEL[r]}</option>
           ))}
         </Select>
       </Field>

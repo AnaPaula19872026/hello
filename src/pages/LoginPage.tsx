@@ -1,7 +1,9 @@
-import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
-import { useState } from 'react';
-import { Button, Field, Input } from '../components/ui';
+import { Building2, Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Button, Field, Input, Select } from '../components/ui';
+import { listJoinOrgs, requestAccess } from '../lib/queries';
 import { supabase } from '../lib/supabase';
+import type { JoinOrg } from '../lib/types';
 
 type Mode = 'login' | 'signup';
 
@@ -10,9 +12,18 @@ export function LoginPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [orgId, setOrgId] = useState('');
+  const [orgs, setOrgs] = useState<JoinOrg[]>([]);
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: 'error' | 'ok'; text: string } | null>(null);
+
+  // Carrega as escolas disponíveis quando o usuário vai se cadastrar.
+  useEffect(() => {
+    if (mode === 'signup' && orgs.length === 0) {
+      listJoinOrgs().then(setOrgs).catch(() => {});
+    }
+  }, [mode, orgs.length]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,14 +34,29 @@ export function LoginPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setMsg({ type: 'error', text: traduz(error.message) });
     } else {
+      if (!orgId) {
+        setMsg({ type: 'error', text: 'Escolha a sua escola/organização.' });
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { emailRedirectTo: window.location.origin, data: { full_name: fullName.trim() } },
       });
-      if (error) setMsg({ type: 'error', text: traduz(error.message) });
-      else if (data.session) setMsg({ type: 'ok', text: 'Conta criada! Agora escolha sua escola…' });
-      else setMsg({ type: 'ok', text: 'Conta criada. Confirme o e-mail (se a confirmação estiver ativa) e entre para escolher sua escola.' });
+      if (error) {
+        setMsg({ type: 'error', text: traduz(error.message) });
+      } else if (data.session) {
+        // Já autenticado: registra a solicitação de acesso à organização escolhida.
+        try {
+          await requestAccess(orgId, 'professor', '');
+        } catch {
+          /* o portão pós-login cobre caso falhe */
+        }
+        setMsg({ type: 'ok', text: 'Cadastro enviado! Aguarde a liberação do administrador.' });
+      } else {
+        setMsg({ type: 'ok', text: 'Conta criada. Confirme o e-mail e entre para concluir a solicitação de acesso.' });
+      }
     }
     setLoading(false);
   }
@@ -69,6 +95,19 @@ export function LoginPage() {
                     required
                     autoComplete="name"
                   />
+                </div>
+              </Field>
+            ) : null}
+            {mode === 'signup' ? (
+              <Field label="Sua escola / organização">
+                <div className="relative">
+                  <Building2 size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Select value={orgId} onChange={(e) => setOrgId(e.target.value)} className="pl-10" required>
+                    <option value="">{orgs.length ? 'Selecione a escola' : 'Carregando…'}</option>
+                    {orgs.map((o) => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </Select>
                 </div>
               </Field>
             ) : null}
