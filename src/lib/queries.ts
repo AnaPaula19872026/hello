@@ -561,27 +561,34 @@ export async function getCreditoData(classId: string, year: number, term: number
  */
 export async function applyCreditoToGrades(classId: string, year: number, term: number): Promise<number> {
   const { defs, byStudent } = await getCreditoData(classId, year, term);
-  const ids = Object.keys(byStudent);
-  if (!defs.length || !ids.length) return 0;
+  if (!defs.length) return 0; // nenhuma atividade de crédito definida — nada a sincronizar
+  const creditIds = defs.map((d) => d.id as string);
   const maxById = new Map(defs.map((d) => [d.id as string, d.max] as const));
 
-  // Linhas existentes (para não perder outras notas nem a observação).
+  // Linhas existentes da turma (todas) — para fazer merge sem perder outras notas/observação.
   const existing = unwrap<{ student_id: string; scores: Record<string, number>; observacao: string | null }[]>(
     await scoped(supabase.from('term_grades').select('student_id, scores, observacao'))
       .eq('class_id', classId)
       .eq('year', year)
-      .eq('term', term)
-      .in('student_id', ids),
+      .eq('term', term),
   );
   const byId = new Map(existing.map((r) => [r.student_id, r]));
   const org = getActiveOrgId();
 
-  const payload = ids.map((sid) => {
+  // Sincroniza todos os alunos que têm linha de nota OU lançamento de crédito.
+  const sids = new Set<string>([...existing.map((r) => r.student_id), ...Object.keys(byStudent)]);
+
+  const payload = [...sids].map((sid) => {
     const cur = byId.get(sid);
     const scores = { ...(cur?.scores ?? {}) };
-    for (const [aid, v] of Object.entries(byStudent[sid] ?? {})) {
-      const max = maxById.get(aid) ?? 0;
-      scores[aid] = max > 0 ? Math.min(v, max) : v;
+    for (const id of creditIds) {
+      const v = byStudent[sid]?.[id];
+      if (v == null) {
+        delete scores[id]; // LIMPOU no Centro de Avaliações → remove a nota aqui também
+      } else {
+        const max = maxById.get(id) ?? 0;
+        scores[id] = max > 0 ? Math.min(v, max) : v;
+      }
     }
     return {
       class_id: classId,
@@ -594,6 +601,7 @@ export async function applyCreditoToGrades(classId: string, year: number, term: 
       ...(org ? { org_id: org } : {}),
     };
   });
+  if (!payload.length) return 0;
   const { error } = await supabase.from('term_grades').upsert(payload, { onConflict: 'student_id,year,term' });
   if (error) throw new Error(error.message);
   return payload.length;
