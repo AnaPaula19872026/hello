@@ -1,7 +1,44 @@
+import { useState } from 'react';
 import { cn } from '../lib/cn';
 import type { ReportPayload } from '../lib/types';
 
 const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+
+/** Lista de datas em chips, com limite e botão "+N" para expandir (evita estourar com muitos dias). */
+function DateChips({
+  dates,
+  cls,
+  chip,
+  examSet,
+  max = 8,
+}: {
+  dates: string[];
+  cls: string;
+  chip: string;
+  examSet?: Set<string>;
+  max?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  if (dates.length === 0) return <span className="text-slate-300">—</span>;
+  const shown = open ? dates : dates.slice(0, max);
+  return (
+    <div className="flex flex-wrap gap-1">
+      {shown.map((d) => {
+        const exam = examSet?.has(d);
+        return (
+          <span key={d} className={cn('rounded-lg font-bold', exam ? 'bg-amber-100 text-amber-800' : cls, chip)} title={exam ? 'Semana de provas' : undefined}>
+            {d.slice(8, 10)}/{d.slice(5, 7)}{exam ? ' ⚑' : ''}
+          </span>
+        );
+      })}
+      {dates.length > max ? (
+        <button onClick={() => setOpen((v) => !v)} className={cn('rounded-lg bg-slate-200 font-black text-slate-600 hover:bg-slate-300', chip)}>
+          {open ? 'ver menos' : `+${dates.length - max}`}
+        </button>
+      ) : null}
+    </div>
+  );
+}
 function fmtDM(iso: string) {
   const [y, m, d] = iso.split('-').map(Number);
   const wd = WEEKDAYS[new Date(y, m - 1, d).getDay()];
@@ -133,33 +170,11 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
                 </td>
                 <td className="p-3">
                   <div className="mb-1 text-[11px] font-black uppercase text-emerald-700">{r.present} presença(s)</div>
-                  <div className="flex flex-wrap gap-1">
-                    {presentDates.length === 0 ? (
-                      <span className="text-slate-300">—</span>
-                    ) : (
-                      presentDates.map((d) => (
-                        <span key={d} className={cn('rounded-lg bg-emerald-50 font-bold text-emerald-700', chip)}>{fmtDM(d)}</span>
-                      ))
-                    )}
-                  </div>
+                  <DateChips dates={presentDates} cls="bg-emerald-50 text-emerald-700" chip={chip} />
                 </td>
                 <td className="p-3">
                   <div className="mb-1 text-[11px] font-black uppercase text-red-600">{r.absent} falta(s)</div>
-                  <div className="flex flex-wrap gap-1">
-                    {absentDates.length === 0 ? (
-                      <span className="text-slate-300">—</span>
-                    ) : (
-                      absentDates.map((d) => (
-                        <span
-                          key={d}
-                          className={cn('rounded-lg font-bold', examSet.has(d) ? 'bg-amber-100 text-amber-800' : 'bg-red-50 text-red-700', chip)}
-                          title={examSet.has(d) ? 'Semana de provas' : undefined}
-                        >
-                          {fmtDM(d)}{examSet.has(d) ? ' ⚑' : ''}
-                        </span>
-                      ))
-                    )}
-                  </div>
+                  <DateChips dates={absentDates} cls="bg-red-50 text-red-700" chip={chip} examSet={examSet} max={12} />
                 </td>
                 <td className="p-3 text-center">
                   <span className={cn('text-base font-black', r.pct < minPct ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</span>
