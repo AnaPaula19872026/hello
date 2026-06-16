@@ -97,8 +97,10 @@ export function NotasPage() {
   const { data: creditTotals = {} } = useQuery({
     queryKey: ['credito-totals', activeOrgId, classId, year, term],
     queryFn: () => getCreditoTotals(classId, year, term),
-    enabled: orgReady && !!classId && !!creditActivity,
+    enabled: orgReady && !!classId,
   });
+  // Há crédito variável lançado no Centro de Avaliações?
+  const hasCreditData = Object.keys(creditTotals).length > 0;
 
   const studentsSig = students.map((s) => s.id).join(',');
   const gradesSig = termGrades.map((g) => `${g.student_id}:${JSON.stringify(g.scores)}:${g.updated_at ?? ''}`).join('|');
@@ -273,6 +275,12 @@ export function NotasPage() {
         />
       ) : (
         <>
+          {hasCreditData && !creditActivity ? (
+            <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+              Há crédito variável lançado no Centro de Avaliações para esta turma. Para puxá-lo, abra <strong>Composição de notas</strong> e marque <strong>uma</strong> coluna como “Receber o crédito variável” (e remova as colunas pequenas duplicadas).
+            </div>
+          ) : null}
+
           <div className="mb-3">
             <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
               <Search size={18} className="text-slate-400" />
