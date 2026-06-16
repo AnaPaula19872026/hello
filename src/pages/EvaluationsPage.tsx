@@ -15,7 +15,7 @@ import {
   saveEvalGrades,
   type EvalGradeRow,
 } from '../lib/queries';
-import { actKey, TERMS, TERM_LABEL, type GradeActivity } from '../lib/types';
+import { actKey, sanitizeGrade, TERMS, TERM_LABEL, type GradeActivity } from '../lib/types';
 import { usePersistentState } from '../lib/usePersistentState';
 
 type CellState = { done: boolean; score: string };
@@ -101,8 +101,7 @@ export function EvaluationsPage() {
   }
   function setScore(id: string, act: string, raw: string, max: number) {
     if (!editing) return;
-    let v = raw.replace(',', '.').replace(/[^0-9.]/g, '');
-    if (max > 0 && v !== '' && Number(v) > max) v = String(max);
+    const v = sanitizeGrade(raw, max);
     setCells((p) => ({ ...p, [id]: { ...p[id], [act]: { done: v !== '' ? true : p[id]?.[act]?.done ?? false, score: v } } }));
     setSaved(false);
   }

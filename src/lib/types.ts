@@ -352,6 +352,23 @@ export function actKey(a: GradeActivity): string {
   return a.id ?? a.name;
 }
 
+/**
+ * Sanitiza a digitação de uma nota: aceita vírgula OU ponto (ex.: 8,07 / 8.07),
+ * mantém um único separador, até 2 casas decimais, e limita ao máximo da coluna.
+ * Devolve string (para controlar o input) — não força valor enquanto se digita.
+ */
+export function sanitizeGrade(raw: string, max: number): string {
+  let v = raw.replace(',', '.').replace(/[^0-9.]/g, '');
+  const dot = v.indexOf('.');
+  if (dot !== -1) {
+    const intPart = v.slice(0, dot);
+    const decPart = v.slice(dot + 1).replace(/\./g, '').slice(0, 2); // remove pontos extras, máx 2 casas
+    v = `${intPart}.${decPart}`;
+  }
+  if (max > 0 && v !== '' && v !== '.' && Number(v) > max) v = String(max);
+  return v;
+}
+
 export const RECOVERY_ACTIVITY_NAME = 'RECUPERAÇÃO';
 export const RECOVERY_ACTIVITY: GradeActivity = { name: RECOVERY_ACTIVITY_NAME, max: 10 };
 

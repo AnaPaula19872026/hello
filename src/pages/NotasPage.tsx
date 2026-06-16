@@ -23,7 +23,7 @@ import {
   saveTermGrades,
   type TermsReportRow,
 } from '../lib/queries';
-import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, actKey, calcMedia, isRecoveryActivity, orderGradeActivities, type GradeActivity, type School } from '../lib/types';
+import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, actKey, calcMedia, isRecoveryActivity, orderGradeActivities, sanitizeGrade, type GradeActivity, type School } from '../lib/types';
 
 /** Cabeçalho profissional para impressão (logo, escola, contato) — usado no boletim e no relatório. */
 function schoolHeaderHtml(school: School | undefined, label: string): string {
@@ -167,8 +167,7 @@ export function NotasPage() {
 
   function setScore(id: string, act: string, raw: string, max: number) {
     if (!editingGrades) return;
-    let v = raw.replace(',', '.').replace(/[^0-9.]/g, '');
-    if (v !== '' && Number(v) > max) v = String(max);
+    const v = sanitizeGrade(raw, max);
     setScores((p) => ({ ...p, [id]: { ...p[id], [act]: v } }));
     setSaved(false);
   }
