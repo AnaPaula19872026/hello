@@ -5,7 +5,7 @@ import { Award, ClipboardList, FileText, GraduationCap, Lock, Pencil, Plus, Prin
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
+import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented, Select } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { printDocument, escapeHtml } from '../lib/print';
@@ -241,20 +241,12 @@ export function NotasPage() {
       />
 
       {/* Filtro rápido por trimestre */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        {TERMS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTerm(t)}
-            className={cn(
-              'rounded-xl px-4 py-2.5 text-sm font-bold transition',
-              term === t ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-            )}
-          >
-            {TERM_LABEL[t]}
-          </button>
-        ))}
-      </div>
+      <Segmented<number>
+        className="mb-4"
+        value={term}
+        onChange={setTerm}
+        options={TERMS.map((t) => ({ value: t, label: TERM_LABEL[t] }))}
+      />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
         <Select value={classId} onChange={(e) => setClassId(e.target.value)}>

@@ -108,6 +108,36 @@ export function PageHeader({
   );
 }
 
+/* ------------------------- Controle segmentado (abas/filtros) ----------------- */
+export function Segmented<T extends string | number>({
+  options,
+  value,
+  onChange,
+  className,
+}: {
+  options: { value: T; label: ReactNode }[];
+  value: T;
+  onChange: (v: T) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn('inline-flex flex-wrap rounded-xl bg-slate-100 p-1', className)}>
+      {options.map((o) => (
+        <button
+          key={String(o.value)}
+          onClick={() => onChange(o.value)}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition',
+            value === o.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <Button onClick={onClick}>

@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { Check, CheckCheck, ClipboardCheck, Layers, Lock, Pencil, Save, Search, Users, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { Card, EmptyState, PageHeader, Select } from '../components/ui';
+import { Card, EmptyState, PageHeader, Segmented, Select } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { getRecords, getSession, listClasses, listStudentsByClass, saveAttendance } from '../lib/queries';
@@ -313,20 +313,15 @@ export function AttendancePage() {
 
 function ModeToggle({ mode, setMode }: { mode: 'turma' | 'prova'; setMode: (m: 'turma' | 'prova') => void }) {
   return (
-    <div className="mb-4 inline-flex rounded-xl bg-slate-100 p-1">
-      <button
-        onClick={() => setMode('turma')}
-        className={cn('flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition', mode === 'turma' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500')}
-      >
-        <Users size={16} /> Por turma
-      </button>
-      <button
-        onClick={() => setMode('prova')}
-        className={cn('flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition', mode === 'prova' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500')}
-      >
-        <Layers size={16} /> Modo prova
-      </button>
-    </div>
+    <Segmented<'turma' | 'prova'>
+      className="mb-4"
+      value={mode}
+      onChange={setMode}
+      options={[
+        { value: 'turma', label: <><Users size={16} /> Por turma</> },
+        { value: 'prova', label: <><Layers size={16} /> Modo prova</> },
+      ]}
+    />
   );
 }
 

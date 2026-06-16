@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { AttachmentChips } from '../components/Attachments';
 import { Dropzone } from '../components/Dropzone';
 import { successToast } from '../components/Feedback';
-import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from '../components/ui';
+import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented, Select } from '../components/ui';
 import { cn } from '../lib/cn';
 import { canReviewPlan } from '../lib/permissions';
 import { safeFileName } from '../lib/storage';
@@ -66,17 +66,16 @@ export function PlanejamentoPage() {
       />
 
       {canReview ? (
-        <div className="mb-5 inline-flex flex-wrap rounded-xl bg-slate-100 p-1">
-          {([['meus', 'Meus planejamentos'], ['revisar', 'Para revisar'], ['revisados', 'Revisados']] as const).map(([t, label]) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={cn('rounded-lg px-4 py-2 text-sm font-bold transition', tab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500')}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Segmented<'meus' | 'revisar' | 'revisados'>
+          className="mb-5"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'meus', label: 'Meus planejamentos' },
+            { value: 'revisar', label: 'Para revisar' },
+            { value: 'revisados', label: 'Revisados' },
+          ]}
+        />
       ) : null}
 
       {tab === 'meus' ? <MeusPlanos uid={uid} onEdit={openEdit} /> : tab === 'revisar' ? <Pendentes onEdit={openEdit} /> : <Revisados onEdit={openEdit} />}
