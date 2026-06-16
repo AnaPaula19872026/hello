@@ -608,11 +608,13 @@ export interface AttendanceReportRow {
   total: number;
   pct: number; // % de presença
   absentDates: string[]; // dias (yyyy-mm-dd) em que faltou
+  days?: Record<string, boolean>; // por dia: true=presente, false=falta
 }
 export interface AttendanceReport {
   sessions: number;
   rows: AttendanceReportRow[];
   examDates?: string[]; // dias feitos em Modo prova (semana de provas)
+  dates?: string[]; // todas as datas de aula no período (colunas do mapa)
 }
 
 export interface AttendanceAlert {
@@ -673,21 +675,29 @@ export async function reportAttendance(classId: string, from: string, to: string
     : [];
   const dateById = new Map(sessions.map((s) => [s.id, s.session_date]));
   const students = await listStudentsByClass(classId);
+  // Todas as datas de aula no período (colunas do mapa de frequência).
+  const dates = [...new Set(sessions.map((s) => s.session_date))].sort();
 
   const rows: AttendanceReportRow[] = students.map((s) => {
     const mine = records.filter((r) => r.student_id === s.id);
-    const present = mine.filter((r) => r.status === 'present').length;
-    const absentRecs = mine.filter((r) => r.status !== 'present');
+    const present = mine.filter((r) => r.status === 'present' || r.status === 'late').length;
+    const absentRecs = mine.filter((r) => r.status !== 'present' && r.status !== 'late');
     const total = mine.length;
     const pct = total ? Math.round((present / total) * 1000) / 10 : 0;
+    // status por dia: true = presente, false = falta (só dias com registro).
+    const days: Record<string, boolean> = {};
+    for (const r of mine) {
+      const d = dateById.get(r.session_id);
+      if (d) days[d] = r.status === 'present' || r.status === 'late';
+    }
     const absentDates = absentRecs
       .map((r) => dateById.get(r.session_id))
       .filter((d): d is string => !!d)
       .sort();
-    return { student_id: s.id, name: s.full_name, present, absent: absentRecs.length, total, pct, absentDates };
+    return { student_id: s.id, name: s.full_name, present, absent: absentRecs.length, total, pct, absentDates, days };
   });
 
-  return { sessions: sessions.length, rows, examDates };
+  return { sessions: sessions.length, rows, examDates, dates };
 }
 
 /** Apaga uma chamada (sessão) e seus registros. */

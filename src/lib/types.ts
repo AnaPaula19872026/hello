@@ -308,6 +308,7 @@ export interface ReportFreqRow {
   total: number;
   pct: number;
   absentDates: string[];
+  days?: Record<string, boolean>; // por dia: true=presente, false=falta
 }
 export interface ReportNotasRow {
   name: string;
@@ -324,6 +325,7 @@ export interface ReportPayload {
   minPct?: number;
   sessions?: number;
   freqRows?: ReportFreqRow[];
+  dates?: string[]; // todas as datas de aula no período (colunas do mapa de frequência)
   examDates?: string[]; // dias em Modo prova (semana de provas) — relatório de frequência
   subject?: string;
   notasRows?: ReportNotasRow[];

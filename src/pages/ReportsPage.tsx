@@ -113,7 +113,8 @@ export function ReportsPage() {
         minPct,
         sessions: freq.data?.sessions ?? 0,
         examDates: freq.data?.examDates ?? [],
-        freqRows: freqRows.map((r) => ({ name: r.name, present: r.present, absent: r.absent, total: r.total, pct: r.pct, absentDates: r.absentDates })),
+        dates: freq.data?.dates ?? [],
+        freqRows: freqRows.map((r) => ({ name: r.name, present: r.present, absent: r.absent, total: r.total, pct: r.pct, absentDates: r.absentDates, days: r.days })),
       };
     }
     return {
