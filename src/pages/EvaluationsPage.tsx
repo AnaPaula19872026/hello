@@ -458,7 +458,7 @@ function ComposicaoAvaliacoesModal({
   const clone = useMutation({
     mutationFn: async (sourceTerm: number) => {
       const prev = await getEvalConfig(classId, year, sourceTerm);
-      if (!prev.length) throw new Error(`${TERM_LABEL[sourceTerm]} ainda não tem composição salva.`);
+      if (!prev.length) throw new Error(`${TERM_LABEL[sourceTerm]} ainda não tem composição de avaliações salva nesta turma. Monte e salve o ${TERM_LABEL[sourceTerm]} primeiro.`);
       return { sourceTerm, prev };
     },
     onSuccess: ({ sourceTerm, prev }) => {
@@ -466,6 +466,7 @@ function ComposicaoAvaliacoesModal({
       setItems(prev.map((a) => ({ id: crypto.randomUUID(), name: a.name, max: a.max, credito: !!a.credito })));
       successToast(`Composição clonada do ${TERM_LABEL[sourceTerm]}`);
     },
+    onError: (e) => alert((e as Error).message),
   });
 
   return (
