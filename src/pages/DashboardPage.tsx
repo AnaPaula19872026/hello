@@ -2,10 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Award, BarChart3, Bell, CalendarDays, ChevronDown, ClipboardCheck, GraduationCap, Megaphone, TriangleAlert, Trash2, Users } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { Card, PageHeader, SectionTitle, StatCard } from '../components/ui';
+import { Card, Loading, PageHeader, SectionTitle, StatCard } from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { can } from '../lib/permissions';
@@ -21,7 +21,9 @@ import {
   type RecentSession,
 } from '../lib/queries';
 import { eventCatLabel, eventColor } from '../lib/types';
-import { HqDashboard } from './HqDashboard';
+
+// Carrega sob demanda (tira o recharts do bundle inicial dos professores).
+const HqDashboard = lazy(() => import('./HqDashboard').then((m) => ({ default: m.HqDashboard })));
 
 export function DashboardPage() {
   const qc = useQueryClient();
@@ -67,7 +69,7 @@ export function DashboardPage() {
   const recentNotices = notices.slice(0, 3);
 
   // Na HQ (Administração Geral), o Início é o painel de gestão dos clientes.
-  if (isHq && isSuperadmin) return <HqDashboard />;
+  if (isHq && isSuperadmin) return <Suspense fallback={<Loading />}><HqDashboard /></Suspense>;
 
   // Ações rápidas conforme o papel.
   const actions = [
