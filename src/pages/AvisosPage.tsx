@@ -339,7 +339,7 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
 
         {send.isError ? <p className="text-sm font-semibold text-red-600">{(send.error as Error).message}</p> : null}
 
-        <div className="flex justify-end gap-2">
+        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>

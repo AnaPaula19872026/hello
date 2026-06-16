@@ -230,7 +230,7 @@ export function OrganizationsPage() {
           <Field label="Nome do cliente (escola ou rede)">
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Colégio Aurora" autoFocus />
           </Field>
-          <div className="flex justify-end gap-2">
+          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
             <Button variant="ghost" onClick={() => setNewOpen(false)}>
               Cancelar
             </Button>
@@ -310,7 +310,7 @@ function EditOrgModal({ org, onClose }: { org: OrgAdmin; onClose: () => void }) 
         </Field>
         {err ? <p className="text-sm font-semibold text-red-600">{err}</p> : null}
         {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
-        <div className="flex justify-end gap-2">
+        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>

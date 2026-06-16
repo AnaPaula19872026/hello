@@ -512,7 +512,7 @@ function DevolverModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => v
             placeholder="Ex.: incluir os objetivos de aprendizagem da BNCC…"
           />
         </Field>
-        <div className="flex justify-end gap-2">
+        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button variant="danger" onClick={() => ret.mutate()} disabled={!feedback.trim() || ret.isPending}>
             <Undo2 size={16} /> {ret.isPending ? 'Devolvendo…' : 'Devolver'}

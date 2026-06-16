@@ -308,7 +308,7 @@ function CalImportModal({ onClose }: { onClose: () => void }) {
                 </div>
               ))}
             </div>
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
               <Button variant="ghost" onClick={onClose}>Cancelar</Button>
               <Button onClick={() => importMut.mutate()} disabled={importMut.isPending}>
                 {importMut.isPending ? 'Importando…' : `Importar ${parsed.length}`}
@@ -849,7 +849,7 @@ function HolidayModal({ onClose }: { onClose: () => void }) {
           Feriados nacionais aparecem automaticamente. Cadastre aqui feriados estaduais e municipais da sua realidade escolar.
         </p>
         {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
-        <div className="flex justify-end gap-2">
+        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => save.mutate()} disabled={!valid || save.isPending}>
             <Flag size={16} /> {save.isPending ? 'Salvando…' : 'Salvar feriado'}
@@ -1069,7 +1069,7 @@ function ComposeModal({ event, onClose, defaultDate }: { event: EventWithMeta | 
         ) : null}
 
         {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
-        <div className="flex justify-end gap-2">
+        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => save.mutate()} disabled={!valid || save.isPending}>
             <CalendarDays size={16} /> {save.isPending ? 'Salvando…' : event ? 'Salvar' : 'Criar evento'}

@@ -526,7 +526,7 @@ function ComposicaoAvaliacoesModal({
           <Plus size={18} /> Adicionar atividade
         </Button>
         {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => save.mutate()} disabled={save.isPending}>
             {save.isPending ? 'Salvando…' : 'Salvar composição'}

@@ -228,7 +228,7 @@ export function StudentsPage() {
             <Input name="guardian_phone" defaultValue={editing?.guardian_phone ?? ''} placeholder="(00) 00000-0000" />
           </Field>
           {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
