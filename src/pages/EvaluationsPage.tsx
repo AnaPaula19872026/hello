@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ClipboardList, Plus, Save, Search, Sliders, Trash2, X } from 'lucide-react';
+import { Check, ClipboardList, Lock, Pencil, Plus, Save, Search, Sliders, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
@@ -29,6 +29,8 @@ export function EvaluationsPage() {
   const [year, setYear] = usePersistentState('hello:avaliacoes:year', now.getFullYear());
   const [q, setQ] = useState('');
   const [cells, setCells] = useState<Record<string, Record<string, CellState>>>({});
+  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const orgReady = !ctxLoading && !!activeOrgId;
 
@@ -60,8 +62,8 @@ export function EvaluationsPage() {
   const marksSig = marksRows.map((g) => `${g.student_id}:${JSON.stringify(g.marks)}`).join('|');
   const actNames = activities.map(actKey).join(',');
 
-  useEffect(() => {
-    if (!orgReady || isLoading || marksLoading) return;
+  const hasSavedMarks = marksRows.length > 0;
+  function resetCells() {
     const map: Record<string, Record<string, CellState>> = {};
     students.forEach((s) => {
       const g = marksRows.find((x) => x.student_id === s.id);
@@ -74,6 +76,13 @@ export function EvaluationsPage() {
       map[s.id] = row;
     });
     setCells(map);
+    setSaved(false);
+    setEditing(marksRows.length === 0);
+  }
+
+  useEffect(() => {
+    if (!orgReady || isLoading || marksLoading) return;
+    resetCells();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgReady, isLoading, marksLoading, studentsSig, marksSig, actNames]);
 
@@ -86,12 +95,16 @@ export function EvaluationsPage() {
   const creditoGrouped = creditoCount > 0 && lastCreditoIdx - firstCreditoIdx + 1 === creditoCount;
 
   function toggleDone(id: string, act: string) {
+    if (!editing) return;
     setCells((p) => ({ ...p, [id]: { ...p[id], [act]: { ...p[id]?.[act], done: !p[id]?.[act]?.done, score: p[id]?.[act]?.score ?? '' } } }));
+    setSaved(false);
   }
   function setScore(id: string, act: string, raw: string, max: number) {
+    if (!editing) return;
     let v = raw.replace(',', '.').replace(/[^0-9.]/g, '');
     if (max > 0 && v !== '' && Number(v) > max) v = String(max);
     setCells((p) => ({ ...p, [id]: { ...p[id], [act]: { done: v !== '' ? true : p[id]?.[act]?.done ?? false, score: v } } }));
+    setSaved(false);
   }
 
   const save = useMutation({
@@ -114,9 +127,11 @@ export function EvaluationsPage() {
       return applied;
     },
     onSuccess: (applied) => {
+      setSaved(true);
+      setEditing(false);
       qc.invalidateQueries({ queryKey: ['eval-grades', activeOrgId, classId, year, term] });
       qc.invalidateQueries({ queryKey: ['term-grades'] });
-      qc.invalidateQueries({ queryKey: ['credito-totals'] });
+      qc.invalidateQueries({ queryKey: ['credito-data'] });
       successToast(applied ? 'Avaliações salvas e crédito lançado nas notas' : 'Avaliações salvas com sucesso');
     },
   });
@@ -222,6 +237,12 @@ export function EvaluationsPage() {
                 </div>
               </div>
 
+              {hasSavedMarks && !editing ? (
+                <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
+                  <Lock size={16} className="text-slate-400" /> Avaliações bloqueadas para evitar alterações acidentais. Clique em Editar para reabrir.
+                </div>
+              ) : null}
+
               <Card className="max-h-[70vh] overflow-auto p-0">
                 <table className="w-full border-collapse text-sm">
                   <thead className="sticky top-0 z-20 bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
@@ -292,10 +313,12 @@ export function EvaluationsPage() {
                                 <div className="flex items-center justify-center gap-1.5">
                                   <button
                                     onClick={() => toggleDone(s.id, k)}
+                                    disabled={!editing}
                                     title={c.done ? 'Fez' : 'Não fez'}
                                     className={cn(
-                                      'grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition',
+                                      'grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition disabled:cursor-not-allowed',
                                       c.done ? 'border-emerald-300 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-slate-300 hover:bg-slate-50',
+                                      !editing && 'opacity-80',
                                     )}
                                   >
                                     {c.done ? <Check size={18} /> : <X size={16} />}
@@ -305,8 +328,9 @@ export function EvaluationsPage() {
                                       inputMode="decimal"
                                       value={c.score}
                                       onChange={(e) => setScore(s.id, k, e.target.value, a.max)}
+                                      disabled={!editing}
                                       placeholder="–"
-                                      className="h-9 w-12 rounded-lg border border-slate-200 bg-white text-center font-bold tabular-nums text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                                      className="h-9 w-12 rounded-lg border border-slate-200 bg-white text-center font-bold tabular-nums text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-transparent"
                                     />
                                   ) : null}
                                 </div>
@@ -344,16 +368,40 @@ export function EvaluationsPage() {
         <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:pl-72">
           <div className="mx-auto flex max-w-5xl items-center gap-2 px-1 sm:gap-3">
             <div className="hidden min-w-0 flex-1 sm:block">
-              <p className="truncate text-sm font-bold text-slate-700">{TERM_LABEL[term]} • {year}</p>
+              <p className="truncate text-sm font-bold text-slate-700">
+                {saved ? '✓ Avaliações salvas e bloqueadas' : editing ? 'Edição aberta' : `${TERM_LABEL[term]} • ${year}`}
+              </p>
               <p className="truncate text-xs text-slate-400">{totals.done} entrega(s) registrada(s)</p>
             </div>
-            <button
-              onClick={() => save.mutate()}
-              disabled={save.isPending}
-              className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:flex-none sm:px-8"
-            >
-              <Save size={20} /> {save.isPending ? 'Salvando…' : 'Salvar'}
-            </button>
+            {editing ? (
+              <>
+                {hasSavedMarks ? (
+                  <button
+                    onClick={resetCells}
+                    disabled={save.isPending}
+                    className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    Cancelar
+                  </button>
+                ) : null}
+                <button
+                  onClick={() => save.mutate()}
+                  disabled={save.isPending}
+                  className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:flex-none sm:px-8"
+                >
+                  <Save size={20} />
+                  <span className="sm:hidden">{save.isPending ? 'Salvando…' : 'Salvar'}</span>
+                  <span className="hidden sm:inline">{save.isPending ? 'Salvando…' : 'Salvar e bloquear'}</span>
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => { setEditing(true); setSaved(false); }}
+                className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-base font-black text-white transition hover:bg-slate-800 sm:flex-none sm:px-8"
+              >
+                <Pencil size={20} /> Editar
+              </button>
+            )}
           </div>
           {save.isError ? <p className="mx-auto mt-2 max-w-5xl px-1 text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
         </footer>
@@ -408,6 +456,19 @@ function ComposicaoAvaliacoesModal({
     },
   });
 
+  const clone = useMutation({
+    mutationFn: async (sourceTerm: number) => {
+      const prev = await getEvalConfig(classId, year, sourceTerm);
+      if (!prev.length) throw new Error(`${TERM_LABEL[sourceTerm]} ainda não tem composição salva.`);
+      return { sourceTerm, prev };
+    },
+    onSuccess: ({ sourceTerm, prev }) => {
+      // Clona com novos ids (são colunas deste trimestre).
+      setItems(prev.map((a) => ({ id: crypto.randomUUID(), name: a.name, max: a.max, credito: !!a.credito })));
+      successToast(`Composição clonada do ${TERM_LABEL[sourceTerm]}`);
+    },
+  });
+
   return (
     <Modal open={open} onClose={onClose} title={`Avaliações — ${className} • ${TERM_LABEL[term]}/${year}`}>
       <div className="space-y-4">
@@ -415,6 +476,25 @@ function ComposicaoAvaliacoesModal({
           Dê nome às atividades que a turma vai fazer. A pontuação (valor) é opcional — deixe 0 para apenas marcar quem fez.
           Marque <strong>Crédito variável</strong> nas atividades que, juntas, formam uma única nota (ex.: Simulado + Projeto + Crédito variável).
         </p>
+
+        {term > 1 ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-black text-slate-800">Reaproveitar composição</p>
+                <p className="text-xs font-semibold text-slate-500">Clone as atividades de um trimestre anterior para não redigitar.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {Array.from({ length: term - 1 }, (_, i) => i + 1).map((src) => (
+                  <Button key={src} variant="soft" onClick={() => clone.mutate(src)} disabled={clone.isPending}>
+                    {clone.isPending ? 'Clonando…' : `Clonar ${TERM_LABEL[src]}`}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            {clone.isError ? <p className="mt-2 text-xs font-semibold text-red-600">{(clone.error as Error).message}</p> : null}
+          </div>
+        ) : null}
         <div className="space-y-3">
           {items.map((a, i) => (
             <div key={i} className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
