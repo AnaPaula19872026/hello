@@ -268,14 +268,48 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
     },
   });
 
+  const subject = `Planejamento "${plan.title}" — ${PLAN_STATUS[plan.status].label}`;
+  // wa.me/mailto NÃO carregam arquivos — então anexamos os LINKS no corpo como fallback.
+  const attLinks = plan.attachments.filter((a) => a.url).map((a) => `${a.name}: ${a.url}`);
+  const bodyWithLinks = message + (attLinks.length ? `\n\nAnexos:\n${attLinks.join('\n')}` : '');
+  const [sharing, setSharing] = useState(false);
+  // Web Share com arquivos só existe em alguns navegadores (celular/Chrome).
+  const canShareFiles = typeof navigator !== 'undefined' && !!navigator.canShare && !!navigator.share;
+
+  /** Caminho ideal: abre o menu de compartilhar do aparelho COM os anexos de verdade. */
+  async function shareWithFiles() {
+    setSharing(true);
+    try {
+      const files: File[] = [];
+      for (const a of plan.attachments) {
+        if (!a.url) continue;
+        try {
+          const blob = await (await fetch(a.url)).blob();
+          files.push(new File([blob], a.name, { type: a.mime ?? blob.type }));
+        } catch {
+          /* ignora anexo que falhar; segue com os demais */
+        }
+      }
+      const payload: ShareData = { title: subject, text: message };
+      if (files.length && navigator.canShare?.({ files })) payload.files = files;
+      await navigator.share(payload);
+      successToast('Compartilhado');
+      onClose();
+    } catch (e) {
+      // usuário cancelou o menu → não faz nada; outro erro → tenta o fallback
+      if ((e as Error)?.name !== 'AbortError') alert('Não foi possível compartilhar com anexos. Use WhatsApp/E-mail abaixo (anexos vão como links).');
+    } finally {
+      setSharing(false);
+    }
+  }
+
   function fire() {
     if (channel === 'whatsapp') {
       const num = normalizePhone(phone);
       if (!num) return;
-      window.open(`https://wa.me/${num}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
+      window.open(`https://wa.me/${num}?text=${encodeURIComponent(bodyWithLinks)}`, '_blank', 'noopener');
     } else {
-      const subject = `Planejamento "${plan.title}" — ${PLAN_STATUS[plan.status].label}`;
-      window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
+      window.open(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyWithLinks)}`, '_blank', 'noopener');
     }
     successToast('Abrindo para envio…');
     onClose();
@@ -286,6 +320,25 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
   return (
     <Modal open onClose={onClose} title={self ? 'Enviar planejamento' : 'Enviar retorno ao professor'}>
       <div className="space-y-4">
+        {plan.attachments.length > 0 && canShareFiles ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+            <p className="text-sm font-bold text-emerald-900">Enviar com anexos ({plan.attachments.length})</p>
+            <p className="mt-0.5 text-xs font-medium text-emerald-800">
+              Abre o compartilhamento do aparelho (WhatsApp, e-mail, Drive…) já com os arquivos anexados.
+            </p>
+            <Button className="mt-2" onClick={shareWithFiles} disabled={sharing}>
+              <Share2 size={16} /> {sharing ? 'Preparando…' : 'Compartilhar com anexos'}
+            </Button>
+          </div>
+        ) : null}
+
+        {plan.attachments.length > 0 ? (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+            WhatsApp e e-mail abaixo não carregam arquivos — os anexos vão como <b>links</b> no texto.
+            {canShareFiles ? ' Para enviar os arquivos juntos, use “Compartilhar com anexos” acima.' : ''}
+          </p>
+        ) : null}
+
         <div className="inline-flex rounded-xl bg-slate-100 p-1">
           <button
             onClick={() => setChannel('whatsapp')}
