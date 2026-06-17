@@ -19,7 +19,8 @@ export function AttendancePage() {
 
   const [mode, setMode] = usePersistentState<'turma' | 'prova'>('hello:attendance:mode', 'turma');
   const [classId, setClassId] = usePersistentState('hello:attendance:classId', '');
-  const [date, setDate] = usePersistentState('hello:attendance:date', today);
+  // Sempre inicia no dia de HOJE (não persiste) — evita o professor lançar chamada em data antiga por engano.
+  const [date, setDate] = useState(today);
   const [q, setQ] = useState('');
   const [records, setRecords] = useState<Record<string, AttendanceStatus>>({});
   const [saved, setSaved] = useState(false);
@@ -342,7 +343,7 @@ function ExamRoll({
   const qc = useQueryClient();
   const { activeOrgId } = useAuth();
   const [selected, setSelected] = usePersistentState<string[]>('hello:attendance:exam:classes', []);
-  const [date, setDate] = usePersistentState('hello:attendance:exam:date', today);
+  const [date, setDate] = useState(today); // Modo prova: também sempre começa em hoje.
   const [q, setQ] = useState('');
   const [records, setRecords] = useState<Record<string, AttendanceStatus>>({});
 
