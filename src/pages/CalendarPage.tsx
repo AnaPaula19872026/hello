@@ -3,11 +3,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth/AuthProvider";
 import { successToast } from "../components/Feedback";
 import { canManageCalendar } from "../lib/permissions";
-import { CALENDAR_CONFLICT, loadCalendarBuilder, saveCalendarBuilder } from "../lib/queries";
+import {
+  CALENDAR_CONFLICT,
+  createCalendar,
+  deleteCalendar,
+  listCalendars,
+  listOrgPeople,
+  loadCalendar,
+  saveCalendar,
+  type CalendarSummary,
+} from "../lib/queries";
 import { downloadCalendarTemplate } from "../lib/importCalendar";
 import { parseAnyCalendarFile, type ImportedEvent } from "../lib/importCalendarBuilder";
 import { Button, Modal } from "../components/ui";
 import { Dropzone } from "../components/Dropzone";
+import { cn } from "../lib/cn";
+import type { OrgPerson } from "../lib/types";
 import type {
   CalBuilderEvent as CalEvent,
   CalCategory as Category,
@@ -116,59 +127,254 @@ function fmtStamp(iso: string | null, name: string | null) {
   return when ? `Última edição em ${when}` : null;
 }
 
-/* ====================== Página (carrega/salva no Supabase) ====================== */
+/** Semente para um calendário novo: categorias padrão, sem eventos. */
+function newSeed(title: string): CalendarData {
+  return { ...SEED, title, events: [], letivosByMonth: {}, notes: "" };
+}
+
+/* ====================== Centro de calendários (lista + CRUD) ====================== */
 export function CalendarPage() {
   const { role, activeOrgId, profile, user } = useAuth();
   const canManage = canManageCalendar(role);
-  const qc = useQueryClient();
-  const [reloadKey, setReloadKey] = useState(0);
-
-  const { data: loaded, isLoading, isError, error } = useQuery({
-    queryKey: ["calendar-builder", activeOrgId, reloadKey],
-    queryFn: loadCalendarBuilder,
-  });
-
+  const userId = user?.id ?? null;
   const updaterName = profile?.full_name || profile?.email || "Usuário";
-  const updaterId = user?.id ?? null;
+  const qc = useQueryClient();
+  const [openId, setOpenId] = useState<string | null>(null);
 
-  if (isLoading) {
-    return <div className="grid place-items-center p-16 text-sm font-bold text-slate-400">Carregando calendário…</div>;
+  const { data: list = [], isLoading, isError, error } = useQuery({
+    queryKey: ["calendars", activeOrgId],
+    queryFn: listCalendars,
+  });
+  const refresh = () => qc.invalidateQueries({ queryKey: ["calendars", activeOrgId] });
+
+  if (openId) {
+    return (
+      <CalendarEditorLoader
+        id={openId}
+        role={role}
+        canManage={canManage}
+        userId={userId}
+        updaterName={updaterName}
+        onBack={() => {
+          setOpenId(null);
+          refresh();
+        }}
+      />
+    );
   }
 
   return (
-    <>
+    <CalendarCenter
+      list={list}
+      loading={isLoading}
+      isError={isError}
+      error={error as Error | null}
+      canManage={canManage}
+      role={role}
+      userId={userId}
+      creatorName={updaterName}
+      onOpen={setOpenId}
+      onCreated={(id) => {
+        refresh();
+        setOpenId(id);
+      }}
+      onChanged={refresh}
+    />
+  );
+}
+
+function CalendarCenter({
+  list,
+  loading,
+  isError,
+  error,
+  canManage,
+  role,
+  userId,
+  creatorName,
+  onOpen,
+  onCreated,
+  onChanged,
+}: {
+  list: CalendarSummary[];
+  loading: boolean;
+  isError: boolean;
+  error: Error | null;
+  canManage: boolean;
+  role: string | null;
+  userId: string | null;
+  creatorName: string;
+  onOpen: (id: string) => void;
+  onCreated: (id: string) => void;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const canDelete = (c: CalendarSummary) => role === "superadmin" || role === "diretor" || c.createdBy === userId;
+
+  const create = async () => {
+    setBusy(true);
+    try {
+      const id = await createCalendar({ data: newSeed("Novo calendário"), title: "Novo calendário", creatorId: userId, creatorName });
+      successToast("Calendário criado");
+      onCreated(id);
+    } catch (e) {
+      alert("Não foi possível criar: " + (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async (c: CalendarSummary) => {
+    if (!confirm(`Excluir o calendário “${c.title}”?\n\nEssa ação não pode ser desfeita e remove o calendário para todos da organização.`)) return;
+    try {
+      await deleteCalendar(c.id);
+      successToast("Calendário excluído");
+      onChanged();
+    } catch (e) {
+      alert("Não foi possível excluir: " + (e as Error).message);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-5xl px-1">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-wide text-emerald-700">Centro de calendários</p>
+          <h1 className="text-2xl font-black text-slate-900">Calendários da escola</h1>
+          <p className="mt-1 max-w-2xl text-sm font-medium text-slate-500">
+            Crie quantos calendários precisar (anual, por trimestre, por turno…). Todos da organização visualizam; a edição é de quem cria
+            mais a coordenação, e você pode liberar para outros usuários como participantes.
+          </p>
+        </div>
+        {canManage ? (
+          <Button onClick={create} disabled={busy}>{busy ? "Criando…" : "+ Novo calendário"}</Button>
+        ) : null}
+      </div>
+
       {isError ? (
         <p className="mb-4 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-700">
-          Não foi possível carregar o calendário. Verifique se a migração `calendar_builder` foi rodada no Supabase.{" "}
-          {(error as Error).message}
+          Não foi possível carregar. Verifique se a migração `calendars` foi rodada no Supabase. {error?.message}
         </p>
       ) : null}
-      <CalendarBuilder
-        key={`${activeOrgId ?? "none"}:${reloadKey}`}
-        initialData={loaded?.data ?? SEED}
-        initialVersion={loaded?.version ?? null}
-        initialStamp={fmtStamp(loaded?.updatedAt ?? null, loaded?.updatedByName ?? null)}
-        canManage={canManage}
-        save={async ({ data, expectedVersion }) => {
-          try {
-            const meta = await saveCalendarBuilder({ data, expectedVersion, updaterId, updaterName });
-            successToast("Calendário salvo para toda a equipe");
-            qc.invalidateQueries({ queryKey: ["calendar-builder", activeOrgId] });
-            return { version: meta.version, stamp: fmtStamp(meta.updatedAt, meta.updatedByName) };
-          } catch (e) {
-            if ((e as Error).message === CALENDAR_CONFLICT) {
-              alert(
-                "Outro coordenador salvou o calendário enquanto você editava.\n\n" +
-                  "Para não sobrescrever o trabalho dele, suas alterações não salvas serão descartadas e a versão atualizada será recarregada.",
-              );
-              setReloadKey((k) => k + 1); // remonta com os dados frescos do banco
-              return "conflict";
-            }
-            throw e;
+
+      {loading ? (
+        <div className="grid place-items-center p-16 text-sm font-bold text-slate-400">Carregando…</div>
+      ) : list.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+          <p className="text-sm font-bold text-slate-500">Nenhum calendário ainda.</p>
+          {canManage ? <p className="mt-1 text-xs text-slate-400">Clique em “+ Novo calendário” para começar.</p> : null}
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {list.map((c) => (
+            <article key={c.id} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="min-w-0 flex-1 truncate text-base font-black text-slate-900">{c.title || "Sem título"}</h2>
+                {c.editors.length > 0 ? (
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">
+                    {c.editors.length} participante(s)
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-xs font-bold text-slate-400">
+                {c.createdByName ? `Criado por ${c.createdByName}` : "Criador desconhecido"}
+              </p>
+              <p className="text-xs text-slate-400">{fmtStamp(c.updatedAt, c.updatedByName) ?? "Sem edições ainda"}</p>
+              <div className="mt-3 flex gap-2 border-t border-slate-100 pt-3">
+                <Button variant="soft" className="flex-1" onClick={() => onOpen(c.id)}>Abrir</Button>
+                {canDelete(c) ? (
+                  <button
+                    onClick={() => remove(c)}
+                    className="rounded-xl bg-red-50 px-3 text-sm font-bold text-red-600 transition hover:bg-red-100"
+                    aria-label="Excluir calendário"
+                  >
+                    Excluir
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ====================== Carrega 1 calendário e abre o construtor ====================== */
+function CalendarEditorLoader({
+  id,
+  role,
+  canManage,
+  userId,
+  updaterName,
+  onBack,
+}: {
+  id: string;
+  role: string | null;
+  canManage: boolean;
+  userId: string | null;
+  updaterName: string;
+  onBack: () => void;
+}) {
+  const [reloadKey, setReloadKey] = useState(0);
+  const { data: people = [] } = useQuery({ queryKey: ["org-people"], queryFn: listOrgPeople, enabled: canManage });
+  const { data: rec, isLoading } = useQuery({ queryKey: ["calendar", id, reloadKey], queryFn: () => loadCalendar(id) });
+
+  if (isLoading) return <div className="grid place-items-center p-16 text-sm font-bold text-slate-400">Carregando calendário…</div>;
+  if (!rec) {
+    return (
+      <div className="grid place-items-center gap-3 p-16 text-center">
+        <p className="text-sm font-bold text-slate-500">Calendário não encontrado (pode ter sido excluído).</p>
+        <Button variant="soft" onClick={onBack}>← Voltar aos calendários</Button>
+      </div>
+    );
+  }
+
+  const canEdit = canManage || rec.createdBy === userId || (!!userId && rec.editors.includes(userId));
+  const canDelete = role === "superadmin" || role === "diretor" || rec.createdBy === userId;
+  const canManageEditors = canManage || rec.createdBy === userId;
+  const hasData = rec.data && Object.keys(rec.data).length > 0;
+
+  return (
+    <CalendarBuilder
+      key={`${id}:${reloadKey}`}
+      initialData={hasData ? rec.data : newSeed(rec.title || "Calendário")}
+      initialVersion={rec.version}
+      initialStamp={fmtStamp(rec.updatedAt, rec.updatedByName)}
+      creatorName={rec.createdByName}
+      canManage={canEdit}
+      canDelete={canDelete}
+      canManageEditors={canManageEditors}
+      people={people}
+      initialEditors={rec.editors}
+      onBack={onBack}
+      onDelete={async () => {
+        if (!confirm(`Excluir o calendário “${rec.title}”?\n\nEssa ação não pode ser desfeita.`)) return;
+        try {
+          await deleteCalendar(id);
+          successToast("Calendário excluído");
+          onBack();
+        } catch (e) {
+          alert("Não foi possível excluir: " + (e as Error).message);
+        }
+      }}
+      save={async ({ data, editors, expectedVersion }) => {
+        try {
+          const meta = await saveCalendar({ id, data, title: data.title, editors, expectedVersion, updaterId: userId, updaterName });
+          successToast("Calendário salvo para toda a equipe");
+          return { version: meta.version, stamp: fmtStamp(meta.updatedAt, meta.updatedByName) };
+        } catch (e) {
+          if ((e as Error).message === CALENDAR_CONFLICT) {
+            alert(
+              "Outra pessoa salvou este calendário enquanto você editava.\n\n" +
+                "Para não sobrescrever o trabalho dela, suas alterações não salvas serão descartadas e a versão atual será recarregada.",
+            );
+            setReloadKey((k) => k + 1);
+            return "conflict";
           }
-        }}
-      />
-    </>
+          throw e;
+        }
+      }}
+    />
   );
 }
 
@@ -178,26 +384,42 @@ function CalendarBuilder({
   initialData,
   initialVersion,
   initialStamp,
+  initialEditors,
+  creatorName,
   canManage,
+  canDelete,
+  canManageEditors,
+  people,
+  onBack,
+  onDelete,
   save,
 }: {
   initialData: CalendarData;
-  initialVersion: number | null;
+  initialVersion: number;
   initialStamp: string | null;
+  initialEditors: string[];
+  creatorName: string | null;
   canManage: boolean;
-  save: (args: { data: CalendarData; expectedVersion: number | null }) => Promise<SaveResult>;
+  canDelete: boolean;
+  canManageEditors: boolean;
+  people: OrgPerson[];
+  onBack: () => void;
+  onDelete: () => void;
+  save: (args: { data: CalendarData; editors: string[]; expectedVersion: number }) => Promise<SaveResult>;
 }) {
   const [data, setData] = useState<CalendarData>(initialData);
-  const [savedJson, setSavedJson] = useState(() => JSON.stringify(initialData));
+  const [editors, setEditors] = useState<string[]>(initialEditors);
+  const [savedJson, setSavedJson] = useState(() => JSON.stringify({ data: initialData, editors: initialEditors }));
   const [editing, setEditing] = useState(canManage);
   const [viewId, setViewId] = useState<string>(initialData.periods[1]?.id ?? "year");
   const [active, setActive] = useState<Set<string>>(new Set(initialData.categories.map((c) => c.id)));
   const [saving, setSaving] = useState(false);
-  const [version, setVersion] = useState<number | null>(initialVersion);
+  const [version, setVersion] = useState<number>(initialVersion);
   const [stamp, setStamp] = useState<string | null>(initialStamp);
   const [importOpen, setImportOpen] = useState(false);
+  const [editorsOpen, setEditorsOpen] = useState(false);
 
-  const dirty = JSON.stringify(data) !== savedJson;
+  const dirty = JSON.stringify({ data, editors }) !== savedJson;
 
   const catById = useMemo(
     () => Object.fromEntries(data.categories.map((c) => [c.id, c])),
@@ -262,13 +484,14 @@ function CalendarBuilder({
   const handleSave = async () => {
     if (saving) return;
     const snapshot = data;
+    const snapEditors = editors;
     setSaving(true);
     try {
-      const res = await save({ data: snapshot, expectedVersion: version });
+      const res = await save({ data: snapshot, editors: snapEditors, expectedVersion: version });
       if (res === "conflict") return; // a página remonta com os dados frescos do banco
       setVersion(res.version);
       setStamp(res.stamp);
-      setSavedJson(JSON.stringify(snapshot));
+      setSavedJson(JSON.stringify({ data: snapshot, editors: snapEditors }));
     } catch (e) {
       alert("Não foi possível salvar: " + (e as Error).message);
     } finally {
@@ -334,11 +557,16 @@ function CalendarBuilder({
       {/* Cabeçalho global */}
       <header className="cb-top">
         <div className="cb-brand">
+          <button className="cb-back" onClick={onBack} title="Voltar aos calendários">←</button>
           <div className="cb-mark">{(data.school[0] || "C").toUpperCase()}</div>
           <div>
             <div className="cb-eyebrow">{data.school}</div>
             <h1 className="cb-h1">{data.title}</h1>
-            {stamp ? <div className="cb-stamp">{stamp}</div> : null}
+            <div className="cb-stamp">
+              {creatorName ? <>Criado por {creatorName}</> : null}
+              {creatorName && stamp ? " · " : null}
+              {stamp}
+            </div>
           </div>
         </div>
         <div className="cb-top-actions">
@@ -353,6 +581,11 @@ function CalendarBuilder({
               {editing ? "Ocultar editor" : "✎ Editar"}
             </button>
           ) : null}
+          {canManageEditors ? (
+            <button className="cb-btn" onClick={() => setEditorsOpen(true)}>
+              Participantes{editors.length ? ` (${editors.length})` : ""}
+            </button>
+          ) : null}
           {canManage ? (
             <button className="cb-btn cb-btn-primary" onClick={handleSave} disabled={!dirty || saving}>
               {saving ? "Salvando…" : dirty ? "Salvar" : "✓ Salvo"}
@@ -362,6 +595,9 @@ function CalendarBuilder({
           <button className="cb-btn" onClick={exportJSON}>Exportar</button>
           {canManage ? (
             <button className="cb-btn cb-btn-primary" onClick={() => setImportOpen(true)}>↑ Importar calendário</button>
+          ) : null}
+          {canDelete ? (
+            <button className="cb-btn cb-btn-danger" onClick={onDelete}>Excluir</button>
           ) : null}
         </div>
       </header>
@@ -522,7 +758,82 @@ function CalendarBuilder({
           onClose={() => setImportOpen(false)}
         />
       ) : null}
+
+      {editorsOpen && canManageEditors ? (
+        <EditorsModal
+          people={people}
+          editors={editors}
+          onChange={setEditors}
+          onClose={() => setEditorsOpen(false)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+/* ------------------- Modal de participantes (quem pode editar) --------------------- */
+function EditorsModal({
+  people,
+  editors,
+  onChange,
+  onClose,
+}: {
+  people: OrgPerson[];
+  editors: string[];
+  onChange: (ids: string[]) => void;
+  onClose: () => void;
+}) {
+  const set = new Set(editors);
+  const toggle = (id: string) => {
+    const n = new Set(set);
+    n.has(id) ? n.delete(id) : n.add(id);
+    onChange([...n]);
+  };
+  // Coordenação/direção já editam por papel — destacamos para não confundir.
+  const alwaysEdit = (r: string) => r === "diretor" || r === "coordenador" || r === "superadmin";
+
+  return (
+    <Modal open onClose={onClose} title="Participantes — quem pode editar" size="xl">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-500">
+          Todos da organização <b>veem</b> este calendário. Marque abaixo quem mais pode <b>editar</b>. Direção e coordenação já editam por
+          padrão. As mudanças entram ao clicar em <b>Salvar</b>.
+        </p>
+        {people.length === 0 ? (
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-bold text-slate-400">Nenhum usuário na organização ainda.</p>
+        ) : (
+          <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2">
+            {people.map((p) => {
+              const byRole = alwaysEdit(p.role);
+              const checked = byRole || set.has(p.user_id);
+              return (
+                <label
+                  key={p.user_id}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-2 py-2 text-sm",
+                    byRole ? "opacity-60" : "cursor-pointer hover:bg-slate-50",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={byRole}
+                    onChange={() => toggle(p.user_id)}
+                    className="h-4 w-4 accent-emerald-600"
+                  />
+                  <span className="min-w-0 flex-1 truncate font-bold text-slate-800">{p.full_name || p.email || p.user_id}</span>
+                  <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-black uppercase text-slate-500">{p.role}</span>
+                  {byRole ? <span className="shrink-0 text-[10px] font-bold text-emerald-700">edita por padrão</span> : null}
+                </label>
+              );
+            })}
+          </div>
+        )}
+        <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+          <Button onClick={onClose}>Concluir</Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -764,6 +1075,10 @@ const CSS = `
 .cb-btn-primary{background:var(--green);border-color:var(--green);color:#fff}
 .cb-btn-primary:hover{background:var(--green-2);border-color:var(--green-2);color:#fff}
 .cb-btn-primary:disabled{background:var(--surface);color:var(--ink-soft)}
+.cb-btn-danger{color:#E0544A;border-color:${rgba("#E0544A", 0.4)}}
+.cb-btn-danger:hover{background:${rgba("#E0544A", 0.1)};border-color:#E0544A;color:#E0544A}
+.cb-back{font:inherit;font-size:18px;line-height:1;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:38px;height:38px;border-radius:50%;flex:none;display:grid;place-items:center;transition:.15s}
+.cb-back:hover{border-color:var(--green-2);color:var(--green)}
 
 .cb-layout{display:grid;grid-template-columns:1fr;gap:0}
 .cb-layout.with-editor{grid-template-columns:minmax(320px,380px) 1fr}
