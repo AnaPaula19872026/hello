@@ -618,7 +618,7 @@ export function NotasPage() {
         onClose={() => setClearOpen(false)}
         title="Limpar notas da turma"
         description={`Isso apaga TODAS as notas de ${turmaNome} no ${TERM_LABEL[term]} / ${year} do banco de dados. Ação irreversível.`}
-        keyword={turmaNome}
+        keyword="APAGAR"
         confirmLabel="Apagar notas"
         busy={clearGrades.isPending}
         onConfirm={() => clearGrades.mutate()}
