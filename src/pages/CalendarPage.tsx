@@ -411,7 +411,7 @@ function CalendarBuilder({
   const [data, setData] = useState<CalendarData>(initialData);
   const [editors, setEditors] = useState<string[]>(initialEditors);
   const [savedJson, setSavedJson] = useState(() => JSON.stringify({ data: initialData, editors: initialEditors }));
-  const [editing, setEditing] = useState(canManage);
+  const [editing, setEditing] = useState(false); // começa fechado — abre só ao clicar em "Editar"
   const [viewId, setViewId] = useState<string>(initialData.periods[1]?.id ?? "year");
   const [active, setActive] = useState<Set<string>>(new Set(initialData.categories.map((c) => c.id)));
   const [saving, setSaving] = useState(false);
