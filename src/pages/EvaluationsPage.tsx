@@ -3,6 +3,8 @@ import { Check, ClipboardList, Lock, Pencil, Plus, Save, Sliders, Trash2, X } fr
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
+import { ConfirmClearModal } from '../components/ConfirmClearModal';
+import { canManageOrg } from '../lib/permissions';
 import { Button, Card, EmptyState, Input, Modal, PageHeader, SearchInput, Segmented, Select, Loading} from '../components/ui';
 import { cn } from '../lib/cn';
 import {
@@ -28,7 +30,8 @@ function fmtDM(d: string): string {
 
 export function EvaluationsPage() {
   const qc = useQueryClient();
-  const { activeOrgId, ctxLoading } = useAuth();
+  const { activeOrgId, ctxLoading, role } = useAuth();
+  const canClear = canManageOrg(role); // só coordenação/direção limpa avaliações
   const now = new Date();
   const [classId, setClassId] = usePersistentState('hello:avaliacoes:classId', '');
   const [term, setTerm] = usePersistentState('hello:avaliacoes:term', 1);
@@ -38,6 +41,7 @@ export function EvaluationsPage() {
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
   const orgReady = !ctxLoading && !!activeOrgId;
 
   const { data: classes = [] } = useQuery({ queryKey: ['classes', activeOrgId], queryFn: listClasses, enabled: orgReady });
@@ -151,17 +155,12 @@ export function EvaluationsPage() {
       qc.invalidateQueries({ queryKey: ['eval-grades', activeOrgId, classId, year, term] });
       qc.invalidateQueries({ queryKey: ['term-grades'] });
       qc.invalidateQueries({ queryKey: ['credito-data'] });
+      setClearOpen(false);
       successToast('Avaliações apagadas');
     },
     onError: (e) => alert('Não foi possível limpar: ' + (e as Error).message),
   });
-  function limparAvaliacoes() {
-    if (!students.length || clearEval.isPending) return;
-    const nome = classes.find((c) => c.id === classId)?.name ?? 'turma';
-    if (confirm(`Limpar TODAS as avaliações de ${nome} — ${TERM_LABEL[term]} / ${year}?\n\n⚠️ Ação IRREVERSÍVEL: apaga as marcações/pontuações deste trimestre e remove o crédito variável correspondente das notas. Não há como recuperar.`)) {
-      clearEval.mutate();
-    }
-  }
+  const turmaNome = classes.find((c) => c.id === classId)?.name ?? 'turma';
 
   const years = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
 
@@ -200,9 +199,9 @@ export function EvaluationsPage() {
             <Button variant="ghost" onClick={() => setConfigOpen(true)}>
               <Sliders size={18} /> Composição de avaliações
             </Button>
-            {hasSavedMarks ? (
-              <Button variant="ghost" onClick={limparAvaliacoes} disabled={clearEval.isPending}>
-                <Trash2 size={18} /> {clearEval.isPending ? 'Limpando…' : 'Limpar avaliações'}
+            {canClear && hasSavedMarks ? (
+              <Button variant="ghost" onClick={() => setClearOpen(true)}>
+                <Trash2 size={18} /> Limpar avaliações
               </Button>
             ) : null}
           </div>
@@ -443,6 +442,17 @@ export function EvaluationsPage() {
         year={year}
         initial={activities}
         onSaved={() => qc.invalidateQueries({ queryKey: ['eval-config', activeOrgId, classId, year, term] })}
+      />
+
+      <ConfirmClearModal
+        open={clearOpen}
+        onClose={() => setClearOpen(false)}
+        title="Limpar avaliações da turma"
+        description={`Isso apaga as marcações/pontuações de ${turmaNome} no ${TERM_LABEL[term]} / ${year} e remove o crédito variável correspondente das notas. Ação irreversível.`}
+        keyword={turmaNome}
+        confirmLabel="Apagar avaliações"
+        busy={clearEval.isPending}
+        onConfirm={() => clearEval.mutate()}
       />
     </div>
   );

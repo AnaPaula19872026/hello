@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, SearchInput, Segmented, Select, Loading} from '../components/ui';
 import { successToast } from '../components/Feedback';
+import { ConfirmClearModal } from '../components/ConfirmClearModal';
+import { canManageOrg } from '../lib/permissions';
 import { cn } from '../lib/cn';
 import { printDocument, escapeHtml } from '../lib/print';
 import { usePersistentState } from '../lib/usePersistentState';
@@ -50,7 +52,8 @@ function fmtDM(d: string): string {
 export function NotasPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { activeOrgId, ctxLoading } = useAuth();
+  const { activeOrgId, ctxLoading, role } = useAuth();
+  const canClear = canManageOrg(role); // só coordenação/direção limpa notas
   const now = new Date();
   const [classId, setClassId] = usePersistentState('hello:notas:classId', '');
   const [term, setTerm] = usePersistentState('hello:notas:term', 1);
@@ -63,6 +66,7 @@ export function NotasPage() {
   const [configOpen, setConfigOpen] = useState(false);
   const [boletimOpen, setBoletimOpen] = useState(false);
   const [boletimEscolarOpen, setBoletimEscolarOpen] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
   const orgReady = !ctxLoading && !!activeOrgId;
 
   const { data: classes = [] } = useQuery({ queryKey: ['classes', activeOrgId], queryFn: listClasses, enabled: orgReady });
@@ -219,17 +223,12 @@ export function NotasPage() {
     mutationFn: () => bulkDeleteTermGrades(classId, year, term, students.map((s) => s.id)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['term-grades', activeOrgId, classId, year, term] });
+      setClearOpen(false);
       successToast('Notas do trimestre apagadas');
     },
     onError: (e) => alert('Não foi possível limpar: ' + (e as Error).message),
   });
-  function limparNotas() {
-    if (!students.length || clearGrades.isPending) return;
-    const nome = classes.find((c) => c.id === classId)?.name ?? 'turma';
-    if (confirm(`Limpar TODAS as notas de ${nome} — ${TERM_LABEL[term]} / ${year}?\n\n⚠️ Ação IRREVERSÍVEL: apaga as notas deste trimestre desta turma do banco de dados. Não há como recuperar.`)) {
-      clearGrades.mutate();
-    }
-  }
+  const turmaNome = classes.find((c) => c.id === classId)?.name ?? 'turma';
 
   const years = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
 
@@ -270,9 +269,9 @@ export function NotasPage() {
             <Button variant="ghost" onClick={() => setConfigOpen(true)}>
               <Sliders size={18} /> Composição de notas
             </Button>
-            {hasSavedGrades ? (
-              <Button variant="ghost" onClick={limparNotas} disabled={clearGrades.isPending}>
-                <Trash2 size={18} /> {clearGrades.isPending ? 'Limpando…' : 'Limpar notas'}
+            {canClear && hasSavedGrades ? (
+              <Button variant="ghost" onClick={() => setClearOpen(true)}>
+                <Trash2 size={18} /> Limpar notas
               </Button>
             ) : null}
           </div>
@@ -584,6 +583,17 @@ export function NotasPage() {
         schoolId={classes.find((c) => c.id === classId)?.school_id ?? ''}
         className={classes.find((c) => c.id === classId)?.name ?? 'Turma'}
         year={year}
+      />
+
+      <ConfirmClearModal
+        open={clearOpen}
+        onClose={() => setClearOpen(false)}
+        title="Limpar notas da turma"
+        description={`Isso apaga TODAS as notas de ${turmaNome} no ${TERM_LABEL[term]} / ${year} do banco de dados. Ação irreversível.`}
+        keyword={turmaNome}
+        confirmLabel="Apagar notas"
+        busy={clearGrades.isPending}
+        onConfirm={() => clearGrades.mutate()}
       />
     </div>
   );
