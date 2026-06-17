@@ -10,6 +10,7 @@ import { AvisosPage } from '../pages/AvisosPage';
 import { CalendarPage } from '../pages/CalendarPage';
 import { ClassesPage } from '../pages/ClassesPage';
 import { DashboardPage } from '../pages/DashboardPage';
+import { DownloadPlanPage } from '../pages/DownloadPlanPage';
 import { EvaluationsPage } from '../pages/EvaluationsPage';
 import { LoginPage } from '../pages/LoginPage';
 import { NotasPage } from '../pages/NotasPage';
@@ -60,6 +61,7 @@ function Protected() {
         <Route path="/organizacoes" element={<ModuleGate module="organizacoes" role={role} isHq={isHq}><OrganizationsPage /></ModuleGate>} />
         <Route path="/permissoes" element={<ModuleGate module="permissoes" role={role} isHq={isHq}><PermissionsPage /></ModuleGate>} />
         <Route path="/configuracoes" element={<ModuleGate module="configuracoes" role={role} isHq={isHq}><SettingsPage /></ModuleGate>} />
+        <Route path="/baixar/:id" element={<DownloadPlanPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>
