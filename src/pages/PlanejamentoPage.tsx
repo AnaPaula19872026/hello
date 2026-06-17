@@ -10,7 +10,7 @@ import { successToast } from '../components/Feedback';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented, Select, Loading} from '../components/ui';
 import { cn } from '../lib/cn';
 import { canReviewPlan } from '../lib/permissions';
-import { downloadAllAttachments, safeFileName } from '../lib/storage';
+import { safeFileName } from '../lib/storage';
 import {
   deletePlan,
   listClasses,
@@ -273,21 +273,6 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
   const attNames = plan.attachments.map((a) => a.name);
   const bodyClean = message + (attNames.length ? `\n\n📎 Anexos: ${attNames.join(', ')}` : '');
   const [sharing, setSharing] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-
-  async function baixarAnexos() {
-    const list = plan.attachments.filter((a) => a.url);
-    if (!list.length) return;
-    setDownloading(true);
-    try {
-      await downloadAllAttachments(list, safeFileName(plan.title) || 'anexos');
-      successToast(list.length > 1 ? 'Anexos baixados (.zip)' : 'Arquivo baixado');
-    } catch {
-      alert('Não foi possível baixar os anexos.');
-    } finally {
-      setDownloading(false);
-    }
-  }
   // Web Share com arquivos só existe em alguns navegadores (celular/Chrome).
   const canShareFiles = typeof navigator !== 'undefined' && !!navigator.canShare && !!navigator.share;
 
@@ -310,9 +295,8 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
       await navigator.share(payload);
       successToast('Compartilhado');
       onClose();
-    } catch (e) {
-      // usuário cancelou o menu → não faz nada; outro erro → tenta o fallback
-      if ((e as Error)?.name !== 'AbortError') alert('Não foi possível compartilhar com anexos. Use WhatsApp/E-mail abaixo (anexos vão como links).');
+    } catch {
+      // usuário cancelou ou navegador não suporta → silêncio, usa WhatsApp/E-mail abaixo
     } finally {
       setSharing(false);
     }
@@ -344,23 +328,6 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
             <Button className="mt-2" onClick={shareWithFiles} disabled={sharing}>
               <Share2 size={16} /> {sharing ? 'Preparando…' : 'Compartilhar com anexos'}
             </Button>
-          </div>
-        ) : null}
-
-        {plan.attachments.length > 0 ? (
-          <div className="rounded-lg bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-800">
-            <p>
-              WhatsApp e e-mail abaixo não carregam arquivos. A mensagem leva só os nomes dos anexos —
-              {canShareFiles ? ' use “Compartilhar com anexos” acima para enviar os arquivos juntos, ou' : ''} baixe e anexe manualmente:
-            </p>
-            <button
-              type="button"
-              onClick={baixarAnexos}
-              disabled={downloading}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-black text-white hover:bg-amber-700 disabled:opacity-50"
-            >
-              <Paperclip size={14} /> {downloading ? 'Baixando…' : `Baixar anexos (${plan.attachments.length})`}
-            </button>
           </div>
         ) : null}
 
