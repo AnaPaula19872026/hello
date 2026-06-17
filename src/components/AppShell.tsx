@@ -6,6 +6,7 @@ import {
   Building2,
   CalendarDays,
   ClipboardCheck,
+  ClipboardList,
   GraduationCap,
   Home,
   LogOut,
@@ -39,6 +40,7 @@ const groups: { title?: string; items: NavItem[] }[] = [
     items: [
       { label: 'Chamadas', to: '/chamadas', icon: <ClipboardCheck size={18} />, module: 'chamadas' },
       { label: 'Notas', to: '/notas', icon: <Award size={18} />, module: 'notas' },
+      { label: 'Central de Avaliações', to: '/avaliacoes', icon: <ClipboardList size={18} />, module: 'notas' },
       { label: 'Planejamento', to: '/planejamento', icon: <BookOpen size={18} />, module: 'planejamentos' },
       { label: 'Relatórios', to: '/relatorios', icon: <BarChart3 size={18} />, module: 'relatorios' },
     ],

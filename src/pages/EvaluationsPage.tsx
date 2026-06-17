@@ -153,7 +153,7 @@ export function EvaluationsPage() {
   if (!orgReady) {
     return (
       <>
-        <PageHeader title="Centro de Avaliações" subtitle="Carregando organização ativa..." />
+        <PageHeader title="Central de Avaliações" subtitle="Carregando organização ativa..." />
         <Loading label="Preparando os dados da escola…" />
       </>
     );
@@ -161,7 +161,7 @@ export function EvaluationsPage() {
   if (classes.length === 0) {
     return (
       <>
-        <PageHeader title="Centro de Avaliações" subtitle="Controle de atividades da turma" />
+        <PageHeader title="Central de Avaliações" subtitle="Controle de atividades da turma" />
         <EmptyState icon={<ClipboardList size={26} />} title="Nenhuma turma" hint="Cadastre turma e alunos para controlar as atividades." />
       </>
     );
@@ -170,7 +170,7 @@ export function EvaluationsPage() {
   return (
     <div className="pb-28">
       <PageHeader
-        title="Centro de Avaliações"
+        title="Central de Avaliações"
         subtitle={`${TERM_LABEL[term]} • ${year} • controle de atividades (sem média)`}
         action={
           <Button variant="ghost" onClick={() => setConfigOpen(true)}>
