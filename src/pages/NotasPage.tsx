@@ -352,7 +352,7 @@ export function NotasPage() {
                           );
                         })}
                         <th rowSpan={2} className="px-3 py-3 text-center">Média</th>
-                        <th rowSpan={2} className="px-3 py-3 text-center">Situação</th>
+                        <th rowSpan={2} className="px-3 py-3 text-center">Resultado</th>
                         <th rowSpan={2} className="min-w-[160px] px-3 py-3 text-center">Observações</th>
                       </tr>
                       <tr>
@@ -377,7 +377,7 @@ export function NotasPage() {
                         </th>
                       ))}
                       <th className="px-3 py-3 text-center">Média</th>
-                      <th className="px-3 py-3 text-center">Situação</th>
+                      <th className="px-3 py-3 text-center">Resultado</th>
                       <th className="min-w-[160px] px-3 py-3 text-center">Observações</th>
                     </tr>
                   )}
@@ -607,7 +607,8 @@ function BoletimEscolarModal({
       const s = sit(m);
       return `<tr><td class="name">${escapeHtml(TERM_LABEL[t])}</td><td>${m == null ? '—' : m.toFixed(1)}</td><td><span class="${s.cls}">${s.txt}</span></td></tr>`;
     }).join('');
-    const sf = sit(r.final);
+    // Resultado final é APROVADO/REPROVADO (a nota de recuperação já está embutida na média).
+    const sf = r.final == null ? { txt: '—', cls: '' } : r.final >= MEDIA_APROVACAO ? { txt: 'Aprovado', cls: 'ok' } : { txt: 'Reprovado', cls: 'fail' };
     return `<section style="${last ? '' : 'page-break-after: always;'} max-width: 720px; margin: 0 auto;">
       ${schoolHeaderHtml(school, `BOLETIM ESCOLAR — ${year}`)}
       <p style="font-size:13px; margin:0 0 12px;"><strong>Aluno(a):</strong> ${escapeHtml(r.name)} &nbsp;·&nbsp; <strong>Turma:</strong> ${escapeHtml(className)}</p>
@@ -615,7 +616,7 @@ function BoletimEscolarModal({
       <tbody>${linhas}
         <tr style="background:#f1f5f9; font-weight:800;"><td class="name">Média final</td><td>${r.final == null ? '—' : r.final.toFixed(1)}</td><td><span class="${sf.cls}">${sf.txt}</span></td></tr>
       </tbody></table>
-      <p style="font-size:13px; margin:14px 0;"><strong>Resultado final:</strong> <span class="${sf.cls}">${sf.txt}</span> &nbsp; (média de aprovação: ${MEDIA_APROVACAO.toFixed(1)})</p>
+      <p style="font-size:13px; margin:14px 0;"><strong>Resultado final:</strong> <span class="${sf.cls}">${sf.txt}</span> &nbsp; (média de aprovação: ${MEDIA_APROVACAO.toFixed(1)} · a recuperação já está considerada na média)</p>
       <div style="display:flex; gap:40px; margin-top:46px; font-size:12px; color:#475569;">
         <div style="flex:1; border-top:1px solid #94a3b8; padding-top:6px; text-align:center;">Coordenação</div>
         <div style="flex:1; border-top:1px solid #94a3b8; padding-top:6px; text-align:center;">Responsável</div>
