@@ -7,6 +7,7 @@ import { Button, Card, EmptyState, Input, Modal, PageHeader, SearchInput, Segmen
 import { cn } from '../lib/cn';
 import {
   applyCreditoToGrades,
+  bulkDeleteEvalGrades,
   getEvalConfig,
   listClasses,
   listEvalGrades,
@@ -140,6 +141,28 @@ export function EvaluationsPage() {
     },
   });
 
+  // Limpa (apaga) as avaliações da turma no trimestre/ano e remove o crédito das notas.
+  const clearEval = useMutation({
+    mutationFn: async () => {
+      await bulkDeleteEvalGrades(classId, year, term, students.map((s) => s.id));
+      await applyCreditoToGrades(classId, year, term);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['eval-grades', activeOrgId, classId, year, term] });
+      qc.invalidateQueries({ queryKey: ['term-grades'] });
+      qc.invalidateQueries({ queryKey: ['credito-data'] });
+      successToast('Avaliações apagadas');
+    },
+    onError: (e) => alert('Não foi possível limpar: ' + (e as Error).message),
+  });
+  function limparAvaliacoes() {
+    if (!students.length || clearEval.isPending) return;
+    const nome = classes.find((c) => c.id === classId)?.name ?? 'turma';
+    if (confirm(`Limpar TODAS as avaliações de ${nome} — ${TERM_LABEL[term]} / ${year}?\n\n⚠️ Ação IRREVERSÍVEL: apaga as marcações/pontuações deste trimestre e remove o crédito variável correspondente das notas. Não há como recuperar.`)) {
+      clearEval.mutate();
+    }
+  }
+
   const years = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
 
   // Resumo: entregas por atividade e total.
@@ -173,9 +196,16 @@ export function EvaluationsPage() {
         title="Central de Avaliações"
         subtitle={`${TERM_LABEL[term]} • ${year} • controle de atividades (sem média)`}
         action={
-          <Button variant="ghost" onClick={() => setConfigOpen(true)}>
-            <Sliders size={18} /> Composição de avaliações
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" onClick={() => setConfigOpen(true)}>
+              <Sliders size={18} /> Composição de avaliações
+            </Button>
+            {hasSavedMarks ? (
+              <Button variant="ghost" onClick={limparAvaliacoes} disabled={clearEval.isPending}>
+                <Trash2 size={18} /> {clearEval.isPending ? 'Limpando…' : 'Limpar avaliações'}
+              </Button>
+            ) : null}
+          </div>
         }
       />
 

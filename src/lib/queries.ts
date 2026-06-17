@@ -526,6 +526,17 @@ export async function saveEvalGrades(classId: string, year: number, term: number
   if (error) throw new Error(error.message);
 }
 
+/** Limpa as avaliações (Central) da turma no trimestre/ano. */
+export async function bulkDeleteEvalGrades(classId: string, year: number, term: number, studentIds: string[]): Promise<void> {
+  if (!studentIds.length) return;
+  const { error } = await scoped(supabase.from('evaluation_grades').delete())
+    .eq('class_id', classId)
+    .eq('year', year)
+    .eq('term', term)
+    .in('student_id', studentIds);
+  if (error) throw new Error(error.message);
+}
+
 /**
  * Crédito variável vindo do Centro de Avaliações, ligado por ID estável da coluna.
  * - defs: as atividades marcadas como crédito (id, nome, max).
