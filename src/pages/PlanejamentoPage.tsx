@@ -586,7 +586,7 @@ function ComposeModal({ plan, onClose }: { plan: PlanWithMeta | null; onClose: (
       class_id: classId || null,
       week_start: week || null,
       content: isWeekly ? weeklyPlanToText(weekly) : content.trim(),
-      plan_data: isWeekly ? weekly : null,
+      plan_data: isWeekly ? weekly : undefined, // texto não toca a coluna (seguro sem migração)
     };
     const id = await savePlan(input);
     for (const f of files) await uploadPlanAttachment(id, f);

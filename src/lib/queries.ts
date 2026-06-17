@@ -1359,14 +1359,16 @@ export interface PlanInput {
 }
 
 export async function savePlan(input: PlanInput): Promise<string> {
-  const row = {
+  const row: Record<string, unknown> = {
     title: input.title,
     class_id: input.class_id || null,
     week_start: input.week_start || null,
     content: input.content,
-    plan_data: input.plan_data ?? null,
     updated_at: new Date().toISOString(),
   };
+  // Só referencia plan_data quando há plano semanal — assim o modo texto não quebra
+  // caso a migração `plan_data` ainda não tenha rodado.
+  if (input.plan_data !== undefined) row.plan_data = input.plan_data;
   if (input.id) {
     const { error } = await supabase.from('lesson_plans').update(row).eq('id', input.id);
     if (error) throw new Error(error.message);
