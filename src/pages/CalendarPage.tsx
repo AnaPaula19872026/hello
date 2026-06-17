@@ -1147,11 +1147,38 @@ const CSS = `
 .cb-foot strong{color:var(--ink)}
 
 @media print{
-  .cb-top-actions,.cb-editor,.cb-filters{display:none!important}
+  @page{size:A4 portrait;margin:6mm}
+  .cb-top-actions,.cb-editor,.cb-filters,.cb-back,.cb-stamp{display:none!important}
+  .cb-app{background:#fff;border:none;border-radius:0;font-size:10px}
+  .cb-app *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cb-top{padding:0 0 6px;border:none}
+  .cb-mark{width:30px;height:30px;font-size:14px}
+  .cb-h1{font-size:18px}
+  .cb-eyebrow{font-size:9px}
   .cb-layout.with-editor{grid-template-columns:1fr}
-  .cb-app{background:#fff;border:none;border-radius:0}
-  .cb-months{grid-template-columns:repeat(2,1fr)}
-  .cb-month{box-shadow:none;break-inside:avoid}
+  .cb-preview{padding:0}
+  /* 3 meses por linha, bem compacto, p/ caber tudo em poucas folhas */
+  .cb-months{grid-template-columns:repeat(3,1fr);gap:6px}
+  .cb-month{box-shadow:none;border-color:#ddd;border-radius:8px;break-inside:avoid}
+  .cb-month-head{padding:6px 8px 4px}
+  .cb-month-head h2{font-size:14px}
+  .cb-badge{font-size:9px;padding:1px 6px}
+  .cb-cal{padding:4px 6px 0}
+  .cb-dow span{font-size:8px;padding:1px 0}
+  .cb-grid{gap:1px}
+  .cb-cell{font-size:9px;border-radius:3px;font-weight:600}
+  .cb-cell.today{outline:none}
+  .cb-cell.today::after{display:none}
+  .cb-dots{bottom:1px;gap:1px}
+  .cb-dots i{width:3px;height:3px}
+  .cb-events{padding:3px 8px 8px;gap:0}
+  .cb-empty{font-size:8px;padding:2px}
+  .cb-ev{padding:2px;gap:5px}
+  .cb-ev.dim{display:none}             /* não imprime eventos de categorias ocultas */
+  .cb-date{min-width:26px;font-size:8px;padding:2px 3px;border-radius:4px;line-height:1.1}
+  .cb-txt{font-size:8.5px;padding-top:0;line-height:1.2}
+  .cb-txt small{font-size:7px;margin-top:0}
+  .cb-foot{margin-top:8px;padding-top:6px;font-size:8px}
 }
 @media (prefers-reduced-motion:reduce){.cb-app *{transition:none!important}}
 `;
