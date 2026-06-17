@@ -15,10 +15,11 @@ import {
 } from "../lib/queries";
 import { downloadCalendarTemplate } from "../lib/importCalendar";
 import { parseAnyCalendarFile, type ImportedEvent } from "../lib/importCalendarBuilder";
+import { listNationalHolidays } from "../lib/holidays";
 import { Button, Modal } from "../components/ui";
 import { Dropzone } from "../components/Dropzone";
 import { cn } from "../lib/cn";
-import type { OrgPerson } from "../lib/types";
+import type { CalendarHoliday, OrgPerson } from "../lib/types";
 import type {
   CalBuilderEvent as CalEvent,
   CalCategory as Category,
@@ -418,6 +419,22 @@ function CalendarBuilder({
   const [stamp, setStamp] = useState<string | null>(initialStamp);
   const [importOpen, setImportOpen] = useState(false);
   const [editorsOpen, setEditorsOpen] = useState(false);
+  const [showHolidays, setShowHolidays] = useState(true);
+
+  // Feriados nacionais do ano (BrasilAPI, com fallback offline) — ver lib/holidays.
+  const { data: nationalHolidays = [] } = useQuery({
+    queryKey: ["national-holidays", data.year],
+    queryFn: () => listNationalHolidays(data.year),
+  });
+  // Não duplica: esconde o marcador automático quando o feriado já virou evento (mesma data+título).
+  const eventKeys = useMemo(
+    () => new Set(data.events.map((e) => `${e.start}|${e.title.toLowerCase()}`)),
+    [data.events]
+  );
+  const holidays = useMemo(
+    () => (showHolidays ? nationalHolidays.filter((h) => !eventKeys.has(`${h.date}|${h.title.toLowerCase()}`)) : []),
+    [showHolidays, nationalHolidays, eventKeys]
+  );
 
   const dirty = JSON.stringify({ data, editors }) !== savedJson;
 
@@ -549,6 +566,30 @@ function CalendarBuilder({
     setImportOpen(false);
   };
 
+  /* ---- feriados nacionais → eventos editáveis (categoria Feriado) ---- */
+  const addNationalHolidays = () => {
+    if (!nationalHolidays.length) {
+      alert("Feriados nacionais ainda carregando. Tente em instantes.");
+      return;
+    }
+    const cats = [...data.categories];
+    let cat = cats.find((c) => c.label.toLowerCase() === "feriado");
+    if (!cat) {
+      cat = { id: uid(), label: "Feriado", color: "#E0544A" };
+      cats.push(cat);
+    }
+    const existing = new Set(data.events.map((e) => `${e.start}|${e.title.toLowerCase()}`));
+    const toAdd = nationalHolidays
+      .filter((h) => !existing.has(`${h.date}|${h.title.toLowerCase()}`))
+      .map((h) => ({ id: uid(), title: h.title, categoryId: cat!.id, start: h.date }));
+    if (!toAdd.length) {
+      alert(`Os feriados nacionais de ${data.year} já estão no calendário.`);
+      return;
+    }
+    setData({ ...data, categories: cats, events: [...data.events, ...toAdd] });
+    setActive(new Set(cats.map((c) => c.id)));
+  };
+
   /* ============================== Render ============================== */
   return (
     <div className="cb-app">
@@ -621,6 +662,14 @@ function CalendarBuilder({
                   onChange={(e) => set({ year: Number(e.target.value) })}
                 />
               </Field>
+            </Section>
+
+            <Section title="Feriados nacionais">
+              <p className="cb-help">
+                Os feriados nacionais de {data.year} já aparecem no calendário (fonte BrasilAPI). Para deixá-los fixos e editáveis,
+                adicione como eventos na categoria “Feriado”.
+              </p>
+              <button className="cb-add" onClick={addNationalHolidays}>+ Adicionar feriados de {data.year}</button>
             </Section>
 
             <Section title="Categorias" action={<button className="cb-add" onClick={addCategory}>+ Categoria</button>}>
@@ -725,6 +774,23 @@ function CalendarBuilder({
                 </button>
               );
             })}
+            {nationalHolidays.length > 0 ? (
+              <button
+                className="cb-chip"
+                aria-pressed={showHolidays}
+                onClick={() => setShowHolidays((v) => !v)}
+                style={{
+                  color: showHolidays ? "#1F2A24" : "#5C6B62",
+                  borderColor: showHolidays ? rgba("#d97706", 0.55) : "#E7E4DA",
+                  background: showHolidays ? rgba("#d97706", 0.1) : "#fff",
+                  opacity: showHolidays ? 1 : 0.55,
+                }}
+                title="Feriados nacionais (BrasilAPI)"
+              >
+                <span className="cb-cdot" style={{ background: "#d97706" }} />
+                Feriados nacionais
+              </button>
+            ) : null}
           </div>
 
           <div className="cb-months">
@@ -734,6 +800,7 @@ function CalendarBuilder({
                 year={data.year}
                 month={m}
                 events={data.events}
+                holidays={holidays}
                 catById={catById}
                 active={active}
                 letivos={data.letivosByMonth[m]}
@@ -968,15 +1035,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+const HOLIDAY_COLOR = "#d97706";
 function MonthCard({
-  year, month, events, catById, active, letivos,
+  year, month, events, holidays, catById, active, letivos,
 }: {
-  year: number; month: number; events: CalEvent[];
+  year: number; month: number; events: CalEvent[]; holidays: CalendarHoliday[];
   catById: Record<string, Category>; active: Set<string>; letivos?: number;
 }) {
   const firstDow = (new Date(year, month, 1).getDay() + 6) % 7; // 0 = segunda
   const nDays = new Date(year, month + 1, 0).getDate();
   const today = new Date();
+
+  // feriados nacionais deste mês: dia -> título
+  const monthHolidays = holidays
+    .filter((h) => +h.date.slice(0, 4) === year && +h.date.slice(5, 7) - 1 === month)
+    .map((h) => ({ day: +h.date.slice(8, 10), title: h.title }))
+    .sort((a, b) => a.day - b.day);
+  const holidayDays = new Set(monthHolidays.map((h) => h.day));
 
   // dia -> categorias presentes
   const dayCats: Record<number, string[]> = {};
@@ -995,20 +1070,22 @@ function MonthCard({
     const cats = Array.from(new Set(dayCats[day] || []));
     const visible = cats.filter((c) => active.has(c));
     const has = cats.length > 0;
+    const isHoliday = holidayDays.has(day);
     const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
-    const primary = visible[0] ? catById[visible[0]]?.color : undefined;
+    const primary = visible[0] ? catById[visible[0]]?.color : isHoliday ? HOLIDAY_COLOR : undefined;
     cells.push(
       <div
         key={day}
-        className={`cb-cell ${has ? "has" : ""} ${isToday ? "today" : ""} ${has && visible.length === 0 ? "dim" : ""}`}
+        className={`cb-cell ${has || isHoliday ? "has" : ""} ${isToday ? "today" : ""} ${has && visible.length === 0 && !isHoliday ? "dim" : ""}`}
         style={primary ? { background: rgba(primary, 0.16), fontWeight: 700 } : undefined}
       >
         {day}
-        {visible.length > 0 && (
+        {(visible.length > 0 || isHoliday) && (
           <span className="cb-dots">
             {visible.slice(0, 3).map((c, i) => (
               <i key={i} style={{ background: catById[c]?.color }} />
             ))}
+            {isHoliday ? <i style={{ background: HOLIDAY_COLOR }} /> : null}
           </span>
         )}
       </div>
@@ -1032,7 +1109,16 @@ function MonthCard({
         <div className="cb-grid">{cells}</div>
       </div>
       <div className="cb-events">
-        {listed.length === 0 && <p className="cb-empty">Sem eventos neste mês.</p>}
+        {listed.length === 0 && monthHolidays.length === 0 && <p className="cb-empty">Sem eventos neste mês.</p>}
+        {monthHolidays.map((h) => (
+          <div className="cb-ev" key={`h-${h.day}`}>
+            <span className="cb-date" style={{ background: HOLIDAY_COLOR, color: "#fff" }}>{pad2(h.day)}</span>
+            <span className="cb-txt">
+              {h.title}
+              <small style={{ color: HOLIDAY_COLOR }}>Feriado nacional</small>
+            </span>
+          </div>
+        ))}
         {listed.map(({ ev, days }) => {
           const cat = catById[ev.categoryId];
           const on = active.has(ev.categoryId);
