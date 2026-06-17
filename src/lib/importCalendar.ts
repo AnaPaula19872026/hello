@@ -4,8 +4,9 @@ import { assertCalendarImportFile, assertImportRowLimit } from './fileSecurity';
 export interface ParsedEvent {
   title: string;
   description: string;
-  category: string;
-  event_date: string; // yyyy-mm-dd
+  category: string;       // categoria do sistema (evento|prova|gincana|…), normalizada
+  rawCategory: string;    // texto original da coluna Categoria (preserva rótulos livres)
+  event_date: string;     // yyyy-mm-dd
   end_date: string | null;
 }
 
@@ -90,6 +91,9 @@ async function parseSheet(file: File): Promise<ParsedEvent[]> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array', cellDates: true });
   const out: ParsedEvent[] = [];
+  // Lê TODAS as abas (ex.: "Calendário geral", "1º Trimestre"…) e remove duplicatas
+  // por data+título, para que uma aba-resumo não dobre os eventos das abas por período.
+  const seen = new Set<string>();
   for (const sheetName of wb.SheetNames) {
     const ws = wb.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
@@ -106,15 +110,20 @@ async function parseSheet(file: File): Promise<ParsedEvent[]> {
       const date = parseDate(get(['data', 'date', 'dia', 'início', 'inicio']));
       const title = String(get(['título', 'titulo', 'evento', 'nome', 'title']) ?? '').trim();
       if (!date || !title) continue;
+      const end = parseDate(get(['até', 'ate', 'fim', 'término', 'termino', 'end']));
+      const key = `${date}|${end ?? ''}|${title.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const rawCat = String(get(['categoria', 'tipo', 'category']) ?? '').trim();
       out.push({
         title,
         description: String(get(['descri', 'detalhe', 'obs']) ?? '').trim(),
-        category: matchCategory(get(['categoria', 'tipo', 'category'])),
+        category: matchCategory(rawCat),
+        rawCategory: rawCat,
         event_date: date,
-        end_date: parseDate(get(['até', 'ate', 'fim', 'término', 'termino', 'end'])),
+        end_date: end,
       });
     }
-    if (out.length) break;
   }
   return out;
 }
@@ -143,7 +152,7 @@ function parseIcs(text: string): ParsedEvent[] {
             d.setDate(d.getDate() - 1);
             end = toISO(d);
           }
-          out.push({ title, description: (cur.DESCRIPTION || '').trim(), category: 'evento', event_date: date, end_date: end && end !== date ? end : null });
+          out.push({ title, description: (cur.DESCRIPTION || '').trim(), category: 'evento', rawCategory: '', event_date: date, end_date: end && end !== date ? end : null });
         }
         cur = null;
       }

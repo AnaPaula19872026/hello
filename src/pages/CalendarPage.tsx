@@ -1,9 +1,13 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth/AuthProvider";
 import { successToast } from "../components/Feedback";
 import { canManageCalendar } from "../lib/permissions";
 import { CALENDAR_CONFLICT, loadCalendarBuilder, saveCalendarBuilder } from "../lib/queries";
+import { downloadCalendarTemplate } from "../lib/importCalendar";
+import { parseAnyCalendarFile, type ImportedEvent } from "../lib/importCalendarBuilder";
+import { Button, Modal } from "../components/ui";
+import { Dropzone } from "../components/Dropzone";
 import type {
   CalBuilderEvent as CalEvent,
   CalCategory as Category,
@@ -28,6 +32,8 @@ const MONTHS_PT = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho"
 const DOW = [["S","seg"],["T","ter"],["Q","qua"],["Q","qui"],["S","sex"],["S","sáb"],["D","dom"]]; // semana inicia na segunda
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad2 = (n: number) => String(n).padStart(2, "0");
+/** Cores para categorias criadas automaticamente na importação. */
+const CAT_PALETTE = ["#3D6FD1", "#2E9E6B", "#D9822B", "#E0544A", "#8557C6", "#D6549B", "#5E7585", "#0E9AA7", "#C2410C", "#6366F1"];
 
 function hexToRgb(hex: string) {
   let h = hex.replace("#", "");
@@ -189,7 +195,7 @@ function CalendarBuilder({
   const [saving, setSaving] = useState(false);
   const [version, setVersion] = useState<number | null>(initialVersion);
   const [stamp, setStamp] = useState<string | null>(initialStamp);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const dirty = JSON.stringify(data) !== savedJson;
 
@@ -295,6 +301,31 @@ function CalendarBuilder({
     r.readAsText(file);
   };
 
+  /* ---- importação inteligente (Excel/CSV/PDF/DOCX/ICS) → eventos no construtor ---- */
+  const applyImported = (events: ImportedEvent[], mode: "add" | "replace") => {
+    const cats = [...data.categories];
+    const findOrCreateCat = (label: string) => {
+      const want = (label || "Evento").trim();
+      const hit = cats.find((c) => c.label.toLowerCase() === want.toLowerCase());
+      if (hit) return hit.id;
+      const created = { id: uid(), label: want, color: CAT_PALETTE[cats.length % CAT_PALETTE.length] };
+      cats.push(created);
+      return created.id;
+    };
+    const mapped: CalEvent[] = events.map((e) => ({
+      id: uid(),
+      title: e.title,
+      categoryId: findOrCreateCat(e.categoryLabel),
+      start: e.start,
+      end: e.end,
+    }));
+    const nextEvents = mode === "replace" ? mapped : [...data.events, ...mapped];
+    setData({ ...data, categories: cats, events: nextEvents });
+    setActive(new Set(cats.map((c) => c.id)));
+    if (canManage) setEditing(true);
+    setImportOpen(false);
+  };
+
   /* ============================== Render ============================== */
   return (
     <div className="cb-app">
@@ -330,16 +361,7 @@ function CalendarBuilder({
           <button className="cb-btn" onClick={() => window.print()}>Imprimir / PDF</button>
           <button className="cb-btn" onClick={exportJSON}>Exportar</button>
           {canManage ? (
-            <>
-              <button className="cb-btn" onClick={() => fileRef.current?.click()}>Importar</button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="application/json"
-                style={{ display: "none" }}
-                onChange={(e) => e.target.files?.[0] && importJSON(e.target.files[0])}
-              />
-            </>
+            <button className="cb-btn cb-btn-primary" onClick={() => setImportOpen(true)}>↑ Importar calendário</button>
           ) : null}
         </div>
       </header>
@@ -491,7 +513,126 @@ function CalendarBuilder({
           </footer>
         </main>
       </div>
+
+      {importOpen && canManage ? (
+        <ImportSmartModal
+          year={data.year}
+          onJSON={importJSON}
+          onApply={applyImported}
+          onClose={() => setImportOpen(false)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+/* ------------------- Modal de importação inteligente --------------------- */
+function ImportSmartModal({
+  year,
+  onJSON,
+  onApply,
+  onClose,
+}: {
+  year: number;
+  onJSON: (file: File) => void;
+  onApply: (events: ImportedEvent[], mode: "add" | "replace") => void;
+  onClose: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [events, setEvents] = useState<ImportedEvent[] | null>(null);
+  const [fileName, setFileName] = useState("");
+
+  async function handleFile(file?: File | null) {
+    if (!file) return;
+    setErr("");
+    setEvents(null);
+    setFileName(file.name);
+    if (file.name.toLowerCase().endsWith(".json")) {
+      onJSON(file); // restaura backup completo do construtor
+      onClose();
+      return;
+    }
+    setBusy(true);
+    try {
+      const ev = await parseAnyCalendarFile(file, year);
+      if (!ev.length) {
+        setErr('Nenhum evento reconhecido. Confira se o documento tem datas (ex.: 12/06/2026 ou “12 de junho”).');
+      }
+      setEvents(ev);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isDoc = /\.(pdf|docx)$/i.test(fileName);
+
+  return (
+    <Modal open onClose={onClose} title="Importar calendário pronto" size="xl">
+      <div className="space-y-4">
+        {/* Caminho recomendado: planilha-modelo (leitura 100% confiável). */}
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <p className="text-sm font-bold text-emerald-900">Forma recomendada: planilha Excel</p>
+          <p className="mt-0.5 text-xs font-medium text-emerald-800">
+            Baixe o modelo, preencha (Data, Título, Categoria) e suba aqui. É a leitura mais confiável.
+          </p>
+          <button
+            type="button"
+            onClick={() => downloadCalendarTemplate()}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-black text-white hover:bg-emerald-700"
+          >
+            Baixar planilha-modelo
+          </button>
+        </div>
+
+        <Dropzone
+          accept=".xlsx,.xls,.csv,.ics,.pdf,.docx,.json"
+          multiple={false}
+          title="Arraste o calendário aqui, ou clique para procurar"
+          hint="Excel/CSV (recomendado) · PDF/Word e ICS (leitura aproximada) · backup .json — até 15 MB"
+          onFiles={(l) => handleFile(l?.[0])}
+        />
+
+        <p className="text-xs text-slate-400">
+          PDF e Word são lidos por aproximação — calendários com layout livre (dia sem mês, colunas) podem sair
+          incompletos. Sempre revise antes de salvar; para garantir, use o Excel.
+        </p>
+
+        {busy ? <p className="text-sm font-bold text-slate-500">Lendo “{fileName}”…</p> : null}
+        {err ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-600">{err}</p> : null}
+
+        {events && events.length > 0 ? (
+          <div>
+            {isDoc ? (
+              <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+                Leitura aproximada de PDF/Word. Confira datas e títulos no editor — alguns eventos podem faltar.
+              </p>
+            ) : null}
+            <p className="mb-2 text-sm font-bold text-slate-700">{events.length} evento(s) encontrado(s):</p>
+            <div className="max-h-60 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2">
+              {events.slice(0, 80).map((e, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <span className="w-24 shrink-0 font-bold text-slate-500">
+                    {e.start.slice(8, 10)}/{e.start.slice(5, 7)}
+                    {e.end ? `–${e.end.slice(8, 10)}/${e.end.slice(5, 7)}` : ""}
+                  </span>
+                  <span className="truncate font-bold text-slate-800">{e.title}</span>
+                  <span className="ml-auto shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-500">{e.categoryLabel}</span>
+                </div>
+              ))}
+              {events.length > 80 ? <p className="px-1 pt-1 text-[11px] font-bold text-slate-400">+{events.length - 80} evento(s)…</p> : null}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
+              <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+              <Button variant="soft" onClick={() => onApply(events, "replace")}>Substituir eventos</Button>
+              <Button onClick={() => onApply(events, "add")}>Adicionar {events.length} ao calendário</Button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </Modal>
   );
 }
 
