@@ -10,7 +10,7 @@ import { successToast } from '../components/Feedback';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented, Select, Loading} from '../components/ui';
 import { cn } from '../lib/cn';
 import { canReviewPlan } from '../lib/permissions';
-import { safeFileName } from '../lib/storage';
+import { downloadAllAttachments, safeFileName } from '../lib/storage';
 import {
   deletePlan,
   listClasses,
@@ -269,10 +269,25 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
   });
 
   const subject = `Planejamento "${plan.title}" — ${PLAN_STATUS[plan.status].label}`;
-  // wa.me/mailto NÃO carregam arquivos — então anexamos os LINKS no corpo como fallback.
-  const attLinks = plan.attachments.filter((a) => a.url).map((a) => `${a.name}: ${a.url}`);
-  const bodyWithLinks = message + (attLinks.length ? `\n\nAnexos:\n${attLinks.join('\n')}` : '');
+  // wa.me/mailto NÃO carregam arquivos. Corpo limpo: só os NOMES dos anexos (sem URLs feias).
+  const attNames = plan.attachments.map((a) => a.name);
+  const bodyClean = message + (attNames.length ? `\n\n📎 Anexos: ${attNames.join(', ')}` : '');
   const [sharing, setSharing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  async function baixarAnexos() {
+    const list = plan.attachments.filter((a) => a.url);
+    if (!list.length) return;
+    setDownloading(true);
+    try {
+      await downloadAllAttachments(list, safeFileName(plan.title) || 'anexos');
+      successToast(list.length > 1 ? 'Anexos baixados (.zip)' : 'Arquivo baixado');
+    } catch {
+      alert('Não foi possível baixar os anexos.');
+    } finally {
+      setDownloading(false);
+    }
+  }
   // Web Share com arquivos só existe em alguns navegadores (celular/Chrome).
   const canShareFiles = typeof navigator !== 'undefined' && !!navigator.canShare && !!navigator.share;
 
@@ -307,9 +322,9 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
     if (channel === 'whatsapp') {
       const num = normalizePhone(phone);
       if (!num) return;
-      window.open(`https://wa.me/${num}?text=${encodeURIComponent(bodyWithLinks)}`, '_blank', 'noopener');
+      window.open(`https://wa.me/${num}?text=${encodeURIComponent(bodyClean)}`, '_blank', 'noopener');
     } else {
-      window.open(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyWithLinks)}`, '_blank', 'noopener');
+      window.open(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyClean)}`, '_blank', 'noopener');
     }
     successToast('Abrindo para envio…');
     onClose();
@@ -333,10 +348,20 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
         ) : null}
 
         {plan.attachments.length > 0 ? (
-          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
-            WhatsApp e e-mail abaixo não carregam arquivos — os anexos vão como <b>links</b> no texto.
-            {canShareFiles ? ' Para enviar os arquivos juntos, use “Compartilhar com anexos” acima.' : ''}
-          </p>
+          <div className="rounded-lg bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-800">
+            <p>
+              WhatsApp e e-mail abaixo não carregam arquivos. A mensagem leva só os nomes dos anexos —
+              {canShareFiles ? ' use “Compartilhar com anexos” acima para enviar os arquivos juntos, ou' : ''} baixe e anexe manualmente:
+            </p>
+            <button
+              type="button"
+              onClick={baixarAnexos}
+              disabled={downloading}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-black text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              <Paperclip size={14} /> {downloading ? 'Baixando…' : `Baixar anexos (${plan.attachments.length})`}
+            </button>
+          </div>
         ) : null}
 
         <div className="inline-flex rounded-xl bg-slate-100 p-1">
