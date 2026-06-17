@@ -87,6 +87,7 @@ export function PlanejamentoPage() {
 
 function MeusPlanos({ uid, onEdit }: { uid: string; onEdit: (p: PlanWithMeta) => void }) {
   const qc = useQueryClient();
+  const [sendFor, setSendFor] = useState<PlanWithMeta | null>(null);
   const { data: plans = [], isLoading, isError, error } = useQuery({ queryKey: ['my-plans', uid], queryFn: () => listMyPlans(uid), retry: false });
 
   const send = useMutation({
@@ -111,31 +112,33 @@ function MeusPlanos({ uid, onEdit }: { uid: string; onEdit: (p: PlanWithMeta) =>
     return <EmptyState icon={<BookOpen size={26} />} title="Nenhum planejamento" hint="Crie seu primeiro planejamento e envie para a coordenação." />;
 
   return (
-    <div className="space-y-3">
-      {plans.map((p) => (
-        <PlanCard
-          key={p.id}
-          plan={p}
-          footer={
-            <div className="flex flex-wrap gap-2">
-              {p.status === 'rascunho' || p.status === 'devolvido' ? (
-                <>
-                  <Button variant="ghost" onClick={() => onEdit(p)}><Pencil size={16} /> Editar</Button>
-                  <Button onClick={() => send.mutate(p.id)} disabled={send.isPending}><Send size={16} /> Enviar</Button>
-                </>
-              ) : null}
-              <button
-                onClick={() => confirm('Excluir este planejamento?') && remove.mutate(p.id)}
-                className="ml-auto grid h-10 w-10 place-items-center rounded-xl bg-red-50 text-red-600 hover:bg-red-100"
-                aria-label="Excluir"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          }
-        />
-      ))}
-    </div>
+    <>
+      <div className="space-y-3">
+        {plans.map((p) => (
+          <PlanCard
+            key={p.id}
+            plan={p}
+            footer={
+              <div className="flex flex-wrap items-center gap-2">
+                {p.status === 'rascunho' || p.status === 'devolvido' ? (
+                  <Button onClick={() => send.mutate(p.id)} disabled={send.isPending}><Send size={16} /> Enviar à coordenação</Button>
+                ) : null}
+                <Button variant="soft" onClick={() => setSendFor(p)}><Share2 size={16} /> Enviar</Button>
+                <Button variant="ghost" onClick={() => onEdit(p)}><Pencil size={16} /> Editar</Button>
+                <button
+                  onClick={() => confirm('Excluir este planejamento?') && remove.mutate(p.id)}
+                  className="ml-auto grid h-10 w-10 place-items-center rounded-xl bg-red-50 text-red-600 hover:bg-red-100"
+                  aria-label="Excluir"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            }
+          />
+        ))}
+      </div>
+      {sendFor ? <SendModal plan={sendFor} self onClose={() => setSendFor(null)} /> : null}
+    </>
   );
 }
 
@@ -241,17 +244,20 @@ function normalizePhone(raw: string): string {
   return d.length <= 11 ? `55${d}` : d;
 }
 
-/** Envio do retorno por WhatsApp ou e-mail, com contato pré-configurável. */
-function SendModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void }) {
+/** Envio por WhatsApp ou e-mail. `self` = o professor compartilhando o próprio planejamento. */
+function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClose: () => void; self?: boolean }) {
   const qc = useQueryClient();
   const [channel, setChannel] = useState<'whatsapp' | 'email'>('whatsapp');
-  const [phone, setPhone] = useState(plan.authorPhone ?? '');
-  const [email, setEmail] = useState(plan.authorEmail ?? '');
+  const [phone, setPhone] = useState(self ? '' : plan.authorPhone ?? '');
+  const [email, setEmail] = useState(self ? '' : plan.authorEmail ?? '');
   const statusLabel = PLAN_STATUS[plan.status].label.toLowerCase();
-  const defaultMsg =
-    `Olá${plan.authorName ? `, ${plan.authorName}` : ''}! Seu planejamento "${plan.title}" foi ${statusLabel}.` +
-    (plan.feedback ? `\n\nRetorno da coordenação:\n${plan.feedback}` : '') +
-    (plan.className ? `\n\nTurma: ${plan.className}` : '');
+  const defaultMsg = self
+    ? `Olá! Segue o planejamento "${plan.title}".` +
+      (plan.className ? `\n\nTurma: ${plan.className}` : '') +
+      (plan.content ? `\n\n${plan.content}` : '')
+    : `Olá${plan.authorName ? `, ${plan.authorName}` : ''}! Seu planejamento "${plan.title}" foi ${statusLabel}.` +
+      (plan.feedback ? `\n\nRetorno da coordenação:\n${plan.feedback}` : '') +
+      (plan.className ? `\n\nTurma: ${plan.className}` : '');
   const [message, setMessage] = useState(defaultMsg);
 
   const saveContact = useMutation({
@@ -278,7 +284,7 @@ function SendModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void 
   const canFire = channel === 'whatsapp' ? !!normalizePhone(phone) : /\S+@\S+\.\S+/.test(email);
 
   return (
-    <Modal open onClose={onClose} title="Enviar retorno ao professor">
+    <Modal open onClose={onClose} title={self ? 'Enviar planejamento' : 'Enviar retorno ao professor'}>
       <div className="space-y-4">
         <div className="inline-flex rounded-xl bg-slate-100 p-1">
           <button
@@ -296,12 +302,12 @@ function SendModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void 
         </div>
 
         {channel === 'whatsapp' ? (
-          <Field label="WhatsApp do professor (com DDD)">
+          <Field label={self ? 'WhatsApp do destinatário (com DDD)' : 'WhatsApp do professor (com DDD)'}>
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Ex.: (11) 99999-9999" inputMode="tel" />
           </Field>
         ) : (
-          <Field label="E-mail do professor">
-            <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="professor@escola.com" type="email" />
+          <Field label={self ? 'E-mail do destinatário' : 'E-mail do professor'}>
+            <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={self ? 'coordenacao@escola.com' : 'professor@escola.com'} type="email" />
           </Field>
         )}
 
@@ -315,9 +321,11 @@ function SendModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void 
         </Field>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
-          <Button variant="ghost" onClick={() => saveContact.mutate()} disabled={saveContact.isPending || (!phone.trim() && !email.trim())}>
-            <Save size={16} /> {saveContact.isPending ? 'Salvando…' : 'Salvar contato'}
-          </Button>
+          {!self ? (
+            <Button variant="ghost" onClick={() => saveContact.mutate()} disabled={saveContact.isPending || (!phone.trim() && !email.trim())}>
+              <Save size={16} /> {saveContact.isPending ? 'Salvando…' : 'Salvar contato'}
+            </Button>
+          ) : null}
           <div className="ml-auto flex gap-2">
             <Button variant="ghost" onClick={onClose}>Cancelar</Button>
             <Button onClick={fire} disabled={!canFire}>
@@ -325,9 +333,11 @@ function SendModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void 
             </Button>
           </div>
         </div>
-        <p className="text-xs text-slate-400">
-          "Salvar contato" guarda o WhatsApp/e-mail no perfil do professor — da próxima vez já vem preenchido, é só disparar.
-        </p>
+        {!self ? (
+          <p className="text-xs text-slate-400">
+            "Salvar contato" guarda o WhatsApp/e-mail no perfil do professor — da próxima vez já vem preenchido, é só disparar.
+          </p>
+        ) : null}
       </div>
     </Modal>
   );
