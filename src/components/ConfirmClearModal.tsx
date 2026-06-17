@@ -27,7 +27,8 @@ export function ConfirmClearModal({
   onConfirm: () => void;
 }) {
   const [text, setText] = useState('');
-  const match = text.trim().toLowerCase() === keyword.trim().toLowerCase();
+  const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+  const match = norm(text) === norm(keyword);
 
   return (
     <Modal open={open} onClose={onClose} title={title}>

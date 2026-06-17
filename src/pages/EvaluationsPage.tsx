@@ -449,7 +449,7 @@ export function EvaluationsPage() {
         onClose={() => setClearOpen(false)}
         title="Limpar avaliações da turma"
         description={`Isso apaga as marcações/pontuações de ${turmaNome} no ${TERM_LABEL[term]} / ${year} e remove o crédito variável correspondente das notas. Ação irreversível.`}
-        keyword={turmaNome}
+        keyword="APAGAR"
         confirmLabel="Apagar avaliações"
         busy={clearEval.isPending}
         onConfirm={() => clearEval.mutate()}
