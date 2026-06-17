@@ -445,13 +445,20 @@ export function sanitizeGrade(raw: string, max: number): string {
 export const RECOVERY_ACTIVITY_NAME = 'RECUPERAÇÃO';
 export const RECOVERY_ACTIVITY: GradeActivity = { name: RECOVERY_ACTIVITY_NAME, max: 10 };
 
-/** Composição padrão (coordenação/professor ajusta por trimestre). */
+/** Atividades que compõem o crédito variável (somam 10 = 1 nota). */
+export const CREDITO_ACTIVITIES: GradeActivity[] = [
+  { name: 'PROJETO', max: 5, credito: true },
+  { name: 'PESQUISA E APRESENTAÇÃO', max: 2, credito: true },
+  { name: 'VISTOS', max: 2, credito: true },
+  { name: 'SIMULADO', max: 1, credito: true },
+];
+
+/** Composição padrão (coordenação/professor ajusta por trimestre).
+ * TESTE e E-CERM são notas cheias (10). As do crédito variável somam 10 = 1 nota. */
 export const DEFAULT_ACTIVITIES: GradeActivity[] = [
   { name: 'TESTE', max: 10 },
   { name: 'E-CERM', max: 10 },
-  { name: 'SIMULADO', max: 1 },
-  { name: 'PROJETO', max: 5 },
-  { name: 'CRÉDITO VARIÁVEL', max: 4 },
+  ...CREDITO_ACTIVITIES,
   RECOVERY_ACTIVITY,
 ];
 
@@ -464,12 +471,21 @@ export function withRecoveryActivity(activities: GradeActivity[]): GradeActivity
   return orderGradeActivities(next);
 }
 
+/** Ordem canônica das colunas: TESTE, E-CERM, depois crédito variável, RECUPERAÇÃO por último. */
+function activityRank(a: GradeActivity): number {
+  const n = a.name.trim().toUpperCase();
+  if (isRecoveryActivity(a.name)) return 90;
+  if (n === 'TESTE') return 0;
+  if (n === 'E-CERM' || n === 'ECERM') return 1;
+  if (a.credito) return 50; // crédito variável fica no meio, preservando a ordem entre si
+  return 40;
+}
 export function orderGradeActivities(activities: GradeActivity[]): GradeActivity[] {
-  return [...activities].sort((a, b) => {
-    if (isRecoveryActivity(a.name)) return 1;
-    if (isRecoveryActivity(b.name)) return -1;
-    return 0;
-  });
+  // sort estável: mantém a ordem original dentro do mesmo rank
+  return activities
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => activityRank(x.a) - activityRank(y.a) || x.i - y.i)
+    .map((x) => x.a);
 }
 
 // Ano letivo: fevereiro a novembro, dividido em 3 trimestres.

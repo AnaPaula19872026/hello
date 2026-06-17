@@ -15,7 +15,7 @@ import {
   saveEvalGrades,
   type EvalGradeRow,
 } from '../lib/queries';
-import { actKey, sanitizeGrade, TERMS, TERM_LABEL, type GradeActivity } from '../lib/types';
+import { actKey, CREDITO_ACTIVITIES, sanitizeGrade, TERMS, TERM_LABEL, type GradeActivity } from '../lib/types';
 import { usePersistentState } from '../lib/usePersistentState';
 
 type CellState = { done: boolean; score: string };
@@ -440,7 +440,12 @@ function ComposicaoAvaliacoesModal({
   const [items, setItems] = useState<GradeActivity[]>([]);
   useEffect(() => {
     // Garante um id estável por atividade (liga ao boletim/Notas por id, não por nome).
-    if (open) setItems(initial.length ? initial.map((a) => ({ ...a, id: a.id ?? crypto.randomUUID() })) : [{ id: crypto.randomUUID(), name: '', max: 0 }]);
+    if (open)
+      setItems(
+        initial.length
+          ? initial.map((a) => ({ ...a, id: a.id ?? crypto.randomUUID() }))
+          : CREDITO_ACTIVITIES.map((a) => ({ ...a, id: crypto.randomUUID() })),
+      );
   }, [open, initial]);
 
   const save = useMutation({
