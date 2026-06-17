@@ -101,7 +101,7 @@ export function NotasPage() {
     enabled: orgReady && !!classId,
   });
   // Colunas finais = atividades da turma + atividades de crédito variável (vindas
-  // do Centro de Avaliações, ligadas por ID estável). A média já agrupa as <10.
+  // do Central de Avaliações, ligadas por ID estável). A média já agrupa as <10.
   const columns = useMemo(
     () => orderGradeActivities([...orderedActivities, ...creditData.defs]),
     [orderedActivities, creditData.defs],
@@ -126,7 +126,7 @@ export function NotasPage() {
         const v = g?.scores?.[actKey(a)];
         row[actKey(a)] = v != null ? String(v) : '';
       });
-      // Colunas de crédito variável (do Centro de Avaliações, por id): nota de lá quando existir.
+      // Colunas de crédito variável (do Central de Avaliações, por id): nota de lá quando existir.
       const cv = creditData.byStudent[s.id];
       if (cv) {
         creditIdSet.forEach((id) => {
@@ -227,7 +227,7 @@ export function NotasPage() {
         action={
           <div className="flex flex-wrap gap-2">
             <Button variant="ghost" onClick={() => navigate('/avaliacoes')}>
-              <ClipboardList size={18} /> Centro de Avaliações
+              <ClipboardList size={18} /> Central de Avaliações
             </Button>
             <Button onClick={() => setBoletimEscolarOpen(true)}>
               <GraduationCap size={18} /> Boletins escolares
@@ -395,7 +395,7 @@ export function NotasPage() {
                         {columns.map((a) => {
                           const k = actKey(a);
                           const val = scores[s.id]?.[k] ?? '';
-                          const locked = creditIdSet.has(k); // vem do Centro de Avaliações — não editável aqui
+                          const locked = creditIdSet.has(k); // vem do Central de Avaliações — não editável aqui
                           return (
                             <td key={k} className={cn('px-1.5 py-1.5 text-center', locked && 'bg-amber-50/40')}>
                               <input
@@ -404,7 +404,7 @@ export function NotasPage() {
                                 onChange={(e) => setScore(s.id, k, e.target.value, a.max)}
                                 disabled={!editingGrades || locked}
                                 placeholder="–"
-                                title={locked ? 'Vem do Centro de Avaliações (crédito variável)' : undefined}
+                                title={locked ? 'Vem do Central de Avaliações (crédito variável)' : undefined}
                                 className={cn(
                                   'h-10 w-14 rounded-lg border text-center font-bold tabular-nums outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed',
                                   locked
@@ -462,7 +462,7 @@ export function NotasPage() {
               </p>
               {creditIdSet.size > 0 ? (
                 <p className="mt-1 text-xs font-semibold text-amber-600">
-                  As colunas {creditData.defs.map((d) => d.name).join(', ')} vêm do Centro de Avaliações (crédito variável) e juntas contam como uma nota. São preenchidas automaticamente; confira e salve.
+                  As colunas {creditData.defs.map((d) => d.name).join(', ')} vêm do Central de Avaliações (crédito variável) e juntas contam como uma nota. São preenchidas automaticamente; confira e salve.
                 </p>
               ) : null}
             </>
