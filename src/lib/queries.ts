@@ -26,6 +26,7 @@ import type {
   Organization,
   OrgPerson,
   PlanAttachment,
+  PlanDoc,
   PlanMessage,
   PlanStatus,
   Profile,
@@ -1401,6 +1402,54 @@ export async function uploadPlanAttachment(planId: string, file: File): Promise<
   const path = `${org}/${planId}/${Date.now()}_${safeFileName(file.name)}`;
   await uploadToBucket('planejamentos', path, file);
   const { error } = await supabase.from('lesson_plan_attachments').insert({ plan_id: planId, name: file.name, path, mime: file.type || null });
+  if (error) throw new Error(error.message);
+}
+
+/* ----------------- Central de documentos de planejamento (plan_docs) ----------------- */
+export async function listPlanDocs(): Promise<PlanDoc[]> {
+  const rows = unwrap<PlanDoc[]>(
+    await scoped(supabase.from('plan_docs').select('id, segment, term, class_id, turma_label, name, path, mime, author_id, created_at')).order('created_at', { ascending: false }),
+  );
+  if (rows.length) {
+    const { data: signed } = await supabase.storage.from('planejamentos').createSignedUrls(rows.map((r) => r.path), 3600);
+    const urlByPath = new Map((signed ?? []).map((s) => [s.path ?? '', s.signedUrl] as const));
+    for (const r of rows) r.url = urlByPath.get(r.path);
+  }
+  return rows;
+}
+
+export async function uploadPlanDoc(args: {
+  segment: string;
+  term: number | null;
+  classId: string | null;
+  turmaLabel: string | null;
+  file: File;
+}): Promise<void> {
+  assertUploadFile(args.file);
+  const org = getActiveOrgId();
+  const path = `${org}/docs/${Date.now()}_${safeFileName(args.file.name)}`;
+  await uploadToBucket('planejamentos', path, args.file);
+  const { error } = await supabase.from('plan_docs').insert({
+    segment: args.segment,
+    term: args.term,
+    class_id: args.classId,
+    turma_label: args.turmaLabel,
+    name: args.file.name,
+    path,
+    mime: args.file.type || null,
+    ...(org ? { org_id: org } : {}),
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function updatePlanDoc(id: string, patch: { name?: string; segment?: string; term?: number | null; class_id?: string | null; turma_label?: string | null }): Promise<void> {
+  const { error } = await supabase.from('plan_docs').update(patch).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deletePlanDoc(doc: { id: string; path: string }): Promise<void> {
+  await supabase.storage.from('planejamentos').remove([doc.path]);
+  const { error } = await supabase.from('plan_docs').delete().eq('id', doc.id);
   if (error) throw new Error(error.message);
 }
 

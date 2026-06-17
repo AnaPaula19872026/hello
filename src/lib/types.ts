@@ -300,6 +300,21 @@ export interface PlanAttachment {
   url?: string;
 }
 
+/** Documento da central de planejamentos (por segmento/trimestre/turma). */
+export interface PlanDoc {
+  id: string;
+  segment: string;          // 'fund1' | 'fund2' | ...
+  term: number | null;      // trimestre 1-3 (null = geral)
+  class_id: string | null;  // turma (null = todas)
+  turma_label: string | null;
+  name: string;
+  path: string;
+  mime: string | null;
+  author_id: string;
+  created_at: string;
+  url?: string;             // URL assinada
+}
+
 export interface PlanMessage {
   id: string;
   plan_id: string;
