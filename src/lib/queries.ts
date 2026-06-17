@@ -1448,6 +1448,23 @@ export async function listMyPlans(userId: string): Promise<PlanWithMeta[]> {
   return enrichPlans(plans);
 }
 
+/** Anexos de um planejamento + título, com URLs assinadas — usado na página de download por link. */
+export async function getPlanAttachments(planId: string): Promise<{ title: string; files: { name: string; url: string }[] }> {
+  const plan = unwrap<{ title: string } | null>(
+    await supabase.from('lesson_plans').select('title').eq('id', planId).maybeSingle(),
+  );
+  const atts = unwrap<PlanAttachment[]>(
+    await supabase.from('lesson_plan_attachments').select('id, plan_id, name, path, mime').eq('plan_id', planId),
+  );
+  let files: { name: string; url: string }[] = [];
+  if (atts.length) {
+    const { data: signed } = await supabase.storage.from('planejamentos').createSignedUrls(atts.map((a) => a.path), 3600);
+    const urlByPath = new Map((signed ?? []).map((s) => [s.path ?? '', s.signedUrl] as const));
+    files = atts.map((a) => ({ name: a.name, url: urlByPath.get(a.path) ?? '' })).filter((f) => f.url);
+  }
+  return { title: plan?.title ?? 'Planejamento', files };
+}
+
 /** Todos os planejamentos visíveis (coordenação/diretoria veem da organização). */
 export async function listOrgPlans(status?: PlanStatus): Promise<PlanWithMeta[]> {
   let q = scoped(supabase.from('lesson_plans').select('*'));

@@ -269,38 +269,10 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
   });
 
   const subject = `Planejamento "${plan.title}" — ${PLAN_STATUS[plan.status].label}`;
-  // wa.me/mailto NÃO carregam arquivos. Corpo limpo: só os NOMES dos anexos (sem URLs feias).
-  const attNames = plan.attachments.map((a) => a.name);
-  const bodyClean = message + (attNames.length ? `\n\n📎 Anexos: ${attNames.join(', ')}` : '');
-  const [sharing, setSharing] = useState(false);
-  // Web Share com arquivos só existe em alguns navegadores (celular/Chrome).
-  const canShareFiles = typeof navigator !== 'undefined' && !!navigator.canShare && !!navigator.share;
-
-  /** Caminho ideal: abre o menu de compartilhar do aparelho COM os anexos de verdade. */
-  async function shareWithFiles() {
-    setSharing(true);
-    try {
-      const files: File[] = [];
-      for (const a of plan.attachments) {
-        if (!a.url) continue;
-        try {
-          const blob = await (await fetch(a.url)).blob();
-          files.push(new File([blob], a.name, { type: a.mime ?? blob.type }));
-        } catch {
-          /* ignora anexo que falhar; segue com os demais */
-        }
-      }
-      const payload: ShareData = { title: subject, text: message };
-      if (files.length && navigator.canShare?.({ files })) payload.files = files;
-      await navigator.share(payload);
-      successToast('Compartilhado');
-      onClose();
-    } catch {
-      // usuário cancelou ou navegador não suporta → silêncio, usa WhatsApp/E-mail abaixo
-    } finally {
-      setSharing(false);
-    }
-  }
+  // wa.me/mailto não carregam arquivos. Mandamos um LINK curto e bonito que baixa os anexos
+  // (zip se forem vários) — /baixar/:id no próprio app.
+  const downloadUrl = plan.attachments.length ? `${window.location.origin}/baixar/${plan.id}` : '';
+  const bodyClean = message + (downloadUrl ? `\n\n📎 Baixar anexos: ${downloadUrl}` : '');
 
   function fire() {
     if (channel === 'whatsapp') {
@@ -319,16 +291,10 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
   return (
     <Modal open onClose={onClose} title={self ? 'Enviar planejamento' : 'Enviar retorno ao professor'}>
       <div className="space-y-4">
-        {plan.attachments.length > 0 && canShareFiles ? (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-            <p className="text-sm font-bold text-emerald-900">Enviar com anexos ({plan.attachments.length})</p>
-            <p className="mt-0.5 text-xs font-medium text-emerald-800">
-              Abre o compartilhamento do aparelho (WhatsApp, e-mail, Drive…) já com os arquivos anexados.
-            </p>
-            <Button className="mt-2" onClick={shareWithFiles} disabled={sharing}>
-              <Share2 size={16} /> {sharing ? 'Preparando…' : 'Compartilhar com anexos'}
-            </Button>
-          </div>
+        {plan.attachments.length > 0 ? (
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">
+            📎 {plan.attachments.length} anexo(s): a mensagem leva um link curto que baixa {plan.attachments.length > 1 ? 'tudo em .zip' : 'o arquivo'} ao abrir.
+          </p>
         ) : null}
 
         <div className="inline-flex rounded-xl bg-slate-100 p-1">
