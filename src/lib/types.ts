@@ -186,6 +186,31 @@ export const eventSoftColor = (cat: string) => {
   return map[cat] ?? '#f8fafc';
 };
 
+/* --------------------- Construtor de calendário (visual) ---------------------
+ * Documento único por organização: o coordenador monta o calendário inteiro
+ * (categorias com cores livres, períodos/trimestres, eventos, dias letivos,
+ * observações) e ele fica disponível para todos os usuários da organização.
+ * Persistido como JSONB em public.calendar_builder. */
+export type CalCategory = { id: string; label: string; color: string };
+export type CalBuilderEvent = {
+  id: string;
+  title: string;
+  categoryId: string;
+  start: string; // "YYYY-MM-DD"
+  end?: string; // opcional (intervalo)
+};
+export type CalPeriod = { id: string; label: string; startMonth: number; endMonth: number }; // 0-11
+export interface CalendarBuilderData {
+  school: string;
+  title: string;
+  year: number;
+  categories: CalCategory[];
+  periods: CalPeriod[];
+  events: CalBuilderEvent[];
+  letivosByMonth: Record<number, number>;
+  notes: string;
+}
+
 export interface CalendarEvent {
   id: string;
   org_id: string;
