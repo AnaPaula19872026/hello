@@ -1582,6 +1582,120 @@ export async function saveCalendarBuilder(args: {
   return mapBuilderMeta(rows[0]);
 }
 
+/* --------------------- Centro de calendários (vários por organização) ----------------------
+ * Cada calendário tem criador, lista de editores (participantes que podem editar) e trava
+ * otimista por version. RLS em migration-calendarios-multi.sql. */
+export interface CalendarSummary {
+  id: string;
+  title: string;
+  editors: string[];
+  version: number;
+  createdBy: string | null;
+  createdByName: string | null;
+  updatedByName: string | null;
+  updatedAt: string | null;
+  createdAt: string | null;
+}
+export interface CalendarFull extends CalendarSummary {
+  data: CalendarBuilderData;
+}
+
+type CalRow = {
+  id: string;
+  title: string;
+  editors: string[] | null;
+  version: number | null;
+  created_by: string | null;
+  created_by_name: string | null;
+  updated_by_name: string | null;
+  updated_at: string | null;
+  created_at: string | null;
+  data?: CalendarBuilderData;
+};
+const SUMMARY_COLS = 'id, title, editors, version, created_by, created_by_name, updated_by_name, updated_at, created_at';
+const mapSummary = (r: CalRow): CalendarSummary => ({
+  id: r.id,
+  title: r.title,
+  editors: r.editors ?? [],
+  version: r.version ?? 0,
+  createdBy: r.created_by,
+  createdByName: r.created_by_name,
+  updatedByName: r.updated_by_name,
+  updatedAt: r.updated_at,
+  createdAt: r.created_at,
+});
+
+export async function listCalendars(): Promise<CalendarSummary[]> {
+  const rows = unwrap<CalRow[]>(await scoped(supabase.from('calendars').select(SUMMARY_COLS)).order('created_at', { ascending: true }));
+  return rows.map(mapSummary);
+}
+
+export async function loadCalendar(id: string): Promise<CalendarFull | null> {
+  const res = await supabase.from('calendars').select(`${SUMMARY_COLS}, data`).eq('id', id).maybeSingle();
+  if (res.error) throw new Error(res.error.message);
+  const r = res.data as CalRow | null;
+  return r ? { ...mapSummary(r), data: (r.data ?? {}) as CalendarBuilderData } : null;
+}
+
+export async function createCalendar(args: {
+  data: CalendarBuilderData;
+  title: string;
+  creatorId: string | null;
+  creatorName: string | null;
+}): Promise<string> {
+  const org = getActiveOrgId();
+  const now = new Date().toISOString();
+  const row: Record<string, unknown> = {
+    title: args.title,
+    data: args.data,
+    version: 1,
+    created_by: args.creatorId,
+    created_by_name: args.creatorName,
+    updated_by: args.creatorId,
+    updated_by_name: args.creatorName,
+    updated_at: now,
+    ...(org ? { org_id: org } : {}),
+  };
+  const res = await supabase.from('calendars').insert(row).select('id');
+  if (res.error) throw new Error(res.error.message);
+  return (res.data as { id: string }[])[0].id;
+}
+
+export async function saveCalendar(args: {
+  id: string;
+  data: CalendarBuilderData;
+  title: string;
+  editors: string[];
+  expectedVersion: number;
+  updaterId: string | null;
+  updaterName: string | null;
+}): Promise<{ version: number; updatedByName: string | null; updatedAt: string | null }> {
+  const now = new Date().toISOString();
+  const res = await supabase
+    .from('calendars')
+    .update({
+      data: args.data,
+      title: args.title,
+      editors: args.editors,
+      version: args.expectedVersion + 1,
+      updated_by: args.updaterId,
+      updated_by_name: args.updaterName,
+      updated_at: now,
+    })
+    .eq('id', args.id)
+    .eq('version', args.expectedVersion)
+    .select('version, updated_by_name, updated_at');
+  if (res.error) throw new Error(res.error.message);
+  const rows = res.data as { version: number; updated_by_name: string | null; updated_at: string | null }[];
+  if (!rows || rows.length === 0) throw new Error(CALENDAR_CONFLICT); // outra pessoa salvou antes
+  return { version: rows[0].version, updatedByName: rows[0].updated_by_name, updatedAt: rows[0].updated_at };
+}
+
+export async function deleteCalendar(id: string): Promise<void> {
+  const { error } = await supabase.from('calendars').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
 /* --------------------------------- Dashboard ----------------------------------- */
 export async function dashboardCounts() {
   const [schools, classes, students] = await Promise.all([
