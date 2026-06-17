@@ -24,7 +24,7 @@ import {
   saveTermGrades,
   type TermsReportRow,
 } from '../lib/queries';
-import { DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, actKey, calcMedia, isRecoveryActivity, orderGradeActivities, sanitizeGrade, type GradeActivity, type School } from '../lib/types';
+import { CREDITO_OVERRIDE_KEY, DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, actKey, calcMedia, isRecoveryActivity, orderGradeActivities, sanitizeGrade, type GradeActivity, type School } from '../lib/types';
 
 /** Cabeçalho profissional para impressão (logo, escola, contato) — usado no boletim e no relatório. */
 function schoolHeaderHtml(school: School | undefined, label: string): string {
@@ -155,6 +155,9 @@ export function NotasPage() {
           }
         });
       }
+      // Crédito variável digitado manualmente (sobrescreve a soma da Central), se houver.
+      const ov = g?.scores?.[CREDITO_OVERRIDE_KEY];
+      row[CREDITO_OVERRIDE_KEY] = ov != null ? String(ov) : '';
       map[s.id] = row;
       obsMap[s.id] = g?.observacao ?? '';
     });
@@ -183,6 +186,11 @@ export function NotasPage() {
         if (!isRecoveryActivity(a.name)) has = true;
       }
     });
+    // crédito variável digitado manualmente entra na média (substitui a soma da Central)
+    if (row[CREDITO_OVERRIDE_KEY] !== '' && row[CREDITO_OVERRIDE_KEY] != null) {
+      nums[CREDITO_OVERRIDE_KEY] = Number(row[CREDITO_OVERRIDE_KEY]);
+      has = true;
+    }
     return has ? calcMedia(nums, columns) : null;
   }
 
@@ -205,6 +213,7 @@ export function NotasPage() {
             const k = actKey(a);
             if (row[k] !== '' && row[k] != null) obj[k] = Number(row[k]);
           });
+          if (row[CREDITO_OVERRIDE_KEY] !== '' && row[CREDITO_OVERRIDE_KEY] != null) obj[CREDITO_OVERRIDE_KEY] = Number(row[CREDITO_OVERRIDE_KEY]);
           return { student_id: s.id, scores: obj, observacao: (obs[s.id] ?? '').trim() || null };
         })
         .filter((r) => Object.keys(r.scores).length > 0 || r.observacao);
@@ -378,7 +387,7 @@ export function NotasPage() {
                       <th className="min-w-[104px] bg-amber-50 px-2 py-3 text-center align-bottom text-amber-700">
                         <span className="block leading-tight">Crédito variável</span>
                         <span className="mt-1 inline-block rounded bg-amber-200/60 px-1.5 py-0.5 text-[9px] font-black text-amber-700">0–10</span>
-                        <span className="mt-0.5 block text-[9px] font-black normal-case text-amber-600">vem da Central</span>
+                        <span className="mt-0.5 block text-[9px] font-black normal-case text-amber-600">Central · editável</span>
                       </th>
                     ) : null}
                     <th className="px-3 py-3 text-center">Média</th>
@@ -424,9 +433,28 @@ export function NotasPage() {
                           );
                         })}
                         {creditoCols.length > 0 ? (
-                          <td className="bg-amber-50/40 px-2 py-3 text-center" title="Soma das atividades lançadas no Central de Avaliações">
-                            <span className="inline-block min-w-[44px] rounded-lg bg-amber-100 px-2 py-1 text-sm font-black tabular-nums text-amber-700">{fmtNum(creditoSum(s.id))}</span>
-                          </td>
+                          (() => {
+                            const manual = scores[s.id]?.[CREDITO_OVERRIDE_KEY] ?? '';
+                            const autoStr = creditoSum(s.id) ? fmtNum(creditoSum(s.id)) : '';
+                            const shown = manual !== '' ? manual : autoStr;
+                            const isManual = manual !== '';
+                            return (
+                              <td className="bg-amber-50/40 px-1.5 py-1.5 text-center" title="Vem da Central de Avaliações — você pode digitar para sobrescrever">
+                                <input
+                                  inputMode="decimal"
+                                  value={shown}
+                                  onChange={(e) => setScore(s.id, CREDITO_OVERRIDE_KEY, e.target.value, 10)}
+                                  disabled={!editingGrades}
+                                  placeholder="–"
+                                  className={cn(
+                                    'h-10 w-14 rounded-lg border text-center font-bold tabular-nums outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed',
+                                    isManual ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700',
+                                    !editingGrades && 'bg-transparent disabled:bg-transparent',
+                                  )}
+                                />
+                              </td>
+                            );
+                          })()
                         ) : null}
                         <td className="px-3 py-3 text-center">
                           {m != null ? (
