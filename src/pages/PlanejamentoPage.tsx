@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { AttachmentChips } from '../components/Attachments';
 import { Dropzone } from '../components/Dropzone';
 import { WeeklyPlanEditor, WeeklyPlanView, emptyWeeklyPlan, weeklyPlanToText } from '../components/WeeklyPlan';
+import { PlanDocsCenter } from '../components/PlanDocsCenter';
 import type { WeeklyPlanData } from '../lib/types';
 import { successToast } from '../components/Feedback';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented, Select, Loading} from '../components/ui';
@@ -46,6 +47,7 @@ export function PlanejamentoPage() {
   const { user, role } = useAuth();
   const uid = user!.id;
   const canReview = canReviewPlan(role);
+  const [view, setView] = useState<'docs' | 'fluxo'>('docs');
   const [tab, setTab] = useState<'meus' | 'revisar' | 'revisados'>('meus');
   const [composeOpen, setComposeOpen] = useState(false);
   const [editing, setEditing] = useState<PlanWithMeta | null>(null);
@@ -63,24 +65,40 @@ export function PlanejamentoPage() {
     <>
       <PageHeader
         title="Planejamento"
-        subtitle="Planejamentos do professor — envio para a coordenação."
-        action={<Button onClick={openNew}><Plus size={18} /> Novo planejamento</Button>}
+        subtitle="Anexe seus planejamentos por segmento, trimestre e turma."
+        action={view === 'fluxo' ? <Button onClick={openNew}><Plus size={18} /> Novo planejamento</Button> : undefined}
       />
 
-      {canReview ? (
-        <Segmented<'meus' | 'revisar' | 'revisados'>
-          className="mb-5"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: 'meus', label: 'Meus planejamentos' },
-            { value: 'revisar', label: 'Para revisar' },
-            { value: 'revisados', label: 'Revisados' },
-          ]}
-        />
-      ) : null}
+      <Segmented<'docs' | 'fluxo'>
+        className="mb-5"
+        value={view}
+        onChange={setView}
+        options={[
+          { value: 'docs', label: 'Documentos' },
+          { value: 'fluxo', label: 'Envio à coordenação' },
+        ]}
+      />
 
-      {tab === 'meus' ? <MeusPlanos uid={uid} onEdit={openEdit} /> : tab === 'revisar' ? <Pendentes onEdit={openEdit} /> : <Revisados onEdit={openEdit} />}
+      {view === 'docs' ? (
+        <PlanDocsCenter />
+      ) : (
+        <>
+          {canReview ? (
+            <Segmented<'meus' | 'revisar' | 'revisados'>
+              className="mb-5"
+              value={tab}
+              onChange={setTab}
+              options={[
+                { value: 'meus', label: 'Meus planejamentos' },
+                { value: 'revisar', label: 'Para revisar' },
+                { value: 'revisados', label: 'Revisados' },
+              ]}
+            />
+          ) : null}
+
+          {tab === 'meus' ? <MeusPlanos uid={uid} onEdit={openEdit} /> : tab === 'revisar' ? <Pendentes onEdit={openEdit} /> : <Revisados onEdit={openEdit} />}
+        </>
+      )}
 
       {composeOpen ? <ComposeModal plan={editing} onClose={() => setComposeOpen(false)} /> : null}
     </>
