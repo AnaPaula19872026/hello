@@ -9,6 +9,7 @@ import type {
   AttendanceRecord,
   AttendanceSession,
   ClassRoom,
+  CalendarBuilderData,
   CalendarEvent,
   CalendarHoliday,
   CalendarUpload,
@@ -1507,6 +1508,78 @@ export async function planUnreadCounts(): Promise<Record<string, number>> {
 export async function markPlanRead(planId: string): Promise<void> {
   const { error } = await supabase.rpc('mark_plan_read', { p_plan: planId });
   if (error) throw new Error(error.message);
+}
+
+/* --------------------- Construtor de calendário (documento único) ----------------------
+ * Um registro por organização (chave: org_id). Coordenação/direção editam; todos
+ * os membros da organização leem (ver RLS em migration-calendario-builder.sql).
+ * Controle de concorrência OTIMISTA por `version`: a gravação só vale se a versão
+ * carregada ainda for a vigente. Se outro coordenador salvou nesse meio-tempo, a
+ * gravação falha com erro CONFLITO em vez de sobrescrever silenciosamente. */
+export interface CalendarBuilderMeta {
+  data: CalendarBuilderData;
+  version: number;
+  updatedByName: string | null;
+  updatedAt: string | null;
+}
+/** Marcador para o app distinguir conflito de versão de outros erros. */
+export const CALENDAR_CONFLICT = 'CALENDAR_CONFLICT';
+
+type CalBuilderRow = {
+  data: CalendarBuilderData;
+  version: number | null;
+  updated_by_name: string | null;
+  updated_at: string | null;
+};
+const mapBuilderMeta = (row: CalBuilderRow): CalendarBuilderMeta => ({
+  data: row.data,
+  version: row.version ?? 0,
+  updatedByName: row.updated_by_name,
+  updatedAt: row.updated_at,
+});
+const BUILDER_COLS = 'data, version, updated_by_name, updated_at';
+
+export async function loadCalendarBuilder(): Promise<CalendarBuilderMeta | null> {
+  const res = await scoped(supabase.from('calendar_builder').select(BUILDER_COLS)).maybeSingle();
+  if (res.error) throw new Error(res.error.message);
+  const row = res.data as CalBuilderRow | null;
+  return row ? mapBuilderMeta(row) : null;
+}
+
+export async function saveCalendarBuilder(args: {
+  data: CalendarBuilderData;
+  expectedVersion: number | null; // null = ainda não existe registro (primeira gravação)
+  updaterId: string | null;
+  updaterName: string | null;
+}): Promise<CalendarBuilderMeta> {
+  const org = getActiveOrgId();
+  const now = new Date().toISOString();
+  const stamp = { updated_by: args.updaterId, updated_by_name: args.updaterName, updated_at: now };
+
+  // Primeira gravação: insere. Se já existir (corrida), a PK em org_id dá 23505 → conflito.
+  if (args.expectedVersion == null) {
+    const res = await supabase
+      .from('calendar_builder')
+      .insert({ ...(org ? { org_id: org } : {}), data: args.data, version: 1, ...stamp })
+      .select(BUILDER_COLS);
+    if (res.error) {
+      if (res.error.code === '23505') throw new Error(CALENDAR_CONFLICT);
+      throw new Error(res.error.message);
+    }
+    return mapBuilderMeta((res.data as CalBuilderRow[])[0]);
+  }
+
+  // Atualização condicional: só grava se a versão ainda for a esperada.
+  const res = await supabase
+    .from('calendar_builder')
+    .update({ data: args.data, version: args.expectedVersion + 1, ...stamp })
+    .eq('org_id', org ?? '00000000-0000-0000-0000-000000000000')
+    .eq('version', args.expectedVersion)
+    .select(BUILDER_COLS);
+  if (res.error) throw new Error(res.error.message);
+  const rows = res.data as CalBuilderRow[];
+  if (!rows || rows.length === 0) throw new Error(CALENDAR_CONFLICT); // alguém salvou antes
+  return mapBuilderMeta(rows[0]);
 }
 
 /* --------------------------------- Dashboard ----------------------------------- */
