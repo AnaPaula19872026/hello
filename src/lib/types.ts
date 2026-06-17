@@ -462,6 +462,9 @@ export const DEFAULT_ACTIVITIES: GradeActivity[] = [
   RECOVERY_ACTIVITY,
 ];
 
+/** Chave reservada: valor digitado manualmente do Crédito variável (substitui a soma das atividades). */
+export const CREDITO_OVERRIDE_KEY = '__credito__';
+
 export function isRecoveryActivity(name: string): boolean {
   return name.trim().normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase() === 'RECUPERACAO';
 }
@@ -515,7 +518,13 @@ function gradeBuckets(scores: Record<string, number>, activities?: GradeActivity
       else mains.push(v);
     }
     const buckets = [...mains];
-    if (small.length) buckets.push(small.reduce((x, y) => x + y, 0));
+    // Crédito variável: valor digitado manualmente substitui a soma das atividades.
+    const override = scores[CREDITO_OVERRIDE_KEY];
+    if (override != null && String(override) !== '' && Number.isFinite(Number(override))) {
+      buckets.push(Number(override));
+    } else if (small.length) {
+      buckets.push(small.reduce((x, y) => x + y, 0));
+    }
     if (buckets.length) return buckets;
   }
   return Object.entries(scores)
