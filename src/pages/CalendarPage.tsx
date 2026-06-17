@@ -572,26 +572,33 @@ function ImportSmartModal({
   return (
     <Modal open onClose={onClose} title="Importar calendário pronto" size="xl">
       <div className="space-y-4">
-        <p className="text-sm text-slate-500">
-          Suba um calendário já preenchido — <b>Excel</b> (.xlsx/.csv), <b>PDF</b>, <b>Word</b> (.docx) ou <b>ICS</b>. O sistema lê o
-          arquivo, identifica as datas e monta os eventos no construtor. Depois é só <b>revisar, editar e salvar</b>.
-        </p>
+        {/* Caminho recomendado: planilha-modelo (leitura 100% confiável). */}
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <p className="text-sm font-bold text-emerald-900">Forma recomendada: planilha Excel</p>
+          <p className="mt-0.5 text-xs font-medium text-emerald-800">
+            Baixe o modelo, preencha (Data, Título, Categoria) e suba aqui. É a leitura mais confiável.
+          </p>
+          <button
+            type="button"
+            onClick={() => downloadCalendarTemplate()}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-black text-white hover:bg-emerald-700"
+          >
+            Baixar planilha-modelo
+          </button>
+        </div>
 
         <Dropzone
           accept=".xlsx,.xls,.csv,.ics,.pdf,.docx,.json"
           multiple={false}
           title="Arraste o calendário aqui, ou clique para procurar"
-          hint="Excel, CSV, PDF, Word (.docx), ICS ou backup .json — até 15 MB"
+          hint="Excel/CSV (recomendado) · PDF/Word e ICS (leitura aproximada) · backup .json — até 15 MB"
           onFiles={(l) => handleFile(l?.[0])}
         />
 
-        <button
-          type="button"
-          onClick={() => downloadCalendarTemplate()}
-          className="text-xs font-bold text-emerald-700 underline underline-offset-2 hover:text-emerald-800"
-        >
-          Baixar planilha-modelo (Excel)
-        </button>
+        <p className="text-xs text-slate-400">
+          PDF e Word são lidos por aproximação — calendários com layout livre (dia sem mês, colunas) podem sair
+          incompletos. Sempre revise antes de salvar; para garantir, use o Excel.
+        </p>
 
         {busy ? <p className="text-sm font-bold text-slate-500">Lendo “{fileName}”…</p> : null}
         {err ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-600">{err}</p> : null}
@@ -600,7 +607,7 @@ function ImportSmartModal({
           <div>
             {isDoc ? (
               <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
-                Leitura automática de PDF/Word é aproximada. Confira as datas e títulos no editor antes de salvar.
+                Leitura aproximada de PDF/Word. Confira datas e títulos no editor — alguns eventos podem faltar.
               </p>
             ) : null}
             <p className="mb-2 text-sm font-bold text-slate-700">{events.length} evento(s) encontrado(s):</p>
