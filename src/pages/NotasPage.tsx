@@ -9,6 +9,7 @@ import { cn } from '../lib/cn';
 import { printDocument, escapeHtml } from '../lib/print';
 import { usePersistentState } from '../lib/usePersistentState';
 import {
+  bulkDeleteTermGrades,
   getCreditoData,
   getTermConfig,
   getSavedTermConfig,
@@ -213,6 +214,23 @@ export function NotasPage() {
     },
   });
 
+  // Limpa (apaga do banco) as notas da turma no trimestre/ano selecionados.
+  const clearGrades = useMutation({
+    mutationFn: () => bulkDeleteTermGrades(classId, year, term, students.map((s) => s.id)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['term-grades', activeOrgId, classId, year, term] });
+      successToast('Notas do trimestre apagadas');
+    },
+    onError: (e) => alert('Não foi possível limpar: ' + (e as Error).message),
+  });
+  function limparNotas() {
+    if (!students.length || clearGrades.isPending) return;
+    const nome = classes.find((c) => c.id === classId)?.name ?? 'turma';
+    if (confirm(`Limpar TODAS as notas de ${nome} — ${TERM_LABEL[term]} / ${year}?\n\n⚠️ Ação IRREVERSÍVEL: apaga as notas deste trimestre desta turma do banco de dados. Não há como recuperar.`)) {
+      clearGrades.mutate();
+    }
+  }
+
   const years = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
 
   if (!orgReady) {
@@ -252,6 +270,11 @@ export function NotasPage() {
             <Button variant="ghost" onClick={() => setConfigOpen(true)}>
               <Sliders size={18} /> Composição de notas
             </Button>
+            {hasSavedGrades ? (
+              <Button variant="ghost" onClick={limparNotas} disabled={clearGrades.isPending}>
+                <Trash2 size={18} /> {clearGrades.isPending ? 'Limpando…' : 'Limpar notas'}
+              </Button>
+            ) : null}
           </div>
         }
       />
