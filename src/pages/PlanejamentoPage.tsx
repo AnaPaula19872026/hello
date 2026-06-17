@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { BookOpen, Check, Mail, MessageCircle, MessageSquare, Paperclip, Pencil, Plus, Save, Send, Share2, Trash2, Undo2, X } from 'lucide-react';
+import { BookOpen, CalendarRange, Check, Eye, Mail, MessageCircle, MessageSquare, Paperclip, Pencil, Plus, Save, Send, Share2, Trash2, Undo2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { AttachmentChips } from '../components/Attachments';
 import { Dropzone } from '../components/Dropzone';
+import { WeeklyPlanEditor, WeeklyPlanView, emptyWeeklyPlan, weeklyPlanToText } from '../components/WeeklyPlan';
+import type { WeeklyPlanData } from '../lib/types';
 import { successToast } from '../components/Feedback';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented, Select, Loading} from '../components/ui';
 import { cn } from '../lib/cn';
@@ -357,6 +359,7 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
 function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?: React.ReactNode; showAuthor?: boolean }) {
   const st = PLAN_STATUS[p.status];
   const [chatOpen, setChatOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
   // Query compartilhada (mesma key) — o React Query dedup: 1 fetch p/ todos os cards.
   const { data: unreadMap = {} } = useQuery({ queryKey: ['plan-unread'], queryFn: planUnreadCounts, refetchInterval: 15000, retry: false });
   const unread = unreadMap[p.id] ?? 0;
@@ -390,7 +393,16 @@ function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?
           ) : null}
         </button>
       </div>
-      {p.content ? <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{p.content}</p> : null}
+      {p.plan_data ? (
+        <button
+          onClick={() => setViewOpen(true)}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700 hover:bg-emerald-100"
+        >
+          <Eye size={14} /> Ver planejamento semanal
+        </button>
+      ) : p.content ? (
+        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{p.content}</p>
+      ) : null}
       <AttachmentChips attachments={p.attachments} zipName={safeFileName(p.title) || 'planejamento'} />
       {p.feedback ? (
         <div className={cn('mt-3 rounded-xl border p-3 text-sm', p.status === 'aprovado' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800')}>
@@ -400,6 +412,11 @@ function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?
       ) : null}
       {footer ? <div className="mt-3 border-t border-slate-100 pt-3">{footer}</div> : null}
       {chatOpen ? <ChatModal plan={p} onClose={() => setChatOpen(false)} /> : null}
+      {viewOpen && p.plan_data ? (
+        <Modal open onClose={() => setViewOpen(false)} title={p.title || 'Planejamento semanal'} size="xl">
+          <WeeklyPlanView data={p.plan_data} />
+        </Modal>
+      ) : null}
     </Card>
   );
 }
@@ -546,18 +563,31 @@ function DevolverModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => v
 
 function ComposeModal({ plan, onClose }: { plan: PlanWithMeta | null; onClose: () => void }) {
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
+  const classOptions = classes.map((c) => c.name);
+  const [mode, setMode] = useState<'texto' | 'semanal'>(plan?.plan_data ? 'semanal' : 'texto');
   const [title, setTitle] = useState(plan?.title ?? '');
   const [classId, setClassId] = useState(plan?.class_id ?? '');
   const [week, setWeek] = useState(plan?.week_start ?? '');
   const [content, setContent] = useState(plan?.content ?? '');
+  const [weekly, setWeekly] = useState<WeeklyPlanData>(() => plan?.plan_data ?? emptyWeeklyPlan({ teacher: profile?.full_name ?? '' }));
   const [files, setFiles] = useState<File[]>([]);
 
   const addFiles = (l: FileList | null) => l && l.length && setFiles((p) => [...p, ...Array.from(l)]);
 
+  const effectiveTitle = title.trim() || (mode === 'semanal' ? `Planejamento semanal${weekly.period ? ` — ${weekly.period}` : ''}` : '');
+
   async function persist(andSend: boolean) {
-    const input: PlanInput = { id: plan?.id, title: title.trim(), class_id: classId || null, week_start: week || null, content: content.trim() };
+    const isWeekly = mode === 'semanal';
+    const input: PlanInput = {
+      id: plan?.id,
+      title: effectiveTitle,
+      class_id: classId || null,
+      week_start: week || null,
+      content: isWeekly ? weeklyPlanToText(weekly) : content.trim(),
+      plan_data: isWeekly ? weekly : null,
+    };
     const id = await savePlan(input);
     for (const f of files) await uploadPlanAttachment(id, f);
     if (andSend) await submitPlan(id);
@@ -582,14 +612,23 @@ function ComposeModal({ plan, onClose }: { plan: PlanWithMeta | null; onClose: (
     },
   });
 
-  const valid = title.trim().length > 0;
+  const valid = effectiveTitle.length > 0;
   const busy = saveDraft.isPending || saveSend.isPending;
 
   return (
     <Modal open onClose={onClose} title={plan ? 'Editar planejamento' : 'Novo planejamento'} size="xl">
       <div className="space-y-4">
-        <Field label="Título">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex.: Plano semanal — Língua Inglesa" autoFocus />
+        <Segmented<'texto' | 'semanal'>
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'texto', label: 'Texto livre' },
+            { value: 'semanal', label: 'Planejamento semanal' },
+          ]}
+        />
+
+        <Field label={mode === 'semanal' ? 'Título (opcional — gerado pelo período)' : 'Título'}>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={mode === 'semanal' ? 'Ex.: Planejamento semanal — Junho/2026' : 'Ex.: Plano semanal — Língua Inglesa'} autoFocus />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Turma (opcional)">
@@ -604,15 +643,24 @@ function ComposeModal({ plan, onClose }: { plan: PlanWithMeta | null; onClose: (
             <Input type="date" value={week} onChange={(e) => setWeek(e.target.value)} />
           </Field>
         </div>
-        <Field label="Conteúdo / objetivos / atividades">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={6}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-            placeholder="Objetivos de aprendizagem (BNCC), conteúdos, metodologia, recursos, avaliação…"
-          />
-        </Field>
+        {mode === 'semanal' ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-700">
+              <CalendarRange size={14} /> Modelo semanal — preencha por dia e turma
+            </p>
+            <WeeklyPlanEditor data={weekly} onChange={setWeekly} classOptions={classOptions} />
+          </div>
+        ) : (
+          <Field label="Conteúdo / objetivos / atividades">
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={6}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              placeholder="Objetivos de aprendizagem (BNCC), conteúdos, metodologia, recursos, avaliação…"
+            />
+          </Field>
+        )}
 
         <Field label="Anexos (plano em PDF/DOCX, materiais…)">
           <Dropzone

@@ -32,6 +32,7 @@ import type {
   ReportPayload,
   School,
   Student,
+  WeeklyPlanData,
 } from './types';
 
 function unwrap<T>(res: { data: T | null; error: { message: string } | null }): T {
@@ -1354,6 +1355,7 @@ export interface PlanInput {
   class_id?: string | null;
   week_start?: string | null;
   content: string;
+  plan_data?: WeeklyPlanData | null;
 }
 
 export async function savePlan(input: PlanInput): Promise<string> {
@@ -1362,6 +1364,7 @@ export async function savePlan(input: PlanInput): Promise<string> {
     class_id: input.class_id || null,
     week_start: input.week_start || null,
     content: input.content,
+    plan_data: input.plan_data ?? null,
     updated_at: new Date().toISOString(),
   };
   if (input.id) {

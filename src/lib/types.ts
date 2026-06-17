@@ -245,6 +245,35 @@ export const PLAN_STATUS: Record<PlanStatus, { label: string; cls: string }> = {
   devolvido: { label: 'Devolvido', cls: 'bg-red-100 text-red-700' },
 };
 
+/* ---- Planejamento semanal estruturado (modelo da professora) ---- */
+export interface WeeklyBlock {
+  id: string;
+  turma: string;   // ex.: "6º ANO"
+  items: string;   // bullets/atividades (texto multilinha)
+}
+export interface WeeklyDay {
+  id: string;
+  label: string;   // ex.: "Segunda-feira"
+  date: string;    // ex.: "01/06"
+  lessons: string; // ex.: "2 aulas"
+  blocks: WeeklyBlock[];
+}
+export interface WeeklyWeek {
+  id: string;
+  days: WeeklyDay[];
+  materials: string; // "Materiais necessários / anotações"
+  homework: string;  // "Prazer de casa"
+}
+export interface WeeklyPlanData {
+  school: string;
+  teacher: string;
+  course: string;     // ex.: "Fund. II"
+  subjects: string;   // ex.: "Inglês"
+  period: string;     // ex.: "Junho / 2026"
+  classes: string[];  // turmas atendidas
+  weeks: WeeklyWeek[];
+}
+
 export interface LessonPlan {
   id: string;
   org_id: string;
@@ -253,6 +282,7 @@ export interface LessonPlan {
   title: string;
   week_start: string | null;
   content: string;
+  plan_data: WeeklyPlanData | null; // preenchido quando é planejamento semanal estruturado
   status: PlanStatus;
   feedback: string | null;
   reviewed_by: string | null;
