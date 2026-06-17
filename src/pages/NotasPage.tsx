@@ -107,7 +107,6 @@ export function NotasPage() {
     [orderedActivities, creditData.defs],
   );
   const creditIdSet = useMemo(() => new Set(creditData.defs.map((d) => d.id as string)), [creditData.defs]);
-  const firstCreditIdx = useMemo(() => columns.findIndex((a) => creditIdSet.has(actKey(a))), [columns, creditIdSet]);
   const hasCreditData = creditData.defs.length > 0;
 
   const studentsSig = students.map((s) => s.id).join(',');
@@ -115,6 +114,21 @@ export function NotasPage() {
   const creditSig = `${[...creditIdSet].join(',')}|${JSON.stringify(creditData.byStudent)}`;
   const hasSavedGrades = termGrades.length > 0;
   const maxByKey = useMemo(() => new Map(columns.map((a) => [actKey(a), a.max] as const)), [columns]);
+
+  // Em Notas só aparecem 3 notas (peso 10 cada): as principais (TESTE, E-CERM…),
+  // UMA coluna "Crédito variável" (soma do que vem da Central, vale 10) e a média.
+  // A recuperação aparece DEPOIS da média.
+  const recoveryCol = useMemo(() => columns.find((a) => isRecoveryActivity(a.name)) ?? null, [columns]);
+  const mainCols = useMemo(
+    () => columns.filter((a) => !creditIdSet.has(actKey(a)) && !isRecoveryActivity(a.name)),
+    [columns, creditIdSet],
+  );
+  const creditoCols = useMemo(() => columns.filter((a) => creditIdSet.has(actKey(a))), [columns, creditIdSet]);
+  const creditoSum = (id: string) => {
+    const total = creditoCols.reduce((acc, a) => acc + (Number(scores[id]?.[actKey(a)]) || 0), 0);
+    return Math.min(total, 10);
+  };
+  const fmtNum = (n: number) => (n % 1 === 0 ? String(n) : n.toFixed(1));
 
   function resetScoresFromSaved() {
     const map: Record<string, Record<string, string>> = {};
@@ -329,58 +343,33 @@ export function NotasPage() {
               <Card className="max-h-[70vh] overflow-auto p-0">
               <table className="w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-20 bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
-                  {creditIdSet.size > 0 ? (
-                    <>
-                      <tr>
-                        <th rowSpan={2} className="sticky left-0 top-0 z-30 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
-                        {columns.map((a, idx) => {
-                          if (creditIdSet.has(actKey(a))) {
-                            if (idx !== firstCreditIdx) return null;
-                            return (
-                              <th key="credit-group" colSpan={creditIdSet.size} className="border-b border-amber-200 bg-amber-50 px-2 py-2 text-center text-amber-700">
-                                Crédito variável <span className="font-bold normal-case text-amber-600">· vale 1 nota</span>
-                              </th>
-                            );
-                          }
-                          return (
-                            <th key={actKey(a)} rowSpan={2} className="min-w-[92px] px-2 py-3 text-center align-bottom">
-                              <span className="block leading-tight text-slate-600">{a.name}</span>
-                              <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
-                              {isRecoveryActivity(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span> : null}
-                              {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
-                            </th>
-                          );
-                        })}
-                        <th rowSpan={2} className="px-3 py-3 text-center">Média</th>
-                        <th rowSpan={2} className="px-3 py-3 text-center">Resultado</th>
-                        <th rowSpan={2} className="min-w-[160px] px-3 py-3 text-center">Observações</th>
-                      </tr>
-                      <tr>
-                        {columns.filter((a) => creditIdSet.has(actKey(a))).map((a) => (
-                          <th key={actKey(a)} className="min-w-[92px] bg-amber-50 px-2 py-2 text-center align-bottom">
-                            <span className="block leading-tight text-amber-800">{a.name}</span>
-                            <span className="mt-1 inline-block rounded bg-amber-200/60 px-1.5 py-0.5 text-[9px] font-black text-amber-700">0–{a.max}</span>
-                            {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
-                          </th>
-                        ))}
-                      </tr>
-                    </>
-                  ) : (
-                    <tr>
-                      <th className="sticky left-0 top-0 z-30 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
-                      {columns.map((a) => (
-                        <th key={actKey(a)} className="min-w-[92px] px-2 py-3 text-center align-bottom">
-                          <span className="block leading-tight text-slate-600">{a.name}</span>
-                          <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
-                          {isRecoveryActivity(a.name) ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span> : null}
-                          {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
-                        </th>
-                      ))}
-                      <th className="px-3 py-3 text-center">Média</th>
-                      <th className="px-3 py-3 text-center">Resultado</th>
-                      <th className="min-w-[160px] px-3 py-3 text-center">Observações</th>
-                    </tr>
-                  )}
+                  <tr>
+                    <th className="sticky left-0 top-0 z-30 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
+                    {mainCols.map((a) => (
+                      <th key={actKey(a)} className="min-w-[92px] px-2 py-3 text-center align-bottom">
+                        <span className="block leading-tight text-slate-600">{a.name}</span>
+                        <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
+                        {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
+                      </th>
+                    ))}
+                    {creditoCols.length > 0 ? (
+                      <th className="min-w-[104px] bg-amber-50 px-2 py-3 text-center align-bottom text-amber-700">
+                        <span className="block leading-tight">Crédito variável</span>
+                        <span className="mt-1 inline-block rounded bg-amber-200/60 px-1.5 py-0.5 text-[9px] font-black text-amber-700">0–10</span>
+                        <span className="mt-0.5 block text-[9px] font-black normal-case text-amber-600">vem da Central</span>
+                      </th>
+                    ) : null}
+                    <th className="px-3 py-3 text-center">Média</th>
+                    {recoveryCol ? (
+                      <th className="min-w-[92px] px-2 py-3 text-center align-bottom">
+                        <span className="block leading-tight text-slate-600">{recoveryCol.name}</span>
+                        <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{recoveryCol.max}</span>
+                        <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span>
+                      </th>
+                    ) : null}
+                    <th className="px-3 py-3 text-center">Resultado</th>
+                    <th className="min-w-[160px] px-3 py-3 text-center">Observações</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {list.map((s, i) => {
@@ -392,30 +381,31 @@ export function NotasPage() {
                           <span className="mr-2 inline-block w-6 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>
                           {s.full_name}
                         </td>
-                        {columns.map((a) => {
+                        {mainCols.map((a) => {
                           const k = actKey(a);
                           const val = scores[s.id]?.[k] ?? '';
-                          const locked = creditIdSet.has(k); // vem do Central de Avaliações — não editável aqui
                           return (
-                            <td key={k} className={cn('px-1.5 py-1.5 text-center', locked && 'bg-amber-50/40')}>
+                            <td key={k} className="px-1.5 py-1.5 text-center">
                               <input
                                 inputMode="decimal"
                                 value={val}
                                 onChange={(e) => setScore(s.id, k, e.target.value, a.max)}
-                                disabled={!editingGrades || locked}
+                                disabled={!editingGrades}
                                 placeholder="–"
-                                title={locked ? 'Vem do Central de Avaliações (crédito variável)' : undefined}
                                 className={cn(
                                   'h-10 w-14 rounded-lg border text-center font-bold tabular-nums outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed',
-                                  locked
-                                    ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                    : Number(val) === 0 && val !== '' ? 'border-red-200 bg-red-50 text-red-600' : val !== '' ? 'border-slate-200 bg-white text-slate-900' : 'border-slate-200 bg-white text-slate-400',
-                                  !editingGrades && !locked && 'bg-transparent disabled:bg-transparent',
+                                  Number(val) === 0 && val !== '' ? 'border-red-200 bg-red-50 text-red-600' : val !== '' ? 'border-slate-200 bg-white text-slate-900' : 'border-slate-200 bg-white text-slate-400',
+                                  !editingGrades && 'bg-transparent disabled:bg-transparent',
                                 )}
                               />
                             </td>
                           );
                         })}
+                        {creditoCols.length > 0 ? (
+                          <td className="bg-amber-50/40 px-2 py-3 text-center" title="Soma das atividades lançadas no Central de Avaliações">
+                            <span className="inline-block min-w-[44px] rounded-lg bg-amber-100 px-2 py-1 text-sm font-black tabular-nums text-amber-700">{fmtNum(creditoSum(s.id))}</span>
+                          </td>
+                        ) : null}
                         <td className="px-3 py-3 text-center">
                           {m != null ? (
                             <span className={cn('inline-block min-w-[44px] rounded-lg px-2 py-1 text-base font-black tabular-nums', ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600')}>
@@ -425,6 +415,28 @@ export function NotasPage() {
                             <span className="text-slate-300">–</span>
                           )}
                         </td>
+                        {recoveryCol ? (
+                          (() => {
+                            const k = actKey(recoveryCol);
+                            const val = scores[s.id]?.[k] ?? '';
+                            return (
+                              <td className="px-1.5 py-1.5 text-center">
+                                <input
+                                  inputMode="decimal"
+                                  value={val}
+                                  onChange={(e) => setScore(s.id, k, e.target.value, recoveryCol.max)}
+                                  disabled={!editingGrades}
+                                  placeholder="–"
+                                  className={cn(
+                                    'h-10 w-14 rounded-lg border text-center font-bold tabular-nums outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed',
+                                    val !== '' ? 'border-slate-200 bg-white text-slate-900' : 'border-slate-200 bg-white text-slate-400',
+                                    !editingGrades && 'bg-transparent disabled:bg-transparent',
+                                  )}
+                                />
+                              </td>
+                            );
+                          })()
+                        ) : null}
                         <td className="px-3 py-3 text-center">
                           {m == null ? (
                             <span className="text-slate-300">–</span>
@@ -458,11 +470,11 @@ export function NotasPage() {
               </Card>
 
               <p className="mt-3 text-xs text-slate-400">
-                Média final = soma das notas ÷ 3 · aprovação a partir de {MEDIA_APROVACAO.toFixed(1)} · a nota de recuperação substitui a menor quando melhora a média.
+                São 3 notas (peso 10): {mainCols.map((a) => a.name).join(', ')}{creditoCols.length ? ' e Crédito variável' : ''}. Média = soma ÷ 3 · aprovação a partir de {MEDIA_APROVACAO.toFixed(1)} · a recuperação (após a média) substitui a menor quando melhora.
               </p>
-              {creditIdSet.size > 0 ? (
+              {creditoCols.length > 0 ? (
                 <p className="mt-1 text-xs font-semibold text-amber-600">
-                  As colunas {creditData.defs.map((d) => d.name).join(', ')} vêm do Central de Avaliações (crédito variável) e juntas contam como uma nota. São preenchidas automaticamente; confira e salve.
+                  O Crédito variável é a soma de {creditData.defs.map((d) => d.name).join(', ')} (lançadas no Central de Avaliações) e vale 10 = 1 nota. Preenchido automaticamente.
                 </p>
               ) : null}
             </>
