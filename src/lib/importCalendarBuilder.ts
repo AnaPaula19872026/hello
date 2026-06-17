@@ -48,7 +48,8 @@ export async function parseAnyCalendarFile(file: File, defaultYear: number): Pro
     const parsed = await parseCalendarFile(file);
     return parsed.map((p) => ({
       title: p.title,
-      categoryLabel: EVENT_CATEGORIES.find((c) => c.key === p.category)?.label ?? 'Evento',
+      // preserva o rótulo livre da planilha (ex.: "Feriado", "Avaliação"); senão, cai no rótulo do sistema
+      categoryLabel: p.rawCategory || EVENT_CATEGORIES.find((c) => c.key === p.category)?.label || 'Evento',
       start: p.event_date,
       end: p.end_date ?? undefined,
     }));
