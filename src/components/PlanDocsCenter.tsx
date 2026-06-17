@@ -114,21 +114,28 @@ function DocSegment({
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center gap-3 px-4 py-3" style={{ backgroundColor: seg.soft }}>
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white" style={{ backgroundColor: seg.color }}>
-          <FileText size={18} />
-        </span>
-        <h3 className="text-base font-black text-slate-900">{seg.label}</h3>
-        <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-black text-slate-500">{docs.length} arquivo(s)</span>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Select value={term} onChange={(e) => setTerm(e.target.value)} className="h-9 w-auto py-1 text-sm">
-            <option value="">Todos os trimestres</option>
-            {TERMS.map((t) => <option key={t} value={t}>{t}º trimestre</option>)}
-          </Select>
-          <Select value={turma} onChange={(e) => setTurma(e.target.value)} className="h-9 w-auto py-1 text-sm">
-            <option value="">Todas as turmas</option>
-            {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
+      <div className="border-b border-slate-100" style={{ backgroundColor: seg.soft }}>
+        <div className="flex items-center gap-3 px-4 pt-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white" style={{ backgroundColor: seg.color }}>
+            <FileText size={18} />
+          </span>
+          <h3 className="min-w-0 flex-1 truncate text-base font-black text-slate-900">{seg.label}</h3>
+          <span className="shrink-0 rounded-full bg-white/70 px-2 py-0.5 text-xs font-black text-slate-500">{docs.length}</span>
+        </div>
+        {/* Filtros: 2 colunas no celular, em linha no desktop */}
+        <div className="grid grid-cols-2 gap-2 px-4 py-3 sm:flex sm:justify-end">
+          <div className="sm:w-48">
+            <Select value={term} onChange={(e) => setTerm(e.target.value)} className="py-2 text-sm">
+              <option value="">Todos os trimestres</option>
+              {TERMS.map((t) => <option key={t} value={t}>{t}º trimestre</option>)}
+            </Select>
+          </div>
+          <div className="sm:w-48">
+            <Select value={turma} onChange={(e) => setTurma(e.target.value)} className="py-2 text-sm">
+              <option value="">Todas as turmas</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </div>
         </div>
       </div>
 

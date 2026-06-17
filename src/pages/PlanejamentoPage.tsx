@@ -44,63 +44,13 @@ function friendly(e: unknown): string {
 }
 
 export function PlanejamentoPage() {
-  const { user, role } = useAuth();
-  const uid = user!.id;
-  const canReview = canReviewPlan(role);
-  const [view, setView] = useState<'docs' | 'fluxo'>('docs');
-  const [tab, setTab] = useState<'meus' | 'revisar' | 'revisados'>('meus');
-  const [composeOpen, setComposeOpen] = useState(false);
-  const [editing, setEditing] = useState<PlanWithMeta | null>(null);
-
-  function openNew() {
-    setEditing(null);
-    setComposeOpen(true);
-  }
-  function openEdit(p: PlanWithMeta) {
-    setEditing(p);
-    setComposeOpen(true);
-  }
-
   return (
     <>
       <PageHeader
         title="Planejamento"
         subtitle="Anexe seus planejamentos por segmento, trimestre e turma."
-        action={view === 'fluxo' ? <Button onClick={openNew}><Plus size={18} /> Novo planejamento</Button> : undefined}
       />
-
-      <Segmented<'docs' | 'fluxo'>
-        className="mb-5"
-        value={view}
-        onChange={setView}
-        options={[
-          { value: 'docs', label: 'Documentos' },
-          { value: 'fluxo', label: 'Envio à coordenação' },
-        ]}
-      />
-
-      {view === 'docs' ? (
-        <PlanDocsCenter />
-      ) : (
-        <>
-          {canReview ? (
-            <Segmented<'meus' | 'revisar' | 'revisados'>
-              className="mb-5"
-              value={tab}
-              onChange={setTab}
-              options={[
-                { value: 'meus', label: 'Meus planejamentos' },
-                { value: 'revisar', label: 'Para revisar' },
-                { value: 'revisados', label: 'Revisados' },
-              ]}
-            />
-          ) : null}
-
-          {tab === 'meus' ? <MeusPlanos uid={uid} onEdit={openEdit} /> : tab === 'revisar' ? <Pendentes onEdit={openEdit} /> : <Revisados onEdit={openEdit} />}
-        </>
-      )}
-
-      {composeOpen ? <ComposeModal plan={editing} onClose={() => setComposeOpen(false)} /> : null}
+      <PlanDocsCenter />
     </>
   );
 }
