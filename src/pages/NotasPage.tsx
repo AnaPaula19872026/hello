@@ -375,7 +375,7 @@ export function NotasPage() {
               <table className="w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-20 bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="sticky left-0 top-0 z-30 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
+                    <th className="sticky left-0 top-0 z-30 w-[160px] min-w-[160px] max-w-[160px] bg-slate-50 px-3 py-3 text-left shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
                     {mainCols.map((a) => (
                       <th key={actKey(a)} className="min-w-[92px] px-2 py-3 text-center align-bottom">
                         <span className="block leading-tight text-slate-600">{a.name}</span>
@@ -408,9 +408,11 @@ export function NotasPage() {
                     const ok = m != null && m >= MEDIA_APROVACAO;
                     return (
                       <tr key={s.id} className="border-t border-slate-100 transition hover:bg-emerald-50/30 even:bg-slate-50/40">
-                        <td className="sticky left-0 z-10 bg-inherit p-3 font-bold text-slate-800 shadow-[2px_0_0_0_rgba(241,245,249,1)]">
-                          <span className="mr-2 inline-block w-6 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>
-                          {s.full_name}
+                        <td className="sticky left-0 z-10 w-[160px] min-w-[160px] max-w-[160px] bg-inherit px-3 py-2.5 align-middle shadow-[2px_0_0_0_rgba(241,245,249,1)]">
+                          <div className="flex items-start gap-2">
+                            <span className="w-5 shrink-0 pt-px text-right text-xs font-bold tabular-nums text-slate-400">{i + 1}</span>
+                            <span className="min-w-0 break-words text-[13px] font-bold leading-snug text-slate-800">{s.full_name}</span>
+                          </div>
                         </td>
                         {mainCols.map((a) => {
                           const k = actKey(a);
