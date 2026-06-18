@@ -9,12 +9,15 @@ export function Dropzone({
   multiple = true,
   title = 'Clique ou arraste os arquivos aqui',
   hint,
+  compact = false,
 }: {
   onFiles: (files: FileList | null) => void;
   accept?: string;
   multiple?: boolean;
   title?: string;
   hint?: string;
+  /** Versão slim de uma linha — minimalista, para áreas densas (kanban etc.). */
+  compact?: boolean;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
@@ -50,23 +53,40 @@ export function Dropzone({
       }}
       onDrop={handleDrop}
       className={cn(
-        'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-7 text-center transition',
-        over ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200' : 'border-slate-300 bg-white hover:bg-slate-50',
+        'cursor-pointer rounded-xl border-dashed transition',
+        compact
+          ? cn(
+              'flex items-center justify-center gap-2 border px-3 py-2.5 text-xs font-bold',
+              over ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-white text-slate-500 hover:border-slate-400 hover:bg-slate-50',
+            )
+          : cn(
+              'flex flex-col items-center justify-center gap-2 border-2 px-4 py-7 text-center',
+              over ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200' : 'border-slate-300 bg-white hover:bg-slate-50',
+            ),
       )}
     >
-      <UploadCloud size={24} className={cn('transition', over ? 'text-emerald-600' : 'text-slate-400')} />
-      <p className="text-sm font-bold text-slate-600">{title}</p>
-      {hint ? <p className="text-xs text-slate-400">{hint}</p> : null}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          ref.current?.click();
-        }}
-        className="mt-2 rounded-lg bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-sm"
-      >
-        Procurar arquivo
-      </button>
+      {compact ? (
+        <>
+          <UploadCloud size={15} className={cn('shrink-0 transition', over ? 'text-emerald-600' : 'text-slate-400')} />
+          <span className="truncate">{title}</span>
+        </>
+      ) : (
+        <>
+          <UploadCloud size={24} className={cn('transition', over ? 'text-emerald-600' : 'text-slate-400')} />
+          <p className="text-sm font-bold text-slate-600">{title}</p>
+          {hint ? <p className="text-xs text-slate-400">{hint}</p> : null}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              ref.current?.click();
+            }}
+            className="mt-2 rounded-lg bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-sm"
+          >
+            Procurar arquivo
+          </button>
+        </>
+      )}
       <input
         ref={ref}
         type="file"
