@@ -44,8 +44,9 @@ const MONTHS_PT = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho"
 const DOW = [["S","seg"],["T","ter"],["Q","qua"],["Q","qui"],["S","sex"],["S","sáb"],["D","dom"]]; // semana inicia na segunda
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad2 = (n: number) => String(n).padStart(2, "0");
-/** Cores para categorias criadas automaticamente na importação. */
-const CAT_PALETTE = ["#3D6FD1", "#2E9E6B", "#D9822B", "#E0544A", "#8557C6", "#D6549B", "#5E7585", "#0E9AA7", "#C2410C", "#6366F1"];
+/** Paleta categórica de alto contraste: matizes bem espaçados no círculo cromático
+ *  para que cores vizinhas (na lista e no calendário) nunca se confundam ao bater o olho. */
+const CAT_PALETTE = ["#2563EB", "#DC2626", "#16A34A", "#9333EA", "#0D9488", "#DB2777", "#CA8A04", "#475569", "#4338CA", "#65A30D", "#BE123C", "#1E293B"];
 
 function hexToRgb(hex: string) {
   let h = hex.replace("#", "");
@@ -97,13 +98,13 @@ const SEED: CalendarData = {
   title: "Calendário 2026",
   year: 2026,
   categories: [
-    { id: "feriado", label: "Feriado", color: "#E0544A" },
-    { id: "avaliacao", label: "Avaliação", color: "#D9822B" },
-    { id: "pedagogico", label: "Pedagógico", color: "#3D6FD1" },
-    { id: "evento", label: "Evento & Cultura", color: "#2E9E6B" },
-    { id: "recuperacao", label: "Recuperação Paralela", color: "#8557C6" },
-    { id: "comemorativa", label: "Data comemorativa", color: "#D6549B" },
-    { id: "marco", label: "Marco do período", color: "#5E7585" },
+    { id: "feriado", label: "Feriado", color: "#DC2626" },
+    { id: "avaliacao", label: "Avaliação", color: "#0D9488" },
+    { id: "pedagogico", label: "Pedagógico", color: "#2563EB" },
+    { id: "evento", label: "Evento & Cultura", color: "#16A34A" },
+    { id: "recuperacao", label: "Recuperação Paralela", color: "#9333EA" },
+    { id: "comemorativa", label: "Data comemorativa", color: "#DB2777" },
+    { id: "marco", label: "Marco do período", color: "#475569" },
   ],
   periods: [
     { id: uid(), label: "1º Trimestre", startMonth: 1, endMonth: 3 },
@@ -468,7 +469,7 @@ function CalendarBuilder({
     });
 
   const addCategory = () =>
-    set({ categories: [...data.categories, { id: uid(), label: "Nova categoria", color: "#6366F1" }] });
+    set({ categories: [...data.categories, { id: uid(), label: "Nova categoria", color: CAT_PALETTE[data.categories.length % CAT_PALETTE.length] }] });
   const updateCategory = (id: string, patch: Partial<Category>) =>
     set({ categories: data.categories.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
   const removeCategory = (id: string) =>
@@ -575,7 +576,7 @@ function CalendarBuilder({
     const cats = [...data.categories];
     let cat = cats.find((c) => c.label.toLowerCase() === "feriado");
     if (!cat) {
-      cat = { id: uid(), label: "Feriado", color: "#E0544A" };
+      cat = { id: uid(), label: "Feriado", color: "#DC2626" };
       cats.push(cat);
     }
     const existing = new Set(data.events.map((e) => `${e.start}|${e.title.toLowerCase()}`));
