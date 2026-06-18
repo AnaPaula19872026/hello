@@ -207,37 +207,59 @@ export function DashboardPage() {
           <p className="text-sm text-slate-500">Nenhuma chamada registrada ainda.</p>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {groups.map(([classId, sessions]) => {
             const isOpen = open === classId;
             const faltas = sessions.reduce((a, s) => a + s.absent, 0);
+            const presentes = sessions.reduce((a, s) => a + s.present, 0);
+            const total = presentes + faltas;
+            const rate = total > 0 ? faltas / total : 0;
+            const presPct = total > 0 ? Math.round((presentes / total) * 100) : 100;
+            const lastDate = sessions[0]?.session_date;
+            // Polimorfismo: o tom acompanha a severidade das faltas da turma.
+            const tone =
+              faltas === 0
+                ? { accent: 'border-l-emerald-400', icon: 'bg-emerald-50 text-emerald-700', bar: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-700' }
+                : rate < 0.15
+                ? { accent: 'border-l-amber-400', icon: 'bg-amber-50 text-amber-700', bar: 'bg-amber-500', pill: 'bg-amber-50 text-amber-700' }
+                : { accent: 'border-l-rose-400', icon: 'bg-rose-50 text-rose-700', bar: 'bg-rose-500', pill: 'bg-rose-50 text-rose-700' };
             return (
-              <Card key={classId} className="overflow-hidden p-0">
+              <Card key={classId} className={cn('overflow-hidden border-l-4 p-0 transition', tone.accent, isOpen && 'sm:col-span-2 xl:col-span-3')}>
                 <button onClick={() => setOpen(isOpen ? null : classId)} className="flex w-full items-center gap-3 p-4 text-left">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+                  <div className={cn('grid h-11 w-11 shrink-0 place-items-center rounded-xl', tone.icon)}>
                     <GraduationCap size={20} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-black text-slate-900">{className(classId)}</p>
-                    <p className="text-xs text-slate-500">
-                      {sessions.length} chamada(s) · {faltas} falta(s)
+                    <p className="mt-0.5 truncate text-xs text-slate-500">
+                      {sessions.length} chamada(s)
+                      {lastDate ? <> · últ. {format(parseISO(lastDate), "d 'de' MMM", { locale: ptBR })}</> : null}
                     </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                        <div className={cn('h-full rounded-full', tone.bar)} style={{ width: `${presPct}%` }} />
+                      </div>
+                      <span className="shrink-0 text-[11px] font-bold tabular-nums text-slate-400">{presPct}% pres.</span>
+                    </div>
                   </div>
-                  <ChevronDown size={20} className={cn('shrink-0 text-slate-400 transition', isOpen && 'rotate-180')} />
+                  <div className="flex shrink-0 flex-col items-center gap-1">
+                    <span className={cn('rounded-full px-2.5 py-1 text-xs font-black tabular-nums', tone.pill)}>{faltas}</span>
+                    <ChevronDown size={18} className={cn('text-slate-400 transition', isOpen && 'rotate-180')} />
+                  </div>
                 </button>
 
                 {isOpen ? (
                   <div className="divide-y divide-slate-100 border-t border-slate-100">
                     {sessions.map((s) => (
-                      <div key={s.id} className="flex items-center gap-3 px-4 py-3">
-                        <p className="flex-1 text-sm font-bold text-slate-700">
+                      <div key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+                        <p className="min-w-0 flex-1 text-sm font-bold text-slate-700">
                           {format(parseISO(s.session_date), "EEE, d 'de' MMM", { locale: ptBR })}
                         </p>
                         <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{s.present} pres.</span>
-                        <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">{s.absent} falt.</span>
+                        <span className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700">{s.absent} falt.</span>
                         <button
                           onClick={() => confirm(`Excluir a chamada de ${format(parseISO(s.session_date), 'dd/MM/yyyy')}?`) && delSession.mutate(s.id)}
-                          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
                           aria-label="Excluir chamada"
                         >
                           <Trash2 size={15} />
