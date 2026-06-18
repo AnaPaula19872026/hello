@@ -283,10 +283,10 @@ export function EvaluationsPage() {
                               );
                             }
                             return (
-                              <th key={actKey(a)} rowSpan={2} className="min-w-[112px] px-2 py-3 text-center align-bottom">
-                                <span className="block leading-tight text-slate-600">{a.name}</span>
+                              <th key={actKey(a)} rowSpan={2} className={cn('px-1.5 py-2 text-center align-bottom', a.max > 0 ? 'min-w-[80px]' : 'min-w-[56px]')}>
+                                <span className="block text-[11px] leading-tight text-slate-600">{a.name}</span>
                                 {a.max > 0 ? <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span> : null}
-                                {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
+                                {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">{fmtDM(a.date)}</span> : null}
                               </th>
                             );
                           })}
@@ -295,10 +295,10 @@ export function EvaluationsPage() {
                         </tr>
                         <tr>
                           {activities.filter((a) => a.credito).map((a) => (
-                            <th key={actKey(a)} className="min-w-[112px] bg-amber-50 px-2 py-2 text-center align-bottom">
-                              <span className="block leading-tight text-amber-800">{a.name}</span>
+                            <th key={actKey(a)} className={cn('bg-amber-50 px-1.5 py-2 text-center align-bottom', a.max > 0 ? 'min-w-[80px]' : 'min-w-[56px]')}>
+                              <span className="block text-[11px] leading-tight text-amber-800">{a.name}</span>
                               {a.max > 0 ? <span className="mt-1 inline-block rounded bg-amber-200/60 px-1.5 py-0.5 text-[9px] font-black text-amber-700">0–{a.max}</span> : null}
-                              {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
+                              {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">{fmtDM(a.date)}</span> : null}
                             </th>
                           ))}
                         </tr>
@@ -307,11 +307,10 @@ export function EvaluationsPage() {
                       <tr>
                         <th className="sticky left-0 top-0 z-30 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
                         {activities.map((a) => (
-                          <th key={actKey(a)} className={cn('min-w-[112px] px-2 py-3 text-center align-bottom', a.credito && 'bg-amber-50')}>
-                            <span className="block leading-tight text-slate-600">{a.name}</span>
+                          <th key={actKey(a)} className={cn('px-1.5 py-2 text-center align-bottom', a.max > 0 ? 'min-w-[80px]' : 'min-w-[56px]', a.credito && 'bg-amber-50')}>
+                            <span className="block text-[11px] leading-tight text-slate-600">{a.name}</span>
                             {a.max > 0 ? <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span> : null}
-                            {a.credito ? <span className="mt-0.5 block text-[9px] font-black text-amber-600">crédito variável</span> : null}
-                            {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
+                            {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">{fmtDM(a.date)}</span> : null}
                           </th>
                         ))}
                         {hasCredito ? <th className="min-w-[96px] bg-amber-50 px-3 py-3 text-center text-amber-700">Crédito Variável</th> : null}
@@ -335,19 +334,19 @@ export function EvaluationsPage() {
                             const k = actKey(a);
                             const c = cells[s.id]?.[k] ?? { done: false, score: '' };
                             return (
-                              <td key={k} className={cn('px-2 py-2 text-center', a.credito && 'bg-amber-50/40')}>
-                                <div className="flex items-center justify-center gap-1.5">
+                              <td key={k} className={cn('px-1 py-1.5 text-center', a.credito && 'bg-amber-50/40')}>
+                                <div className="flex items-center justify-center gap-1">
                                   <button
                                     onClick={() => toggleDone(s.id, k)}
                                     disabled={!editing}
                                     title={c.done ? 'Fez' : 'Não fez'}
                                     className={cn(
-                                      'grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition disabled:cursor-not-allowed',
+                                      'grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition disabled:cursor-not-allowed',
                                       c.done ? 'border-emerald-300 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-slate-300 hover:bg-slate-50',
                                       !editing && 'opacity-80',
                                     )}
                                   >
-                                    {c.done ? <Check size={18} /> : <X size={16} />}
+                                    {c.done ? <Check size={16} /> : <X size={14} />}
                                   </button>
                                   {a.max > 0 ? (
                                     <input
@@ -356,7 +355,7 @@ export function EvaluationsPage() {
                                       onChange={(e) => setScore(s.id, k, e.target.value, a.max)}
                                       disabled={!editing}
                                       placeholder="–"
-                                      className="h-9 w-12 rounded-lg border border-slate-200 bg-white text-center font-bold tabular-nums text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-transparent"
+                                      className="h-8 w-11 rounded-lg border border-slate-200 bg-white text-center font-bold tabular-nums text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-transparent"
                                     />
                                   ) : null}
                                 </div>
