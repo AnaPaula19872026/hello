@@ -272,7 +272,7 @@ export function EvaluationsPage() {
                     {creditoGrouped ? (
                       <>
                         <tr>
-                          <th rowSpan={2} className="sticky left-0 top-0 z-30 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
+                          <th rowSpan={2} className="sticky left-0 top-0 z-30 w-[160px] min-w-[160px] max-w-[160px] bg-slate-50 px-3 py-3 text-left shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
                           {activities.map((a, idx) => {
                             if (a.credito) {
                               if (idx !== firstCreditoIdx) return null;
@@ -305,7 +305,7 @@ export function EvaluationsPage() {
                       </>
                     ) : (
                       <tr>
-                        <th className="sticky left-0 top-0 z-30 bg-slate-50 p-3 shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
+                        <th className="sticky left-0 top-0 z-30 w-[160px] min-w-[160px] max-w-[160px] bg-slate-50 px-3 py-3 text-left shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
                         {activities.map((a) => (
                           <th key={actKey(a)} className={cn('min-w-[84px] px-1.5 py-2 text-center align-bottom', a.credito && 'bg-amber-50')}>
                             <span className="block text-[11px] leading-tight text-slate-600">{a.name}</span>
@@ -326,9 +326,11 @@ export function EvaluationsPage() {
                         .reduce((acc, a) => acc + (Number(cells[s.id]?.[actKey(a)]?.score) || 0), 0);
                       return (
                         <tr key={s.id} className="border-t border-slate-100 transition even:bg-slate-50/40 hover:bg-emerald-50/30">
-                          <td className="sticky left-0 z-10 bg-inherit p-3 font-bold text-slate-800 shadow-[2px_0_0_0_rgba(241,245,249,1)]">
-                            <span className="mr-2 inline-block w-6 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>
-                            {s.full_name}
+                          <td className="sticky left-0 z-10 w-[160px] min-w-[160px] max-w-[160px] bg-inherit px-3 py-2.5 align-middle shadow-[2px_0_0_0_rgba(241,245,249,1)]">
+                            <div className="flex items-start gap-2">
+                              <span className="w-5 shrink-0 pt-px text-right text-xs font-bold tabular-nums text-slate-400">{i + 1}</span>
+                              <span className="min-w-0 break-words text-[13px] font-bold leading-snug text-slate-800">{s.full_name}</span>
+                            </div>
                           </td>
                           {activities.map((a) => {
                             const k = actKey(a);
