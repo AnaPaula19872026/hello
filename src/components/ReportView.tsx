@@ -54,30 +54,34 @@ export function ReportView({ payload, compact = false }: { payload: ReportPayloa
 
   return (
     <div className="report-view">
-      {/* Cabeçalho */}
-      <div className="mb-5 flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft print:shadow-none">
-        {school?.logo_url ? (
-          <img src={school.logo_url} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1" />
-        ) : (
-          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-slate-100 text-xl font-black uppercase text-slate-400">
-            {school?.name?.slice(0, 1) ?? 'E'}
+      {/* Cabeçalho institucional (letterhead) */}
+      <header className="mb-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card print:border-slate-300 print:shadow-none">
+        <div className="h-1.5 bg-emerald-600" style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }} />
+        <div className="flex items-start gap-4 p-5">
+          {school?.logo_url ? (
+            <img src={school.logo_url} alt="" className="h-16 w-16 shrink-0 rounded-lg border border-slate-200 bg-white object-contain p-1" />
+          ) : (
+            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-slate-100 text-xl font-black uppercase text-slate-400">
+              {school?.name?.slice(0, 1) ?? 'E'}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            {school?.name ? <p className="truncate text-sm font-black uppercase tracking-[0.08em] text-slate-800">{school.name}</p> : null}
+            {school && (school.address || school.city || school.phone) ? (
+              <p className="truncate text-xs text-slate-400">{[school.address, school.city, school.phone].filter(Boolean).join(' • ')}</p>
+            ) : null}
+            <h2 className="mt-2 text-xl font-black leading-tight text-slate-900">{payload.title}</h2>
+            <p className="text-sm font-medium text-slate-500">Turma {payload.className} • {payload.period}</p>
           </div>
-        )}
-        <div className="min-w-0 flex-1">
-          {school?.name ? <p className="truncate text-xs font-black uppercase tracking-wide text-emerald-700">{school.name}</p> : null}
-          <h2 className="text-lg font-black text-slate-900">{payload.title}</h2>
-          <p className="text-sm text-slate-500">Turma {payload.className} • {payload.period}</p>
-          {school && (school.address || school.city || school.phone) ? (
-            <p className="mt-0.5 truncate text-xs text-slate-400">{[school.address, school.city, school.phone].filter(Boolean).join(' • ')}</p>
-          ) : null}
+          <div className="ml-auto hidden shrink-0 text-right sm:block">
+            <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Emitido em</p>
+            <p className="text-sm font-bold text-slate-700">{payload.generatedAt}</p>
+          </div>
         </div>
-        <div className="ml-auto hidden shrink-0 text-right text-xs text-slate-400 sm:block">
-          Gerado em<br />{payload.generatedAt}
-        </div>
-      </div>
+      </header>
 
       {kind === 'freq' && payload.examDates?.length ? (
-        <div className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-800 print:bg-transparent">
+        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-800 print:bg-transparent">
           🗓 Semana de Provas — chamada com turmas misturadas em: {payload.examDates.map(fmtDM).join(', ')}
         </div>
       ) : null}
@@ -85,17 +89,37 @@ export function ReportView({ payload, compact = false }: { payload: ReportPayloa
       <ReportSummary payload={payload} minPct={minPct} />
 
       {kind === 'freq' ? <FreqBody payload={payload} compact={compact} minPct={minPct} /> : <NotasBody payload={payload} compact={compact} />}
+
+      <ReportFooter generatedAt={payload.generatedAt} />
     </div>
+  );
+}
+
+/** Rodapé oficial: linhas de assinatura + nota de emissão eletrônica. */
+function ReportFooter({ generatedAt }: { generatedAt: string }) {
+  return (
+    <footer className="mt-10 break-inside-avoid">
+      <div className="mx-auto grid max-w-2xl grid-cols-1 gap-10 pt-10 sm:grid-cols-2">
+        {['Professor(a) Responsável', 'Coordenação Pedagógica'].map((label) => (
+          <div key={label} className="border-t border-slate-400 pt-2 text-center">
+            <p className="text-xs font-bold text-slate-600">{label}</p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-8 border-t border-slate-200 pt-3 text-center text-[11px] text-slate-400">
+        Documento gerado eletronicamente por <span className="font-bold text-slate-500">hello</span> — Gestão Escolar em {generatedAt}.
+      </p>
+    </footer>
   );
 }
 
 function SummaryGrid({ stats }: { stats: { label: string; value: React.ReactNode; color?: string; box?: string }[] }) {
   return (
-    <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 print:grid-cols-4">
+    <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4 print:grid-cols-4">
       {stats.map((s, i) => (
-        <div key={i} className={cn('rounded-2xl border border-slate-200 bg-white p-3 text-center print:shadow-none', s.box)}>
-          <p className={cn('text-2xl font-black text-slate-900', s.color)}>{s.value}</p>
-          <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{s.label}</p>
+        <div key={i} className={cn('rounded-xl border border-slate-200 bg-white px-4 py-3.5 print:shadow-none', s.box)}>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{s.label}</p>
+          <p className={cn('mt-1.5 text-2xl font-black text-slate-900', s.color)}>{s.value}</p>
         </div>
       ))}
     </div>
@@ -149,35 +173,44 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
   const chip = compact ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-1 text-xs';
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white print:border-slate-300">
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
+        <thead className="border-b-2 border-slate-200 bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
           <tr>
             <th className="p-3">Aluno</th>
             <th className="p-3">Presenças</th>
             <th className="p-3">Faltas</th>
-            <th className="p-3 text-center">%</th>
+            <th className="p-3 text-center">Frequência</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => {
             const presentDates = dates.filter((d) => r.days?.[d] === true);
             const absentDates = dates.filter((d) => r.days?.[d] === false);
+            const low = r.pct < minPct;
             return (
-              <tr key={r.name} className="border-t border-slate-100 align-top even:bg-slate-50/40">
+              <tr key={r.name} className="border-t border-slate-100 align-top even:bg-slate-50/50">
                 <td className="p-3 font-bold text-slate-800">
                   <span className="mr-2 inline-block w-5 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>{r.name}
                 </td>
                 <td className="p-3">
-                  <div className="mb-1 text-[11px] font-black uppercase text-emerald-700">{r.present} presença(s)</div>
-                  <DateChips dates={presentDates} cls="bg-emerald-50 text-emerald-700" chip={chip} />
+                  <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-700">{r.present} presença(s)</div>
+                  <DateChips dates={presentDates} cls="border border-emerald-200 bg-emerald-50/70 text-emerald-700" chip={chip} />
                 </td>
                 <td className="p-3">
-                  <div className="mb-1 text-[11px] font-black uppercase text-red-600">{r.absent} falta(s)</div>
-                  <DateChips dates={absentDates} cls="bg-red-50 text-red-700" chip={chip} examSet={examSet} max={12} />
+                  <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-red-600">{r.absent} falta(s)</div>
+                  <DateChips dates={absentDates} cls="border border-red-200 bg-red-50/70 text-red-700" chip={chip} examSet={examSet} max={12} />
                 </td>
-                <td className="p-3 text-center">
-                  <span className={cn('text-base font-black', r.pct < minPct ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</span>
+                <td className="p-3">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <span className={cn('text-base font-black tabular-nums', low ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</span>
+                    <div className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className={cn('h-full rounded-full', low ? 'bg-red-500' : 'bg-emerald-500')}
+                        style={{ width: `${Math.min(100, Math.max(0, r.pct))}%`, printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}
+                      />
+                    </div>
+                  </div>
                 </td>
               </tr>
             );
@@ -198,9 +231,9 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
   const t = payload.notasTerm ?? 0;
   if (t >= 1 && t <= 3) {
     return (
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white print:border-slate-300">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
+          <thead className="border-b-2 border-slate-200 bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
             <tr>
               <th className={cn('sticky left-0 bg-slate-50', compact ? 'p-2' : 'p-3')}>Aluno</th>
               <th className={cn('text-center', pad)}>{TLABEL[t - 1]}</th>
