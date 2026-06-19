@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Eye, FileText, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Download, Eye, FileText, Loader2, Pencil, Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { canReviewPlan } from '../lib/permissions';
@@ -18,27 +18,24 @@ const SEGMENTS: { key: string; label: string; color: string }[] = [
   { key: 'fund2', label: 'Fundamental II', color: '#7c3aed' },
 ];
 const TERMS = [1, 2, 3];
-/** Colunas do kanban: um trimestre por coluna + os sem trimestre definido. */
-const COLUMNS: { term: number | null; label: string }[] = [
-  { term: 1, label: '1º Trimestre' },
-  { term: 2, label: '2º Trimestre' },
-  { term: 3, label: '3º Trimestre' },
-  { term: null, label: 'Sem trimestre' },
-];
+const termLabel = (t: number | null) => (t ? `${t}º Trimestre` : 'Sem trimestre');
+const fmtDate = (iso: string) => {
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return `${d}/${m}/${y}`;
+};
 
 export function PlanDocsCenter() {
   const { data: docs = [], isLoading, isError, error } = useQuery({ queryKey: ['plan-docs'], queryFn: listPlanDocs, retry: false });
   const { data: classes = [] } = useQuery({ queryKey: ['classes'], queryFn: listClasses });
 
   const [seg, setSeg] = useState(SEGMENTS[0].key);
-  const [turma, setTurma] = useState(''); // '' = todas
 
   const countBySeg = (key: string) => docs.filter((d) => d.segment === key).length;
 
   return (
     <div className="space-y-4">
       <p className="text-sm font-medium text-slate-500">
-        Quadro por trimestre. Arraste um arquivo para a coluna do trimestre — Word, Excel, PDF, imagens (JPG/PNG/HEIC…) e mais.
+        Centro de arquivos do professor. Anexe planos, materiais e documentos — organizados por segmento, trimestre e turma.
       </p>
 
       {isError ? (
@@ -47,8 +44,8 @@ export function PlanDocsCenter() {
         </p>
       ) : null}
 
-      {/* Barra: segmento (abas) + filtro de turma */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Abas de segmento */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
         {SEGMENTS.map((s) => {
           const active = seg === s.key;
           return (
@@ -56,69 +53,44 @@ export function PlanDocsCenter() {
               key={s.key}
               onClick={() => setSeg(s.key)}
               className={cn(
-                'flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-bold transition',
-                active ? 'text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                'flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-bold transition',
+                active ? 'text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100',
               )}
               style={active ? { backgroundColor: s.color } : undefined}
             >
               <FileText size={15} />
               {s.label}
-              <span className={cn('rounded-full px-1.5 text-[11px] font-black', active ? 'bg-white/25' : 'bg-white text-slate-500')}>{countBySeg(s.key)}</span>
+              <span className={cn('rounded-full px-1.5 text-[11px] font-black', active ? 'bg-white/25' : 'bg-slate-200 text-slate-500')}>{countBySeg(s.key)}</span>
             </button>
           );
         })}
-        <div className="ml-auto w-full sm:w-52">
-          <Select value={turma} onChange={(e) => setTurma(e.target.value)} className="py-2 text-sm">
-            <option value="">Todas as turmas</option>
-            {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
-        </div>
       </div>
 
-      <KanbanBoard
-        segKey={seg}
-        docs={docs.filter((d) => d.segment === seg)}
-        classes={classes}
-        turma={turma}
-        loading={isLoading}
-      />
+      <FileCenter segKey={seg} docs={docs.filter((d) => d.segment === seg)} classes={classes} loading={isLoading} />
     </div>
   );
 }
 
-function KanbanBoard({
-  segKey,
-  docs,
-  classes,
-  turma,
-  loading,
-}: {
-  segKey: string;
-  docs: PlanDoc[];
-  classes: ClassRoom[];
-  turma: string;
-  loading: boolean;
-}) {
+function FileCenter({ segKey, docs, classes, loading }: { segKey: string; docs: PlanDoc[]; classes: ClassRoom[]; loading: boolean }) {
   const { user, role } = useAuth();
   const userId = user?.id ?? null;
   const canReview = canReviewPlan(role);
   const qc = useQueryClient();
+
+  const [term, setTerm] = useState(''); // '' = todos
+  const [turma, setTurma] = useState(''); // '' = todas
+  const [q, setQ] = useState('');
   const [preview, setPreview] = useState<PlanDoc | null>(null);
   const [editing, setEditing] = useState<PlanDoc | null>(null);
   const [zipping, setZipping] = useState(false);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['plan-docs'] });
   const segLabel = SEGMENTS.find((s) => s.key === segKey)?.label ?? '';
+  const turmaName = turma ? classes.find((c) => c.id === turma)?.name ?? null : null;
 
   const upload = useMutation({
-    mutationFn: ({ file, term }: { file: File; term: number | null }) =>
-      uploadPlanDoc({
-        segment: segKey,
-        term,
-        classId: turma || null,
-        turmaLabel: turma ? classes.find((c) => c.id === turma)?.name ?? null : null,
-        file,
-      }),
+    mutationFn: (file: File) =>
+      uploadPlanDoc({ segment: segKey, term: term ? Number(term) : null, classId: turma || null, turmaLabel: turmaName, file }),
     onSuccess: () => {
       invalidate();
       successToast('Arquivo enviado');
@@ -134,18 +106,35 @@ function KanbanBoard({
     },
   });
 
-  async function handleFiles(list: FileList | null, term: number | null) {
+  async function handleFiles(list: FileList | null) {
     if (!list?.length) return;
-    for (const f of Array.from(list)) await upload.mutateAsync({ file: f, term }).catch(() => {});
+    for (const f of Array.from(list)) await upload.mutateAsync(f).catch(() => {});
   }
 
-  const filtered = useMemo(() => docs.filter((d) => !turma || d.class_id === turma), [docs, turma]);
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return docs.filter(
+      (d) =>
+        (!term || d.term === Number(term)) &&
+        (!turma || d.class_id === turma) &&
+        (!needle || d.name.toLowerCase().includes(needle)),
+    );
+  }, [docs, term, turma, q]);
+
+  // Agrupa por trimestre quando sem filtro/busca; senão lista plana.
+  const grouped = useMemo(() => {
+    if (term || q.trim()) return null;
+    const order: (number | null)[] = [1, 2, 3, null];
+    return order
+      .map((t) => ({ term: t, items: filtered.filter((d) => (d.term ?? null) === t) }))
+      .filter((g) => g.items.length > 0);
+  }, [filtered, term, q]);
 
   async function baixarTodos() {
     if (zipping || filtered.length === 0) return;
     setZipping(true);
     try {
-      await downloadAllAttachments(filtered.map((d) => ({ name: d.name, url: d.url })), safeFileName(segLabel) || 'planejamentos');
+      await downloadAllAttachments(filtered.map((d) => ({ name: d.name, url: d.url })), safeFileName(segLabel) || 'arquivos');
       successToast(filtered.length > 1 ? 'Baixado (.zip)' : 'Arquivo baixado');
     } catch (e) {
       alert((e as Error).message);
@@ -155,61 +144,78 @@ function KanbanBoard({
   }
 
   const canManage = (d: PlanDoc) => d.author_id === userId || canReview;
+  const destino = [segLabel, term ? `${term}º tri` : 'sem trimestre', turmaName].filter(Boolean).join(' · ');
+
+  const row = (d: PlanDoc) => (
+    <FileRow
+      key={d.id}
+      doc={d}
+      canManage={canManage(d)}
+      onPreview={() => setPreview(d)}
+      onEdit={() => setEditing(d)}
+      onDelete={() => confirm(`Excluir "${d.name}"?\n\n⚠️ Ação irreversível: remove o arquivo do banco e do armazenamento.`) && remove.mutate(d)}
+    />
+  );
 
   return (
-    <div className="space-y-3">
-      {filtered.length >= 2 ? (
-        <div className="flex justify-end">
+    <div className="space-y-4">
+      {/* Barra de ferramentas: filtros + busca + baixar todos */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="w-full sm:w-44">
+          <Select value={term} onChange={(e) => setTerm(e.target.value)} className="py-2 text-sm">
+            <option value="">Todos os trimestres</option>
+            {TERMS.map((t) => <option key={t} value={t}>{t}º trimestre</option>)}
+          </Select>
+        </div>
+        <div className="w-full sm:w-48">
+          <Select value={turma} onChange={(e) => setTurma(e.target.value)} className="py-2 text-sm">
+            <option value="">Todas as turmas</option>
+            {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </Select>
+        </div>
+        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 sm:max-w-xs">
+          <Search size={16} className="shrink-0 text-slate-400" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar arquivo…" className="w-full bg-transparent text-sm outline-none" />
+        </label>
+        {filtered.length >= 2 ? (
           <button
             onClick={baixarTodos}
             disabled={zipping}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-black text-white hover:bg-slate-800 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-black text-white hover:bg-slate-800 disabled:opacity-50"
           >
             {zipping ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
             {zipping ? 'Compactando…' : `Baixar todos (.zip) — ${filtered.length}`}
           </button>
-        </div>
-      ) : null}
-
-      {/* Kanban: colunas roláveis horizontalmente no celular, em grade no desktop */}
-      <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
-        {COLUMNS.map((col) => {
-          const cards = filtered.filter((d) => (d.term ?? null) === col.term);
-          return (
-            <div key={String(col.term)} className="flex w-[270px] shrink-0 snap-start flex-col rounded-2xl bg-slate-50 lg:w-auto">
-              <div className="flex items-center gap-2 px-3 pt-3">
-                <h3 className="min-w-0 flex-1 truncate text-xs font-black uppercase tracking-wide text-slate-500">{col.label}</h3>
-                <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] font-black text-slate-500">{cards.length}</span>
-              </div>
-
-              <div className="flex flex-1 flex-col gap-2 p-3">
-                <Dropzone
-                  compact
-                  onFiles={(l) => handleFiles(l, col.term)}
-                  title={upload.isPending ? 'Enviando…' : 'Soltar arquivo'}
-                />
-                {loading ? (
-                  <p className="py-4 text-center text-xs font-bold text-slate-400">Carregando…</p>
-                ) : cards.length === 0 ? (
-                  <p className="py-4 text-center text-xs font-medium text-slate-300">Vazio</p>
-                ) : (
-                  cards.map((d) => (
-                    <DocCard
-                      key={d.id}
-                      doc={d}
-                      turmaName={d.turma_label}
-                      canManage={canManage(d)}
-                      onPreview={() => setPreview(d)}
-                      onEdit={() => setEditing(d)}
-                      onDelete={() => confirm(`Excluir "${d.name}"?\n\n⚠️ Ação irreversível: remove o arquivo do banco e do armazenamento.`) && remove.mutate(d)}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
+        ) : null}
       </div>
+
+      {/* Dropzone limpo, com destino atual */}
+      <Dropzone onFiles={handleFiles} title={upload.isPending ? 'Enviando…' : `Soltar arquivos aqui — destino: ${destino}`} hint="Word, Excel, PDF, imagens (JPG/PNG/HEIC…) e mais. Ajuste trimestre/turma acima antes de enviar." />
+
+      {/* Lista */}
+      {loading ? (
+        <p className="py-10 text-center text-sm font-bold text-slate-400">Carregando…</p>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center">
+          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-slate-100 text-slate-400"><FileText size={22} /></div>
+          <p className="text-sm font-bold text-slate-600">Nenhum arquivo {term || turma || q ? 'com esse filtro' : 'ainda'}</p>
+          <p className="mt-1 text-xs text-slate-400">Arraste para a área acima ou clique para enviar.</p>
+        </div>
+      ) : grouped ? (
+        <div className="space-y-5">
+          {grouped.map((g) => (
+            <div key={String(g.term)}>
+              <div className="mb-2 flex items-center gap-2 px-1">
+                <h3 className="text-[11px] font-black uppercase tracking-wide text-slate-400">{termLabel(g.term)}</h3>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-500">{g.items.length}</span>
+              </div>
+              <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card">{g.items.map(row)}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card">{filtered.map(row)}</div>
+      )}
 
       {preview?.url ? <PreviewModal name={preview.name} url={preview.url} mime={preview.mime} onClose={() => setPreview(null)} /> : null}
       {editing ? <EditDocModal doc={editing} classes={classes} onClose={() => setEditing(null)} onSaved={invalidate} /> : null}
@@ -217,16 +223,14 @@ function KanbanBoard({
   );
 }
 
-function DocCard({
+function FileRow({
   doc,
-  turmaName,
   canManage,
   onPreview,
   onEdit,
   onDelete,
 }: {
   doc: PlanDoc;
-  turmaName: string | null;
   canManage: boolean;
   onPreview: () => void;
   onEdit: () => void;
@@ -238,33 +242,31 @@ function DocCard({
   const openExternal = () => doc.url && window.open(doc.url, '_blank', 'noopener');
 
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm transition hover:shadow-md">
-      <div className="flex items-start gap-2.5">
-        <button
-          onClick={canPrev ? onPreview : openExternal}
-          className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100 text-slate-400"
-          aria-label="Abrir"
-        >
-          {isImg && doc.url ? (
-            <img src={doc.url} alt={doc.name} className="h-full w-full object-cover" />
-          ) : (
-            <span className="text-[9px] font-black text-slate-500">{ext}</span>
-          )}
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-bold leading-tight text-slate-800" title={doc.name}>{doc.name}</p>
-          {turmaName ? (
-            <span className="mt-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-500">{turmaName}</span>
-          ) : null}
+    <div className="flex items-center gap-3 px-3 py-2.5 transition hover:bg-slate-50 sm:px-4">
+      <button
+        onClick={canPrev ? onPreview : openExternal}
+        className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100 text-slate-400"
+        aria-label="Abrir"
+      >
+        {isImg && doc.url ? <img src={doc.url} alt={doc.name} className="h-full w-full object-cover" /> : <span className="text-[9px] font-black text-slate-500">{ext}</span>}
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold text-slate-800" title={doc.name}>{doc.name}</p>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-slate-400">
+          {doc.turma_label ? <span className="font-bold text-slate-500">{doc.turma_label}</span> : null}
+          {doc.turma_label ? <span>·</span> : null}
+          <span>{fmtDate(doc.created_at)}</span>
         </div>
       </div>
-      <div className="mt-2 flex items-center gap-1">
-        <IconBtn label="Visualizar" onClick={canPrev ? onPreview : openExternal}><Eye size={14} /></IconBtn>
-        <IconBtn label="Baixar" href={doc.url} download={doc.name}><Download size={14} /></IconBtn>
-        {canManage ? <IconBtn label="Editar" onClick={onEdit}><Pencil size={14} /></IconBtn> : null}
-        {canManage ? <IconBtn label="Excluir" danger onClick={onDelete}><Trash2 size={14} /></IconBtn> : null}
+
+      <div className="flex shrink-0 items-center gap-1">
+        <IconBtn label="Visualizar" onClick={canPrev ? onPreview : openExternal}><Eye size={15} /></IconBtn>
+        <IconBtn label="Baixar" href={doc.url} download={doc.name}><Download size={15} /></IconBtn>
+        {canManage ? <IconBtn label="Editar" onClick={onEdit}><Pencil size={15} /></IconBtn> : null}
+        {canManage ? <IconBtn label="Excluir" danger onClick={onDelete}><Trash2 size={15} /></IconBtn> : null}
       </div>
-    </article>
+    </div>
   );
 }
 
@@ -284,8 +286,8 @@ function IconBtn({
   danger?: boolean;
 }) {
   const cls = cn(
-    'grid h-8 flex-1 place-items-center rounded-lg transition',
-    danger ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900',
+    'grid h-8 w-8 place-items-center rounded-lg transition',
+    danger ? 'text-slate-400 hover:bg-red-50 hover:text-red-600' : 'text-slate-400 hover:bg-slate-200 hover:text-slate-700',
   );
   if (href) return <a href={href} target="_blank" rel="noopener noreferrer" download={download} className={cls} title={label} aria-label={label}>{children}</a>;
   return <button type="button" onClick={onClick} className={cls} title={label} aria-label={label}>{children}</button>;
