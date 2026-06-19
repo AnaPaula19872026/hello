@@ -12,15 +12,14 @@
 }
 
 html {
-  background: #f8fafc;
+  background: #eff3f8;
 }
 
 body {
   margin: 0;
   min-width: 320px;
-  background:
-    radial-gradient(circle at top left, rgba(16, 185, 129, 0.08), transparent 32rem),
-    #f8fafc;
+  /* Superfície plana clara, estilo Sakai/Aura. */
+  background: #eff3f8;
 }
 
 button,

@@ -174,7 +174,7 @@ export function AddButton({ onClick, label }: { onClick: () => void; label: stri
 /* ---------------------------------- Cartões ------------------------------------ */
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <div className={cn('rounded-2xl border border-slate-200 bg-white p-5 shadow-soft', className)}>{children}</div>
+    <div className={cn('rounded-xl border border-slate-200/70 bg-white p-5 shadow-card', className)}>{children}</div>
   );
 }
 
@@ -214,14 +214,17 @@ export function StatCard({
   to?: string;
   highlight?: boolean;
 }) {
+  // Widget de KPI estilo Sakai: rótulo em cima, número grande, ícone quadrado à direita.
   const inner = (
-    <Card className={cn('flex items-center gap-3 p-4', to && 'transition hover:border-emerald-300', highlight && 'border-emerald-300 bg-emerald-50/50')}>
-      <div className={cn('grid h-11 w-11 shrink-0 place-items-center rounded-xl', highlight ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-50 text-emerald-700')}>{icon}</div>
-      <div className="min-w-0">
-        <p className="text-2xl font-black leading-none text-slate-900">{value}</p>
-        <p className="mt-1 truncate text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</p>
-        {sub ? <p className="mt-0.5 text-xs font-bold text-emerald-700">{sub}</p> : null}
+    <Card className={cn('p-5', to && 'transition hover:shadow-soft', highlight && 'border-emerald-300 bg-emerald-50/40')}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-[13px] font-semibold text-slate-500">{label}</p>
+          <p className="mt-2 text-2xl font-black leading-none text-slate-900">{value}</p>
+        </div>
+        <div className={cn('grid h-12 w-12 shrink-0 place-items-center rounded-xl', highlight ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-50 text-emerald-600')}>{icon}</div>
       </div>
+      {sub ? <p className="mt-3 text-xs font-bold text-emerald-600">{sub}</p> : null}
     </Card>
   );
   return to ? <Link to={to}>{inner}</Link> : inner;
