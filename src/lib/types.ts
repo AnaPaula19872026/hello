@@ -396,6 +396,8 @@ export interface ReportPayload {
   sessions?: number;
   freqRows?: ReportFreqRow[];
   dates?: string[]; // todas as datas de aula no período (colunas do mapa de frequência)
+  gridDates?: string[]; // TODOS os dias letivos (seg–sex, sem feriados) do período — colunas do mapa de chamada
+  layout?: 'list' | 'grid'; // frequência: 'list' = chips por aluno; 'grid' = mapa de chamada mensal (P/F)
   examDates?: string[]; // dias em Modo prova (semana de provas) — relatório de frequência
   subject?: string;
   notasRows?: ReportNotasRow[];

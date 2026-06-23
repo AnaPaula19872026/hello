@@ -121,11 +121,11 @@ export function ClassesPage() {
             <Card key={c.id} className="flex items-start gap-3">
               {sel.active ? <CheckBox checked={sel.has(c.id)} onChange={() => sel.toggle(c.id)} /> : null}
               <div className="min-w-0 flex-1">
-                <h3 className="truncate text-base font-black text-slate-900">{c.name}</h3>
-                <p className="mt-1 text-sm text-slate-500">{schoolName(c.school_id)}</p>
+                <h3 className="truncate text-base font-black text-foreground">{c.name}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{schoolName(c.school_id)}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{c.shift}</span>
-                  {c.year ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{c.year}</span> : null}
+                  {c.year ? <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-bold text-muted-foreground">{c.year}</span> : null}
                   {c.does_exams === false ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">Sem prova</span> : null}
                 </div>
               </div>
@@ -152,7 +152,7 @@ export function ClassesPage() {
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Editar turma' : 'Nova turma'}>
         {schools.length === 0 ? (
           <div className="space-y-4 text-center">
-            <p className="text-sm font-medium text-slate-600">Cadastre uma escola antes de criar turmas.</p>
+            <p className="text-sm font-medium text-muted-foreground">Cadastre uma escola antes de criar turmas.</p>
             <Link to="/escolas">
               <Button onClick={() => setOpen(false)}>Cadastrar escola</Button>
             </Link>
@@ -185,20 +185,20 @@ export function ClassesPage() {
               <Input name="year" type="number" defaultValue={editing?.year ?? new Date().getFullYear()} />
             </Field>
           </div>
-          <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <label className="flex items-center gap-3 rounded-xl border border-border bg-muted px-4 py-3">
             <input
               type="checkbox"
               name="does_exams"
               defaultChecked={editing ? editing.does_exams !== false : true}
-              className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              className="h-5 w-5 rounded border-border text-emerald-600 focus:ring-emerald-500"
             />
             <span>
-              <span className="block text-sm font-bold text-slate-800">Esta turma faz provas</span>
-              <span className="block text-xs text-slate-500">Desmarque para turmas mais novas (ex.: Fund. 1). Só turmas que fazem prova aparecem no Modo prova da chamada.</span>
+              <span className="block text-sm font-bold text-foreground">Esta turma faz provas</span>
+              <span className="block text-xs text-muted-foreground">Desmarque para turmas mais novas (ex.: Fund. 1). Só turmas que fazem prova aparecem no Modo prova da chamada.</span>
             </span>
           </label>
           {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
-          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
+          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancelar
             </Button>

@@ -9,7 +9,7 @@ type Variant = 'primary' | 'ghost' | 'danger' | 'soft';
 const variants: Record<Variant, string> = {
   primary: 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[.98]',
   soft: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
-  ghost: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
+  ghost: 'bg-muted text-foreground hover:bg-muted',
   danger: 'bg-red-50 text-red-700 hover:bg-red-100',
 };
 
@@ -37,7 +37,7 @@ export function Button({
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">{label}</span>
+      <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
       {children}
     </label>
   );
@@ -47,7 +47,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <input
       className={cn(
-        'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100',
+        'w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100',
         className,
       )}
       {...props}
@@ -68,8 +68,8 @@ export function SearchInput({
   className?: string;
 }) {
   return (
-    <label className={cn('flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3', className)}>
-      <Search size={18} className="shrink-0 text-slate-400" />
+    <label className={cn('flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3', className)}>
+      <Search size={18} className="shrink-0 text-muted-foreground" />
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -84,7 +84,7 @@ export function Select({ className, children, ...props }: SelectHTMLAttributes<H
   return (
     <select
       className={cn(
-        'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100',
+        'w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100',
         className,
       )}
       {...props}
@@ -116,7 +116,7 @@ export function PageHeader({
         {showBack ? (
           <button
             onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-card text-muted-foreground shadow-sm transition hover:bg-muted hover:text-foreground"
             aria-label="Voltar"
             title="Voltar"
           >
@@ -124,8 +124,8 @@ export function PageHeader({
           </button>
         ) : null}
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-black text-slate-900">{title}</h1>
-          {subtitle ? <p className="mt-1 text-sm font-medium text-slate-500">{subtitle}</p> : null}
+          <h1 className="truncate text-2xl font-black text-foreground">{title}</h1>
+          {subtitle ? <p className="mt-1 text-sm font-medium text-muted-foreground">{subtitle}</p> : null}
         </div>
       </div>
       {action}
@@ -146,14 +146,14 @@ export function Segmented<T extends string | number>({
   className?: string;
 }) {
   return (
-    <div className={cn('inline-flex flex-wrap rounded-xl bg-slate-100 p-1', className)}>
+    <div className={cn('inline-flex flex-wrap rounded-xl bg-muted p-1', className)}>
       {options.map((o) => (
         <button
           key={String(o.value)}
           onClick={() => onChange(o.value)}
           className={cn(
             'flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition',
-            value === o.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+            value === o.value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
           )}
         >
           {o.label}
@@ -174,15 +174,15 @@ export function AddButton({ onClick, label }: { onClick: () => void; label: stri
 /* ---------------------------------- Cartões ------------------------------------ */
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <div className={cn('rounded-xl border border-slate-200/70 bg-white p-5 shadow-card', className)}>{children}</div>
+    <div className={cn('rounded-xl border border-border/70 bg-card p-5 shadow-card', className)}>{children}</div>
   );
 }
 
 /* -------------------------------- Carregando ---------------------------------- */
 export function Loading({ label = 'Carregando…', className }: { label?: string; className?: string }) {
   return (
-    <div className={cn('flex items-center justify-center gap-2 py-8 text-sm font-semibold text-slate-400', className)}>
-      <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-emerald-600" />
+    <div className={cn('flex items-center justify-center gap-2 py-8 text-sm font-semibold text-muted-foreground', className)}>
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-emerald-600" />
       {label}
     </div>
   );
@@ -192,7 +192,7 @@ export function Loading({ label = 'Carregando…', className }: { label?: string
 export function SectionTitle({ children, action, className }: { children: ReactNode; action?: ReactNode; className?: string }) {
   return (
     <div className={cn('mb-2 flex items-center justify-between gap-2', className)}>
-      <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">{children}</h2>
+      <h2 className="text-sm font-black uppercase tracking-wide text-muted-foreground">{children}</h2>
       {action}
     </div>
   );
@@ -219,8 +219,8 @@ export function StatCard({
     <Card className={cn('p-5', to && 'transition hover:shadow-soft', highlight && 'border-emerald-300 bg-emerald-50/40')}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-semibold text-slate-500">{label}</p>
-          <p className="mt-2 text-2xl font-black leading-none text-slate-900">{value}</p>
+          <p className="truncate text-[13px] font-semibold text-muted-foreground">{label}</p>
+          <p className="mt-2 text-2xl font-black leading-none text-foreground">{value}</p>
         </div>
         <div className={cn('grid h-12 w-12 shrink-0 place-items-center rounded-xl', highlight ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-50 text-emerald-600')}>{icon}</div>
       </div>
@@ -232,10 +232,10 @@ export function StatCard({
 
 export function EmptyState({ icon, title, hint, action }: { icon: ReactNode; title: string; hint?: string; action?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
-      <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400">{icon}</div>
-      <h3 className="text-lg font-black text-slate-800">{title}</h3>
-      {hint ? <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">{hint}</p> : null}
+    <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+      <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-muted text-muted-foreground">{icon}</div>
+      <h3 className="text-lg font-black text-foreground">{title}</h3>
+      {hint ? <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">{hint}</p> : null}
       {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
     </div>
   );
@@ -276,16 +276,16 @@ export function SelectionBar({
 }) {
   if (!active) return null;
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_30px_rgba(15,23,42,.10)] backdrop-blur lg:pl-72">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 p-3 shadow-[0_-8px_30px_rgba(15,23,42,.10)] backdrop-blur lg:pl-72">
       <div className="mx-auto flex max-w-5xl items-center gap-3 px-1">
-        <button onClick={onToggleAll} className="flex shrink-0 items-center gap-2 text-sm font-bold text-slate-600">
-          <span className={cn('grid h-5 w-5 place-items-center rounded border', allSelected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300')}>
+        <button onClick={onToggleAll} className="flex shrink-0 items-center gap-2 text-sm font-bold text-muted-foreground">
+          <span className={cn('grid h-5 w-5 place-items-center rounded border', allSelected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-border')}>
             {allSelected ? <Check size={14} /> : null}
           </span>
           Todos
         </button>
-        <span className="text-sm font-black text-slate-800">{count} selecionado(s)</span>
-        <button onClick={onCancel} className="ml-auto hidden text-sm font-bold text-slate-500 hover:text-slate-900 sm:block">
+        <span className="text-sm font-black text-foreground">{count} selecionado(s)</span>
+        <button onClick={onCancel} className="ml-auto hidden text-sm font-bold text-muted-foreground hover:text-foreground sm:block">
           Cancelar
         </button>
         <Button variant="danger" className="ml-auto sm:ml-0" onClick={onDelete} disabled={!count || busy}>
@@ -304,7 +304,7 @@ export function CheckBox({ checked, onChange }: { checked: boolean; onChange: ()
       checked={checked}
       onChange={onChange}
       onClick={(e) => e.stopPropagation()}
-      className="h-5 w-5 shrink-0 cursor-pointer rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+      className="h-5 w-5 shrink-0 cursor-pointer rounded border-border text-emerald-600 focus:ring-emerald-500"
     />
   );
 }
@@ -314,7 +314,7 @@ export function ActionsMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete
   return (
     <Menu as="div" className="relative shrink-0">
       <MenuButton
-        className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
+        className="grid h-9 w-9 place-items-center rounded-lg bg-muted text-muted-foreground hover:bg-muted"
         aria-label="Ações"
         onClick={(e) => e.stopPropagation()}
       >
@@ -322,12 +322,12 @@ export function ActionsMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete
       </MenuButton>
       <MenuItems
         anchor="bottom end"
-        className="z-50 w-44 rounded-xl border border-slate-200 bg-white p-1 text-sm shadow-soft focus:outline-none"
+        className="z-50 w-44 rounded-xl border border-border bg-card p-1 text-sm shadow-soft focus:outline-none"
       >
         <MenuItem>
           <button
             onClick={onEdit}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-bold text-slate-700 data-[focus]:bg-slate-100"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-bold text-foreground data-[focus]:bg-muted"
           >
             <Pencil size={16} /> Editar
           </button>
@@ -384,10 +384,10 @@ export function Modal({
             leaveFrom="translate-y-0 opacity-100"
             leaveTo="translate-y-full opacity-0 sm:translate-y-4"
           >
-            <DialogPanel className={cn('flex max-h-[90vh] w-full flex-col rounded-t-3xl bg-white shadow-soft sm:rounded-3xl', maxW)}>
-              <div className="flex items-center justify-between border-b border-slate-100 p-5">
-                <DialogTitle className="text-lg font-black text-slate-900">{title}</DialogTitle>
-                <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200" aria-label="Fechar">
+            <DialogPanel className={cn('flex max-h-[90vh] w-full flex-col rounded-t-3xl bg-card shadow-soft sm:rounded-3xl', maxW)}>
+              <div className="flex items-center justify-between border-b border-border p-5">
+                <DialogTitle className="text-lg font-black text-foreground">{title}</DialogTitle>
+                <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg bg-muted text-muted-foreground hover:bg-muted" aria-label="Fechar">
                   <X size={18} />
                 </button>
               </div>

@@ -88,12 +88,12 @@ export function SettingsPage() {
       <div className="space-y-5">
         {/* Dados pessoais */}
         <Card>
-          <h2 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-500">Dados pessoais</h2>
+          <h2 className="mb-4 text-sm font-black uppercase tracking-wide text-muted-foreground">Dados pessoais</h2>
 
           {/* Foto de perfil */}
           <div className="mb-5 flex items-center gap-4">
             {avatar ? (
-              <img src={avatar} alt="" className="h-20 w-20 shrink-0 rounded-full border border-slate-200 object-cover" />
+              <img src={avatar} alt="" className="h-20 w-20 shrink-0 rounded-full border border-border object-cover" />
             ) : (
               <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-emerald-600 text-2xl font-black uppercase text-white">
                 {(name || user?.email || '?').slice(0, 1)}
@@ -105,11 +105,11 @@ export function SettingsPage() {
                 <input type="file" accept="image/*" className="hidden" onChange={onPhoto} />
               </label>
               {avatar ? (
-                <button type="button" onClick={() => setAvatar(null)} className="ml-2 inline-flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-red-600">
+                <button type="button" onClick={() => setAvatar(null)} className="ml-2 inline-flex items-center gap-1 text-sm font-bold text-muted-foreground hover:text-red-600">
                   <X size={14} /> Remover
                 </button>
               ) : null}
-              <p className="mt-1 text-xs text-slate-400">Foto sua ou qualquer imagem. Fica leve e salva no banco.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Foto sua ou qualquer imagem. Fica leve e salva no banco.</p>
               {photoErr ? <p className="mt-1 text-xs font-semibold text-red-600">{photoErr}</p> : null}
             </div>
           </div>
@@ -119,7 +119,7 @@ export function SettingsPage() {
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" />
             </Field>
             <Field label="E-mail de acesso">
-              <Input value={user?.email ?? ''} disabled className="bg-slate-50 text-slate-500" />
+              <Input value={user?.email ?? ''} disabled className="bg-muted text-muted-foreground" />
             </Field>
           </div>
         </Card>
@@ -129,7 +129,7 @@ export function SettingsPage() {
 
         {/* Senha */}
         <Card>
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-black uppercase tracking-wide text-slate-500">
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-black uppercase tracking-wide text-muted-foreground">
             <KeyRound size={16} /> Trocar senha
           </h2>
           <div className="space-y-4">
@@ -221,21 +221,21 @@ function SchoolSettingsCard() {
 
   return (
     <Card>
-      <h2 className="mb-4 flex items-center gap-2 text-sm font-black uppercase tracking-wide text-slate-500">
+      <h2 className="mb-4 flex items-center gap-2 text-sm font-black uppercase tracking-wide text-muted-foreground">
         <Building2 size={16} /> Dados da escola
       </h2>
-      <p className="mb-4 text-xs text-slate-400">Aparecem no cabeçalho dos relatórios (logo, diretor, endereço).</p>
+      <p className="mb-4 text-xs text-muted-foreground">Aparecem no cabeçalho dos relatórios (logo, diretor, endereço).</p>
 
       <div className="mb-5 flex items-center gap-4">
         {logo ? (
-          <img src={logo} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1" />
+          <img src={logo} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-border bg-card object-contain p-1" />
         ) : (
-          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-400">
+          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
             <Building2 size={24} />
           </div>
         )}
         <div className="flex flex-col gap-1">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-muted px-3 py-2 text-sm font-bold text-foreground hover:bg-muted">
             <ImagePlus size={16} /> {logo ? 'Trocar logo' : 'Enviar logo'}
             <input type="file" accept="image/*" className="hidden" onChange={onLogo} />
           </label>

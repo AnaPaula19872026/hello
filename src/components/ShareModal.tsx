@@ -44,12 +44,12 @@ export function ShareModal({ open, onClose, payload }: { open: boolean; onClose:
         <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-600">{err}</p>
       ) : (
         <div className="space-y-4">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Link gerado. Quem receber abre e <strong>baixa o relatório</strong> — sem precisar de conta.
           </p>
 
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
-            <span className="min-w-0 flex-1 truncate px-2 text-sm text-slate-600">{link}</span>
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-muted p-2">
+            <span className="min-w-0 flex-1 truncate px-2 text-sm text-muted-foreground">{link}</span>
             <Button variant="ghost" className="py-2" onClick={copy}>
               {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? 'Copiado' : 'Copiar'}
             </Button>

@@ -67,9 +67,9 @@ export function WeeklyPlanEditor({
     mut(next);
     onChange(next);
   };
-  const inp = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
+  const inp = 'w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100';
   const area = `${inp} resize-y leading-relaxed`;
-  const lbl = 'mb-1 block text-xs font-bold text-slate-500';
+  const lbl = 'mb-1 block text-xs font-bold text-muted-foreground';
 
   return (
     <div className="space-y-4">
@@ -94,9 +94,9 @@ export function WeeklyPlanEditor({
       </datalist>
 
       {data.weeks.map((w, wi) => (
-        <section key={w.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <section key={w.id} className="rounded-xl border border-border bg-muted p-3">
           <div className="mb-2 flex items-center justify-between">
-            <h4 className="text-sm font-black text-slate-700">Semana {wi + 1}</h4>
+            <h4 className="text-sm font-black text-foreground">Semana {wi + 1}</h4>
             <button
               onClick={() => patch((d) => (d.weeks = d.weeks.filter((x) => x.id !== w.id)))}
               className="rounded-lg bg-red-50 px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-100"
@@ -107,12 +107,12 @@ export function WeeklyPlanEditor({
 
           <div className="grid gap-3 lg:grid-cols-2">
             {w.days.map((day) => (
-              <div key={day.id} className="rounded-lg border border-slate-200 bg-white p-3">
+              <div key={day.id} className="rounded-lg border border-border bg-card p-3">
                 <div className="mb-2 grid grid-cols-[1fr_auto] gap-2">
                   <input className={inp} value={day.label} onChange={(e) => patch((d) => setDay(d, w.id, day.id, (x) => (x.label = e.target.value)))} placeholder="Dia (ex.: Segunda-feira)" />
                   <button
                     onClick={() => patch((d) => setWeek(d, w.id, (x) => (x.days = x.days.filter((y) => y.id !== day.id))))}
-                    className="rounded-lg bg-slate-100 px-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                    className="rounded-lg bg-muted px-2 text-muted-foreground hover:bg-red-50 hover:text-red-600"
                     aria-label="Remover dia"
                   >
                     <Trash2 size={14} />
@@ -124,7 +124,7 @@ export function WeeklyPlanEditor({
                 </div>
 
                 {day.blocks.map((b) => (
-                  <div key={b.id} className="mb-2 rounded-lg border border-slate-100 bg-slate-50 p-2">
+                  <div key={b.id} className="mb-2 rounded-lg border border-border bg-muted p-2">
                     <div className="mb-1 flex items-center gap-2">
                       <input
                         list="wp-turmas"
@@ -135,7 +135,7 @@ export function WeeklyPlanEditor({
                       />
                       <button
                         onClick={() => patch((d) => setDay(d, w.id, day.id, (x) => (x.blocks = x.blocks.filter((y) => y.id !== b.id))))}
-                        className="shrink-0 rounded-lg bg-slate-100 px-2 py-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                        className="shrink-0 rounded-lg bg-muted px-2 py-1 text-muted-foreground hover:bg-red-50 hover:text-red-600"
                         aria-label="Remover turma"
                       >
                         <Trash2 size={13} />
@@ -212,43 +212,43 @@ export function WeeklyPlanView({ data }: { data: WeeklyPlanData }) {
     <div className="wp-sheet">
       <style>{WP_PRINT_CSS}</style>
       <div className="mb-3 flex items-center justify-between gap-3 wp-noprint">
-        <p className="text-xs font-bold text-slate-500">Pré-visualização — imprima ou salve em PDF.</p>
+        <p className="text-xs font-bold text-muted-foreground">Pré-visualização — imprima ou salve em PDF.</p>
         <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-black text-white hover:bg-slate-800">
           <Printer size={14} /> Imprimir / PDF
         </button>
       </div>
 
-      <div className="wp-paper rounded-xl border border-slate-300 p-4 text-[13px] text-slate-800">
+      <div className="wp-paper rounded-xl border border-border p-4 text-[13px] text-foreground">
         <h2 className="text-center text-base font-black uppercase tracking-wide">Planejamento Semanal{data.period ? ` — ${data.period}` : ''}</h2>
-        <p className="mt-1 text-center text-xs font-bold text-slate-600">
+        <p className="mt-1 text-center text-xs font-bold text-muted-foreground">
           Curso: {data.course || '—'} · Prof.(ª): {data.teacher || '—'} · Disciplina(s): {data.subjects || '—'}
           {data.school ? ` · ${data.school}` : ''}
         </p>
 
         {data.weeks.map((w, wi) => (
-          <div key={w.id} className="mt-4 overflow-hidden rounded-lg border border-slate-300 wp-week">
-            <div className="bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">Semana {wi + 1}</div>
+          <div key={w.id} className="mt-4 overflow-hidden rounded-lg border border-border wp-week">
+            <div className="bg-muted px-3 py-1 text-xs font-black text-muted-foreground">Semana {wi + 1}</div>
             <div className="grid" style={{ gridTemplateColumns: `repeat(${w.days.length}, 1fr) 1fr` }}>
               {w.days.map((day) => (
-                <div key={day.id} className="border-t border-slate-200 px-3 py-2 wp-cell">
+                <div key={day.id} className="border-t border-border px-3 py-2 wp-cell">
                   <div className="font-black text-rose-600">{day.label}{day.date ? ` — ${day.date}` : ''}{day.lessons ? ` (${day.lessons})` : ''}</div>
                   {day.blocks.filter((b) => b.turma || b.items).map((b) => (
                     <div key={b.id} className="mt-1.5">
-                      {b.turma ? <div className="font-black text-slate-900">{`>>> ${b.turma} <<<`}</div> : null}
-                      <div className="whitespace-pre-wrap text-slate-700">{b.items}</div>
+                      {b.turma ? <div className="font-black text-foreground">{`>>> ${b.turma} <<<`}</div> : null}
+                      <div className="whitespace-pre-wrap text-foreground">{b.items}</div>
                     </div>
                   ))}
                 </div>
               ))}
-              <div className="border-t border-l border-slate-200 bg-amber-50/40 px-3 py-2 wp-cell">
-                <div className="text-[11px] font-black uppercase text-slate-500">Materiais / anotações</div>
-                <div className="mt-1 whitespace-pre-wrap text-slate-700">{w.materials || '—'}</div>
+              <div className="border-t border-l border-border bg-amber-50/40 px-3 py-2 wp-cell">
+                <div className="text-[11px] font-black uppercase text-muted-foreground">Materiais / anotações</div>
+                <div className="mt-1 whitespace-pre-wrap text-foreground">{w.materials || '—'}</div>
               </div>
             </div>
             {w.homework ? (
-              <div className="border-t border-slate-200 bg-fuchsia-50/40 px-3 py-2">
-                <span className="text-[11px] font-black uppercase text-slate-500">Prazer de casa: </span>
-                <span className="whitespace-pre-wrap font-bold text-slate-800">{w.homework}</span>
+              <div className="border-t border-border bg-fuchsia-50/40 px-3 py-2">
+                <span className="text-[11px] font-black uppercase text-muted-foreground">Prazer de casa: </span>
+                <span className="whitespace-pre-wrap font-bold text-foreground">{w.homework}</span>
               </div>
             ) : null}
           </div>

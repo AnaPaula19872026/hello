@@ -94,12 +94,12 @@ export function DashboardPage() {
           <Link
             key={a.to}
             to={a.to}
-            className="group relative flex flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+            className="group relative flex flex-col items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
           >
             <span className="grid h-11 w-11 place-items-center rounded-xl" style={{ backgroundColor: a.soft, color: a.color }}>
               {a.icon}
             </span>
-            <span className="text-sm font-black text-slate-900">{a.label}</span>
+            <span className="text-sm font-black text-foreground">{a.label}</span>
             {a.badge ? (
               <span className="absolute right-3 top-3 grid h-6 min-w-6 place-items-center rounded-full bg-emerald-500 px-1.5 text-xs font-black text-white">{a.badge}</span>
             ) : null}
@@ -129,10 +129,10 @@ export function DashboardPage() {
           </div>
           <div className="space-y-1.5">
             {alerts.slice(0, 5).map((a) => (
-              <div key={a.student_id} className="flex items-center gap-3 rounded-xl bg-white/70 px-3 py-2">
+              <div key={a.student_id} className="flex items-center gap-3 rounded-xl bg-card/70 px-3 py-2">
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold text-slate-800">{a.name}</span>
-                  <span className="block text-xs font-bold text-slate-400">{className(a.class_id ?? '')} · {a.absent} falta(s)</span>
+                  <span className="block break-words text-sm font-bold leading-snug text-foreground">{a.name}</span>
+                  <span className="block text-xs font-bold text-muted-foreground">{className(a.class_id ?? '')} · {a.absent} falta(s)</span>
                 </span>
                 <span className="shrink-0 rounded-lg bg-red-100 px-2.5 py-1 text-sm font-black tabular-nums text-red-700">{a.pct}%</span>
               </div>
@@ -152,17 +152,17 @@ export function DashboardPage() {
             Próximos eventos
           </SectionTitle>
           {upcoming.length === 0 ? (
-            <Card><p className="text-sm text-slate-400">Nenhum evento agendado.</p></Card>
+            <Card><p className="text-sm text-muted-foreground">Nenhum evento agendado.</p></Card>
           ) : (
             <div className="space-y-2">
               {upcoming.map((e) => (
-                <Link key={e.id} to="/calendario" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-emerald-200">
+                <Link key={e.id} to="/calendario" className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition hover:border-emerald-200">
                   <span className="grid h-11 w-12 shrink-0 place-items-center rounded-lg text-xs font-black text-white" style={{ backgroundColor: eventColor(e.category) }}>
                     {e.event_date.slice(8, 10)}/{e.event_date.slice(5, 7)}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-bold text-slate-800">{e.title}</span>
-                    <span className="block text-xs font-bold text-slate-400">{eventCatLabel(e.category)}</span>
+                    <span className="block truncate font-bold text-foreground">{e.title}</span>
+                    <span className="block text-xs font-bold text-muted-foreground">{eventCatLabel(e.category)}</span>
                   </span>
                 </Link>
               ))}
@@ -175,15 +175,15 @@ export function DashboardPage() {
             Avisos recentes
           </SectionTitle>
           {recentNotices.length === 0 ? (
-            <Card><p className="text-sm text-slate-400">Nenhum aviso recebido.</p></Card>
+            <Card><p className="text-sm text-muted-foreground">Nenhum aviso recebido.</p></Card>
           ) : (
             <div className="space-y-2">
               {recentNotices.map((n) => (
-                <Link key={n.id} to="/avisos" className={cn('flex items-start gap-3 rounded-xl border bg-white p-3 transition hover:border-emerald-200', n.read ? 'border-slate-200' : 'border-emerald-300 bg-emerald-50/40')}>
-                  <span className={cn('mt-1 h-2.5 w-2.5 shrink-0 rounded-full', n.read ? 'bg-slate-300' : 'bg-emerald-500')} />
+                <Link key={n.id} to="/avisos" className={cn('flex items-start gap-3 rounded-xl border bg-card p-3 transition hover:border-emerald-200', n.read ? 'border-border' : 'border-emerald-300 bg-emerald-50/40')}>
+                  <span className={cn('mt-1 h-2.5 w-2.5 shrink-0 rounded-full', n.read ? 'bg-muted' : 'bg-emerald-500')} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-bold text-slate-800">{n.title}</span>
-                    <span className="block truncate text-xs text-slate-500">{n.body}</span>
+                    <span className="block truncate font-bold text-foreground">{n.title}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{n.body}</span>
                   </span>
                 </Link>
               ))}
@@ -195,7 +195,7 @@ export function DashboardPage() {
       <SectionTitle
         className="mb-3"
         action={
-          <button onClick={() => setTrashOpen(true)} className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800">
+          <button onClick={() => setTrashOpen(true)} className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground">
             <Trash2 size={14} /> Lixeira
           </button>
         }
@@ -204,7 +204,7 @@ export function DashboardPage() {
       </SectionTitle>
       {groups.length === 0 ? (
         <Card>
-          <p className="text-sm text-slate-500">Nenhuma chamada registrada ainda.</p>
+          <p className="text-sm text-muted-foreground">Nenhuma chamada registrada ainda.</p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -230,29 +230,29 @@ export function DashboardPage() {
                     <GraduationCap size={20} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-black text-slate-900">{className(classId)}</p>
-                    <p className="mt-0.5 truncate text-xs text-slate-500">
+                    <p className="truncate font-black text-foreground">{className(classId)}</p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
                       {sessions.length} chamada(s)
                       {lastDate ? <> · últ. {format(parseISO(lastDate), "d 'de' MMM", { locale: ptBR })}</> : null}
                     </p>
                     <div className="mt-2 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                         <div className={cn('h-full rounded-full', tone.bar)} style={{ width: `${presPct}%` }} />
                       </div>
-                      <span className="shrink-0 text-[11px] font-bold tabular-nums text-slate-400">{presPct}% pres.</span>
+                      <span className="shrink-0 text-[11px] font-bold tabular-nums text-muted-foreground">{presPct}% pres.</span>
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-col items-center gap-1">
                     <span className={cn('rounded-full px-2.5 py-1 text-xs font-black tabular-nums', tone.pill)}>{faltas}</span>
-                    <ChevronDown size={18} className={cn('text-slate-400 transition', isOpen && 'rotate-180')} />
+                    <ChevronDown size={18} className={cn('text-muted-foreground transition', isOpen && 'rotate-180')} />
                   </div>
                 </button>
 
                 {isOpen ? (
-                  <div className="divide-y divide-slate-100 border-t border-slate-100">
+                  <div className="divide-y divide-border border-t border-border">
                     {sessions.map((s) => (
                       <div key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
-                        <p className="min-w-0 flex-1 text-sm font-bold text-slate-700">
+                        <p className="min-w-0 flex-1 text-sm font-bold text-foreground">
                           {format(parseISO(s.session_date), "EEE, d 'de' MMM", { locale: ptBR })}
                         </p>
                         <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{s.present} pres.</span>
@@ -301,18 +301,18 @@ function TrashModal({ classNameOf, onClose }: { classNameOf: (id: string) => str
   return (
     <Modal open onClose={onClose} title="Lixeira de chamadas">
       <div className="space-y-3">
-        <p className="text-sm text-slate-500">Chamadas excluídas. Restaure com um clique ou exclua de vez.</p>
+        <p className="text-sm text-muted-foreground">Chamadas excluídas. Restaure com um clique ou exclua de vez.</p>
         {isLoading ? (
           <Loading />
         ) : items.length === 0 ? (
-          <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">A lixeira está vazia.</p>
+          <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">A lixeira está vazia.</p>
         ) : (
           <div className="space-y-2">
             {items.map((s) => (
-              <div key={s.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+              <div key={s.id} className="flex items-center gap-3 rounded-xl border border-border p-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-bold text-slate-800">{classNameOf(s.class_id)}</p>
-                  <p className="text-xs font-bold text-slate-400">
+                  <p className="truncate font-bold text-foreground">{classNameOf(s.class_id)}</p>
+                  <p className="text-xs font-bold text-muted-foreground">
                     {format(parseISO(s.session_date), "dd/MM/yyyy", { locale: ptBR })} · {s.present} pres. · {s.absent} falt.
                   </p>
                 </div>

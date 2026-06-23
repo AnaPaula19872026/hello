@@ -28,13 +28,13 @@ export function AccessRequestGate() {
   }, [req?.status, refreshContext]);
 
   return (
-    <main className="grid min-h-screen place-items-center bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-4">
+    <main className="grid min-h-screen place-items-center bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-4 dark:from-background dark:via-background dark:to-background">
       <section className="w-full max-w-md">
-        <div className="rounded-3xl border border-white bg-white/90 p-8 shadow-soft backdrop-blur">
+        <div className="rounded-3xl border border-white bg-card/90 p-8 shadow-soft backdrop-blur">
           <div className="mb-6 text-center">
             <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-emerald-600 text-2xl font-black text-white">h</div>
-            <h1 className="text-xl font-black text-slate-900">Quase lá!</h1>
-            <p className="mt-1 text-sm font-medium text-slate-500">{user?.email}</p>
+            <h1 className="text-xl font-black text-foreground">Quase lá!</h1>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">{user?.email}</p>
           </div>
 
           {isLoading ? (
@@ -45,7 +45,7 @@ export function AccessRequestGate() {
             <RequestForm rejected={req?.status === 'rejected'} onDone={() => qc.invalidateQueries({ queryKey: ['my-access-request', user?.id] })} />
           )}
 
-          <button onClick={() => signOut()} className="mx-auto mt-6 flex items-center gap-1.5 text-sm font-bold text-slate-400 hover:text-slate-700">
+          <button onClick={() => signOut()} className="mx-auto mt-6 flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground">
             <LogOut size={15} /> Sair / trocar de conta
           </button>
         </div>
@@ -61,8 +61,8 @@ function Waiting({ onRefresh }: { onRefresh: () => void }) {
         <Clock size={30} />
       </div>
       <div>
-        <h2 className="text-lg font-black text-slate-800">Aguardando liberação</h2>
-        <p className="mx-auto mt-1 max-w-xs text-sm text-slate-500">
+        <h2 className="text-lg font-black text-foreground">Aguardando liberação</h2>
+        <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">
           Seu cadastro foi enviado. Assim que o administrador liberar seu acesso, esta tela abre o sistema automaticamente.
         </p>
       </div>
@@ -94,7 +94,7 @@ function RequestForm({ rejected, onDone }: { rejected: boolean; onDone: () => vo
           <span>Sua solicitação anterior foi recusada. Você pode revisar os dados e enviar de novo.</span>
         </div>
       ) : (
-        <p className="text-sm text-slate-500">Escolha sua escola e a função. O administrador vai revisar e liberar seu acesso.</p>
+        <p className="text-sm text-muted-foreground">Escolha sua escola e a função. O administrador vai revisar e liberar seu acesso.</p>
       )}
 
       <Field label="Escola">
@@ -112,13 +112,13 @@ function RequestForm({ rejected, onDone }: { rejected: boolean; onDone: () => vo
           onChange={(e) => setNote(e.target.value)}
           rows={3}
           placeholder="Ex.: sou professora do 5º ano, turma B."
-          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
         />
       </Field>
 
       {send.isError ? <p className="text-sm font-semibold text-red-600">{(send.error as Error).message}</p> : null}
       {!isLoading && orgs.length === 0 ? (
-        <p className="flex items-center gap-1.5 text-sm text-slate-400"><School size={15} /> Nenhuma escola disponível. Fale com o administrador.</p>
+        <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><School size={15} /> Nenhuma escola disponível. Fale com o administrador.</p>
       ) : null}
 
       <Button onClick={() => send.mutate()} disabled={!orgId || send.isPending} className="w-full">

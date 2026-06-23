@@ -45,18 +45,18 @@ export function DownloadPlanPage() {
   const many = (data?.files.length ?? 0) > 1;
 
   return (
-    <div className="grid min-h-screen place-items-center bg-slate-50 p-6">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+    <div className="grid min-h-screen place-items-center bg-muted p-6">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
         {isLoading ? (
           <>
             <Loader2 className="mx-auto animate-spin text-emerald-600" size={34} />
-            <p className="mt-3 text-sm font-bold text-slate-500">Carregando anexos…</p>
+            <p className="mt-3 text-sm font-bold text-muted-foreground">Carregando anexos…</p>
           </>
         ) : isError || !data?.files.length ? (
           <>
             <FileWarning className="mx-auto text-amber-500" size={34} />
-            <h1 className="mt-3 text-lg font-black text-slate-900">Anexos indisponíveis</h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <h1 className="mt-3 text-lg font-black text-foreground">Anexos indisponíveis</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
               {isError
                 ? 'Você precisa estar logado na sua organização para baixar estes anexos.'
                 : 'Este planejamento não tem anexos.'}
@@ -65,8 +65,8 @@ export function DownloadPlanPage() {
         ) : (
           <>
             <Download className="mx-auto text-emerald-600" size={34} />
-            <h1 className="mt-3 text-lg font-black text-slate-900">{data.title}</h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <h1 className="mt-3 text-lg font-black text-foreground">{data.title}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
               {data.files.length} anexo(s){many ? ' — baixados como .zip' : ''}.
             </p>
             <button

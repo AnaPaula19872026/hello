@@ -118,7 +118,7 @@ export function HqDashboard() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <p className="grid h-full place-items-center text-sm text-slate-400">Sem clientes ainda.</p>
+              <p className="grid h-full place-items-center text-sm text-muted-foreground">Sem clientes ainda.</p>
             )}
           </div>
           <div className="flex justify-center gap-4 text-xs font-bold">
@@ -143,7 +143,7 @@ export function HqDashboard() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="grid h-full place-items-center text-sm text-slate-400">Sem dados de clientes.</p>
+              <p className="grid h-full place-items-center text-sm text-muted-foreground">Sem dados de clientes.</p>
             )}
           </div>
         </Card>

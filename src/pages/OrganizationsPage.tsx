@@ -99,7 +99,7 @@ export function OrganizationsPage() {
   }
 
   const tiles: { key: Filter; label: string; n: number; cls: string }[] = [
-    { key: 'todas', label: 'Todas as organizações', n: counts.todas, cls: 'border-slate-200 bg-white text-slate-700' },
+    { key: 'todas', label: 'Todas as organizações', n: counts.todas, cls: 'border-border bg-card text-foreground' },
     { key: 'ativas', label: 'Ativas', n: counts.ativas, cls: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
     { key: 'inativas', label: 'Inativas', n: counts.inativas, cls: 'border-red-200 bg-red-50 text-red-700' },
   ];
@@ -146,7 +146,7 @@ export function OrganizationsPage() {
             <Card key={o.id} className="flex flex-col gap-3">
               <div className="flex items-start gap-3">
                 {o.logo_url ? (
-                  <img src={o.logo_url} alt="" className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1" />
+                  <img src={o.logo_url} alt="" className="h-12 w-12 shrink-0 rounded-xl border border-border bg-card object-contain p-1" />
                 ) : (
                   <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
                     <Building2 size={22} />
@@ -154,16 +154,16 @@ export function OrganizationsPage() {
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="truncate font-black text-slate-900">{o.name}</p>
+                    <p className="truncate font-black text-foreground">{o.name}</p>
                     {o.id === activeOrgId ? (
                       <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-700">atual</span>
                     ) : null}
                   </div>
-                  <p className="mt-0.5 truncate text-xs font-bold text-slate-500">{o.cnpj || (o.is_demo ? 'Demonstração' : 'CNPJ não informado')}</p>
+                  <p className="mt-0.5 truncate text-xs font-bold text-muted-foreground">{o.cnpj || (o.is_demo ? 'Demonstração' : 'CNPJ não informado')}</p>
                 </div>
                 <button
                   onClick={() => setEditOf(o)}
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground hover:bg-muted"
                   aria-label="Editar"
                 >
                   <Pencil size={15} />
@@ -179,14 +179,14 @@ export function OrganizationsPage() {
               </div>
 
               {/* Métricas */}
-              <div className="flex flex-wrap gap-2 text-xs font-bold text-slate-600">
-                <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5">
+              <div className="flex flex-wrap gap-2 text-xs font-bold text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5">
                   <Building2 size={14} /> {o.schools} escola(s)
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5">
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5">
                   <GraduationCap size={14} /> {o.students} aluno(s)
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5">
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5">
                   <Users size={14} /> {o.members} membro(s)
                 </span>
               </div>
@@ -230,7 +230,7 @@ export function OrganizationsPage() {
           <Field label="Nome do cliente (escola ou rede)">
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Colégio Aurora" autoFocus />
           </Field>
-          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
+          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
             <Button variant="ghost" onClick={() => setNewOpen(false)}>
               Cancelar
             </Button>
@@ -284,14 +284,14 @@ function EditOrgModal({ org, onClose }: { org: OrgAdmin; onClose: () => void }) 
       <div className="space-y-4">
         <div className="flex items-center gap-4">
           {logo ? (
-            <img src={logo} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-1" />
+            <img src={logo} alt="" className="h-16 w-16 shrink-0 rounded-xl border border-border bg-card object-contain p-1" />
           ) : (
-            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-400">
+            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
               <Building2 size={24} />
             </div>
           )}
           <div className="flex flex-col gap-2">
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-muted px-3 py-2 text-sm font-bold text-foreground hover:bg-muted">
               <ImagePlus size={16} /> {logo ? 'Trocar logo' : 'Enviar logo'}
               <input type="file" accept="image/*" className="hidden" onChange={onLogo} />
             </label>
@@ -310,7 +310,7 @@ function EditOrgModal({ org, onClose }: { org: OrgAdmin; onClose: () => void }) 
         </Field>
         {err ? <p className="text-sm font-semibold text-red-600">{err}</p> : null}
         {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
-        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
+        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
@@ -360,9 +360,9 @@ function MembersModal({ org, onClose }: { org: OrgAdmin; onClose: () => void }) 
   return (
     <Modal open onClose={onClose} title={`Membros — ${org.name}`} size="xl">
       <div className="space-y-5">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="mb-3 text-sm font-bold text-slate-700">Adicionar membro</p>
-          <p className="mb-3 text-xs text-slate-500">A pessoa precisa já ter conta no sistema (cadastro por e-mail/senha).</p>
+        <div className="rounded-2xl border border-border bg-muted p-4">
+          <p className="mb-3 text-sm font-bold text-foreground">Adicionar membro</p>
+          <p className="mb-3 text-xs text-muted-foreground">A pessoa precisa já ter conta no sistema (cadastro por e-mail/senha).</p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@pessoa.com" type="email" className="flex-1" />
             <Select value={role} onChange={(e) => setRole(e.target.value as AppRole)} className="sm:w-56">
@@ -380,18 +380,18 @@ function MembersModal({ org, onClose }: { org: OrgAdmin; onClose: () => void }) 
         </div>
 
         <div>
-          <p className="mb-2 text-sm font-bold text-slate-700">Membros ({members.length})</p>
+          <p className="mb-2 text-sm font-bold text-foreground">Membros ({members.length})</p>
           {isLoading ? (
             <Loading />
           ) : members.length === 0 ? (
-            <p className="text-sm text-slate-400">Nenhum membro ainda.</p>
+            <p className="text-sm text-muted-foreground">Nenhum membro ainda.</p>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-slate-200">
+            <div className="overflow-hidden rounded-2xl border border-border">
               {members.map((m) => (
-                <div key={m.user_id} className="flex items-center gap-3 border-b border-slate-100 p-3 last:border-0">
+                <div key={m.user_id} className="flex items-center gap-3 border-b border-border p-3 last:border-0">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-slate-800">{m.full_name || m.email || m.user_id}</p>
-                    {m.email ? <p className="truncate text-xs text-slate-400">{m.email}</p> : null}
+                    <p className="truncate text-sm font-bold text-foreground">{m.full_name || m.email || m.user_id}</p>
+                    {m.email ? <p className="truncate text-xs text-muted-foreground">{m.email}</p> : null}
                   </div>
                   <Select
                     value={m.role}

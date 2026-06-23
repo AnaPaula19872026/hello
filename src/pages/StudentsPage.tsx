@@ -160,10 +160,10 @@ export function StudentsPage() {
           {list.map((s, i) => (
             <Card key={s.id} className="flex items-center justify-between gap-3 p-4">
               {sel.active ? <CheckBox checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} /> : null}
-              <span className="w-6 shrink-0 text-right text-sm font-bold text-slate-400">{i + 1}</span>
+              <span className="w-6 shrink-0 text-right text-sm font-bold text-muted-foreground">{i + 1}</span>
               <div className="min-w-0 flex-1">
-                <h3 className="truncate text-base font-bold text-slate-900">{s.full_name}</h3>
-                <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                <h3 className="break-words text-base font-bold leading-snug text-foreground">{s.full_name}</h3>
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span className="font-semibold text-emerald-700">{className(s.class_id)}</span>
                   {s.registration ? <span>Mat. {s.registration}</span> : null}
                   {s.guardian_phone ? (
@@ -197,7 +197,7 @@ export function StudentsPage() {
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Editar aluno' : 'Novo aluno'}>
         {classes.length === 0 ? (
           <div className="space-y-4 text-center">
-            <p className="text-sm font-medium text-slate-600">Cadastre uma turma antes de adicionar alunos.</p>
+            <p className="text-sm font-medium text-muted-foreground">Cadastre uma turma antes de adicionar alunos.</p>
             <Link to="/turmas">
               <Button onClick={() => setOpen(false)}>Cadastrar turma</Button>
             </Link>
@@ -228,7 +228,7 @@ export function StudentsPage() {
             <Input name="guardian_phone" defaultValue={editing?.guardian_phone ?? ''} placeholder="(00) 00000-0000" />
           </Field>
           {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
-          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
+          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancelar
             </Button>

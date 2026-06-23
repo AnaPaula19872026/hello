@@ -77,15 +77,15 @@ function OrgSwitcher() {
   // Só mostra o seletor quando há mais de uma organização para escolher.
   if (options.length <= 1) return null;
   return (
-    <div className="border-b border-slate-200 px-4 py-3">
-      <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Organização</p>
+    <div className="border-b border-border px-4 py-3">
+      <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Organização</p>
       <select
         value={activeOrgId ?? ''}
         onChange={(e) => switchOrg(e.target.value)}
-        className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+        className="w-full rounded-lg border border-border bg-card px-2.5 py-2 text-sm font-bold text-foreground outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
       >
         {options.map((o) => (
-          <option key={o.id} value={o.id} className="text-slate-900">
+          <option key={o.id} value={o.id} className="text-foreground">
             {o.name}
             {o.is_demo ? ' (demo)' : ''}
           </option>
@@ -139,11 +139,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     .filter((g) => g.items.length > 0);
 
   return (
-    <div className="flex h-full flex-col border-r border-slate-200 bg-white text-slate-700">
-      <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-5">
+    <div className="flex h-full flex-col border-r border-border bg-card text-foreground">
+      <div className="flex items-center gap-3 border-b border-border px-5 py-5">
         <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-600 text-xl font-black text-white">h</div>
         <div className="min-w-0">
-          <p className="text-base font-black leading-none text-slate-900">hello</p>
+          <p className="text-base font-black leading-none text-foreground">hello</p>
           <p className="mt-1 truncate text-xs font-bold text-emerald-600">{orgName ?? 'Gestão escolar'}</p>
         </div>
       </div>
@@ -154,7 +154,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         {visibleGroups.map((group, i) => (
           <div key={i} className="mb-5">
             {group.title ? (
-              <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">{group.title}</p>
+              <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{group.title}</p>
             ) : null}
             <div className="space-y-1">
               {group.items.map((item) => (
@@ -166,7 +166,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                   className={({ isActive }) =>
                     cn(
                       'flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition',
-                      isActive ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                      isActive ? 'bg-emerald-50 text-emerald-700' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                     )
                   }
                 >
@@ -194,7 +194,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
 
-      <div className="border-t border-slate-200 p-3">
+      <div className="border-t border-border p-3">
         <div className="flex items-center gap-3 rounded-xl px-2 py-2">
           {avatar ? (
             <img src={avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
@@ -204,10 +204,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-slate-900">{name}</p>
-            <p className="truncate text-xs text-slate-400">{role ? ROLE_LABEL[role] : user?.email}</p>
+            <p className="truncate text-sm font-bold text-foreground">{name}</p>
+            <p className="truncate text-xs text-muted-foreground">{role ? ROLE_LABEL[role] : user?.email}</p>
           </div>
-          <button onClick={() => signOut()} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-900" aria-label="Sair">
+          <button onClick={() => signOut()} className="grid h-9 w-9 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Sair">
             <LogOut size={18} />
           </button>
         </div>
@@ -220,7 +220,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#eff3f8] text-slate-900">
+    <div className="min-h-screen bg-background text-foreground">
       <aside className="fixed inset-y-0 left-0 hidden w-72 lg:block">
         <SidebarContent />
       </aside>
@@ -251,7 +251,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <DialogPanel className="relative w-72 max-w-[84vw]">
                 <button
                   onClick={() => setOpen(false)}
-                  className="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  className="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-lg bg-muted text-muted-foreground hover:bg-muted"
                   aria-label="Fechar menu"
                 >
                   <X size={18} />
@@ -264,8 +264,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       </Transition>
 
       <div className="lg:pl-72">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white/85 px-4 py-3 backdrop-blur lg:hidden">
-          <button onClick={() => setOpen(true)} className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100" aria-label="Abrir menu">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-card/85 px-4 py-3 backdrop-blur lg:hidden">
+          <button onClick={() => setOpen(true)} className="grid h-10 w-10 place-items-center rounded-xl bg-muted" aria-label="Abrir menu">
             <Menu size={20} />
           </button>
           <span className="text-lg font-black">hello</span>

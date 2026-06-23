@@ -44,9 +44,9 @@ export function PermissionsPage() {
       ) : (
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
+            <thead className="bg-muted text-left text-xs font-black uppercase text-muted-foreground">
               <tr>
-                <th className="sticky left-0 bg-slate-50 p-3">Papel</th>
+                <th className="sticky left-0 bg-muted p-3">Papel</th>
                 {CONFIGURABLE_MODULES.map((m) => (
                   <th key={m.key} className="p-3 text-center">
                     {m.label}
@@ -56,8 +56,8 @@ export function PermissionsPage() {
             </thead>
             <tbody>
               {ASSIGNABLE_ROLES.map((role) => (
-                <tr key={role} className="border-t border-slate-100">
-                  <td className="sticky left-0 bg-white p-3 font-bold text-slate-800">{ROLE_LABEL[role]}</td>
+                <tr key={role} className="border-t border-border">
+                  <td className="sticky left-0 bg-card p-3 font-bold text-foreground">{ROLE_LABEL[role]}</td>
                   {CONFIGURABLE_MODULES.map((m) => {
                     const on = allowedOf(role, m.key);
                     return (
@@ -67,11 +67,11 @@ export function PermissionsPage() {
                           disabled={save.isPending}
                           className={cn(
                             'inline-flex h-7 w-12 items-center rounded-full p-1 transition',
-                            on ? 'justify-end bg-emerald-500' : 'justify-start bg-slate-300',
+                            on ? 'justify-end bg-emerald-500' : 'justify-start bg-muted',
                           )}
                           aria-label={`${ROLE_LABEL[role]} · ${m.label}: ${on ? 'permitido' : 'bloqueado'}`}
                         >
-                          <span className="h-5 w-5 rounded-full bg-white shadow" />
+                          <span className="h-5 w-5 rounded-full bg-card shadow" />
                         </button>
                       </td>
                     );
@@ -82,7 +82,7 @@ export function PermissionsPage() {
           </table>
         </Card>
       )}
-      <p className="mt-3 text-xs text-slate-400">
+      <p className="mt-3 text-xs text-muted-foreground">
         Dica: o <b>Administrador</b> sempre tem acesso total. As mudanças refletem para os usuários ao recarregar.
       </p>
     </>

@@ -38,12 +38,12 @@ export function ConfirmClearModal({
           <p className="text-sm font-semibold text-red-800">{description}</p>
         </div>
         <label className="block">
-          <span className="mb-1 block text-xs font-bold text-slate-500">
-            Para confirmar, digite <span className="font-black text-slate-800">{keyword}</span>
+          <span className="mb-1 block text-xs font-bold text-muted-foreground">
+            Para confirmar, digite <span className="font-black text-foreground">{keyword}</span>
           </span>
           <Input value={text} onChange={(e) => setText(e.target.value)} placeholder={keyword} autoFocus />
         </label>
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button variant="danger" onClick={onConfirm} disabled={!match || busy}>
             {busy ? 'Apagando…' : confirmLabel}

@@ -334,8 +334,8 @@ export function NotasPage() {
           ) : (
             <>
               {hasSavedGrades && !editingGrades ? (
-                <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
-                  <Lock size={16} className="text-slate-400" />
+                <div className="mb-3 flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-3 text-sm font-semibold text-muted-foreground">
+                  <Lock size={16} className="text-muted-foreground" />
                   Notas bloqueadas para evitar alterações acidentais. Clique em Editar notas para reabrir.
                 </div>
               ) : null}
@@ -349,15 +349,15 @@ export function NotasPage() {
                 const pct = medias.length ? Math.round((aprov / medias.length) * 100) : 0;
                 return (
                   <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
-                      <p className="text-2xl font-black text-slate-900">{list.length}</p>
-                      <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Alunos</p>
+                    <div className="rounded-2xl border border-border bg-card p-3 text-center">
+                      <p className="text-2xl font-black text-foreground">{list.length}</p>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Alunos</p>
                     </div>
-                    <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
-                      <p className={cn('text-2xl font-black', turma == null ? 'text-slate-300' : turma >= MEDIA_APROVACAO ? 'text-emerald-700' : 'text-red-600')}>
+                    <div className="rounded-2xl border border-border bg-card p-3 text-center">
+                      <p className={cn('text-2xl font-black', turma == null ? 'text-muted-foreground' : turma >= MEDIA_APROVACAO ? 'text-emerald-700' : 'text-red-600')}>
                         {turma != null ? turma.toFixed(1) : '–'}
                       </p>
-                      <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Média da turma</p>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Média da turma</p>
                     </div>
                     <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center">
                       <p className="text-2xl font-black text-emerald-700">{aprov}</p>
@@ -373,13 +373,13 @@ export function NotasPage() {
 
               <Card className="max-h-[70vh] overflow-auto p-0">
               <table className="w-full border-collapse text-sm">
-                <thead className="sticky top-0 z-20 bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
+                <thead className="sticky top-0 z-20 bg-muted text-left text-[11px] font-black uppercase tracking-wide text-muted-foreground">
                   <tr>
-                    <th className="sticky left-0 top-0 z-30 w-[160px] min-w-[160px] max-w-[160px] bg-slate-50 px-3 py-3 text-left shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
+                    <th className="sticky left-0 top-0 z-30 w-[160px] min-w-[160px] max-w-[160px] bg-muted px-3 py-3 text-left shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
                     {mainCols.map((a) => (
                       <th key={actKey(a)} className="min-w-[92px] px-2 py-3 text-center align-bottom">
-                        <span className="block leading-tight text-slate-600">{a.name}</span>
-                        <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{a.max}</span>
+                        <span className="block leading-tight text-muted-foreground">{a.name}</span>
+                        <span className="mt-1 inline-block rounded bg-muted/70 px-1.5 py-0.5 text-[9px] font-black text-muted-foreground">0–{a.max}</span>
                         {a.date ? <span className="mt-0.5 block text-[9px] font-black text-emerald-600">entrega {fmtDM(a.date)}</span> : null}
                       </th>
                     ))}
@@ -393,8 +393,8 @@ export function NotasPage() {
                     <th className="px-3 py-3 text-center">Média</th>
                     {recoveryCol ? (
                       <th className="min-w-[92px] px-2 py-3 text-center align-bottom">
-                        <span className="block leading-tight text-slate-600">{recoveryCol.name}</span>
-                        <span className="mt-1 inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-black text-slate-500">0–{recoveryCol.max}</span>
+                        <span className="block leading-tight text-muted-foreground">{recoveryCol.name}</span>
+                        <span className="mt-1 inline-block rounded bg-muted/70 px-1.5 py-0.5 text-[9px] font-black text-muted-foreground">0–{recoveryCol.max}</span>
                         <span className="mt-0.5 block text-[9px] font-black text-amber-600">substitui menor</span>
                       </th>
                     ) : null}
@@ -407,11 +407,11 @@ export function NotasPage() {
                     const m = mediaOf(s.id);
                     const ok = m != null && m >= MEDIA_APROVACAO;
                     return (
-                      <tr key={s.id} className="border-t border-slate-100 transition hover:bg-emerald-50/30 even:bg-slate-50/40">
+                      <tr key={s.id} className="border-t border-border transition hover:bg-emerald-50/30 even:bg-muted/40">
                         <td className="sticky left-0 z-10 w-[160px] min-w-[160px] max-w-[160px] bg-inherit px-3 py-2.5 align-middle shadow-[2px_0_0_0_rgba(241,245,249,1)]">
-                          <div className="flex items-start gap-2">
-                            <span className="w-5 shrink-0 pt-px text-right text-xs font-bold tabular-nums text-slate-400">{i + 1}</span>
-                            <span className="min-w-0 break-words text-[13px] font-bold leading-snug text-slate-800">{s.full_name}</span>
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-6 shrink-0 text-right text-xs font-bold tabular-nums text-muted-foreground">{i + 1}</span>
+                            <span className="min-w-0 break-words text-[13px] font-bold leading-snug text-foreground">{s.full_name}</span>
                           </div>
                         </td>
                         {mainCols.map((a) => {
@@ -427,7 +427,7 @@ export function NotasPage() {
                                 placeholder="–"
                                 className={cn(
                                   'h-10 w-14 rounded-lg border text-center font-bold tabular-nums outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed',
-                                  Number(val) === 0 && val !== '' ? 'border-red-200 bg-red-50 text-red-600' : val !== '' ? 'border-slate-200 bg-white text-slate-900' : 'border-slate-200 bg-white text-slate-400',
+                                  Number(val) === 0 && val !== '' ? 'border-red-200 bg-red-50 text-red-600' : val !== '' ? 'border-border bg-card text-foreground' : 'border-border bg-card text-muted-foreground',
                                   !editingGrades && 'bg-transparent disabled:bg-transparent',
                                 )}
                               />
@@ -464,7 +464,7 @@ export function NotasPage() {
                               {m.toFixed(1)}
                             </span>
                           ) : (
-                            <span className="text-slate-300">–</span>
+                            <span className="text-muted-foreground">–</span>
                           )}
                         </td>
                         {recoveryCol ? (
@@ -481,7 +481,7 @@ export function NotasPage() {
                                   placeholder="–"
                                   className={cn(
                                     'h-10 w-14 rounded-lg border text-center font-bold tabular-nums outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed',
-                                    val !== '' ? 'border-slate-200 bg-white text-slate-900' : 'border-slate-200 bg-white text-slate-400',
+                                    val !== '' ? 'border-border bg-card text-foreground' : 'border-border bg-card text-muted-foreground',
                                     !editingGrades && 'bg-transparent disabled:bg-transparent',
                                   )}
                                 />
@@ -491,7 +491,7 @@ export function NotasPage() {
                         ) : null}
                         <td className="px-3 py-3 text-center">
                           {m == null ? (
-                            <span className="text-slate-300">–</span>
+                            <span className="text-muted-foreground">–</span>
                           ) : ok ? (
                             <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-black uppercase text-emerald-700">Aprovado</span>
                           ) : (
@@ -510,7 +510,7 @@ export function NotasPage() {
                             placeholder={editingGrades ? 'Anotação…' : '–'}
                             className={cn(
                               'h-10 w-full min-w-[150px] rounded-lg border px-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100',
-                              editingGrades ? 'border-slate-200 bg-white text-slate-800' : 'border-transparent bg-transparent text-slate-500',
+                              editingGrades ? 'border-border bg-card text-foreground' : 'border-transparent bg-transparent text-muted-foreground',
                             )}
                           />
                         </td>
@@ -521,7 +521,7 @@ export function NotasPage() {
               </table>
               </Card>
 
-              <p className="mt-3 text-xs text-slate-400">
+              <p className="mt-3 text-xs text-muted-foreground">
                 São 3 notas (peso 10): {mainCols.map((a) => a.name).join(', ')}{creditoCols.length ? ' e Crédito variável' : ''}. Média = soma ÷ 3 · aprovação a partir de {MEDIA_APROVACAO.toFixed(1)} · a recuperação (após a média) substitui a menor quando melhora.
               </p>
               {creditoCols.length > 0 ? (
@@ -535,13 +535,13 @@ export function NotasPage() {
       )}
 
       {students.length > 0 && columns.length > 0 ? (
-        <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:pl-72">
+        <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 p-3 backdrop-blur lg:pl-72">
           <div className="mx-auto flex max-w-5xl items-center gap-2 px-1 sm:gap-3">
             <div className="hidden min-w-0 flex-1 sm:block">
-              <p className="truncate text-sm font-bold text-slate-700">
+              <p className="truncate text-sm font-bold text-foreground">
                 {saved ? '✓ Notas salvas e bloqueadas' : editingGrades ? 'Edição aberta' : `${TERM_LABEL[term]} • ${year}`}
               </p>
-              <p className="truncate text-xs text-slate-400">{editingGrades ? 'Lance as notas e salve para bloquear.' : 'Toque em editar para alterar.'}</p>
+              <p className="truncate text-xs text-muted-foreground">{editingGrades ? 'Lance as notas e salve para bloquear.' : 'Toque em editar para alterar.'}</p>
             </div>
             {editingGrades ? (
               <>
@@ -549,7 +549,7 @@ export function NotasPage() {
                   <button
                     onClick={resetScoresFromSaved}
                     disabled={save.isPending}
-                    className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                    className="inline-flex min-h-12 items-center justify-center rounded-xl border border-border px-4 text-sm font-black text-muted-foreground transition hover:bg-muted disabled:opacity-60"
                   >
                     Cancelar
                   </button>
@@ -709,38 +709,38 @@ function BoletimEscolarModal({
   return (
     <Modal open={open} onClose={onClose} title="Boletins escolares" size="xl">
       <div className="space-y-4">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Gera um boletim por aluno ({className} · {year}) com os 3 trimestres, média final e situação — um por página, pronto para imprimir ou salvar em PDF.
         </p>
 
         {isLoading ? (
           <Loading label="Carregando notas do ano…" />
         ) : rows.length === 0 ? (
-          <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma nota lançada nesta turma em {year}.</p>
+          <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">Nenhuma nota lançada nesta turma em {year}.</p>
         ) : (
           <>
-            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-700">
-              <input type="checkbox" checked={allOn} onChange={() => setSelected(allOn ? new Set() : new Set(rows.map((r) => r.student_id)))} className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+            <label className="flex items-center gap-2 rounded-xl border border-border bg-muted px-3 py-2.5 text-sm font-bold text-foreground">
+              <input type="checkbox" checked={allOn} onChange={() => setSelected(allOn ? new Set() : new Set(rows.map((r) => r.student_id)))} className="h-5 w-5 rounded border-border text-emerald-600 focus:ring-emerald-500" />
               Selecionar todos ({rows.length})
             </label>
-            <div className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2">
+            <div className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-border p-2">
               {rows.map((r) => (
-                <label key={r.student_id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50">
-                  <input type="checkbox" checked={selected.has(r.student_id)} onChange={() => toggle(r.student_id)} className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-                  <span className="flex-1 font-bold text-slate-800">{r.name}</span>
-                  <span className={cn('text-xs font-black', r.final == null ? 'text-slate-300' : r.final >= MEDIA_APROVACAO ? 'text-emerald-600' : 'text-red-600')}>
+                <label key={r.student_id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted">
+                  <input type="checkbox" checked={selected.has(r.student_id)} onChange={() => toggle(r.student_id)} className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500" />
+                  <span className="flex-1 font-bold text-foreground">{r.name}</span>
+                  <span className={cn('text-xs font-black', r.final == null ? 'text-muted-foreground' : r.final >= MEDIA_APROVACAO ? 'text-emerald-600' : 'text-red-600')}>
                     {r.final == null ? '–' : r.final.toFixed(1)}
                   </span>
                 </label>
               ))}
             </div>
-            <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+            <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-3">
               <Button variant="ghost" onClick={onClose}>Fechar</Button>
               <Button onClick={gerar} disabled={selected.size === 0}>
                 <Printer size={16} /> Gerar {selected.size} boletim(ns)
               </Button>
             </div>
-            <p className="text-xs text-slate-400">Para PDF: na caixa de impressão escolha "Salvar como PDF".</p>
+            <p className="text-xs text-muted-foreground">Para PDF: na caixa de impressão escolha "Salvar como PDF".</p>
           </>
         )}
       </div>
@@ -817,23 +817,23 @@ function BoletimModal({
   return (
     <Modal open={open} onClose={onClose} title="Boletim / Relatório" size="xl">
       <div className="space-y-4">
-        <div className="inline-flex rounded-xl bg-slate-100 p-1">
+        <div className="inline-flex rounded-xl bg-muted p-1">
           {(['completo', 'resumido'] as const).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={cn('rounded-lg px-4 py-2 text-sm font-bold capitalize transition', mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500')}
+              className={cn('rounded-lg px-4 py-2 text-sm font-bold capitalize transition', mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground')}
             >
               {m}
             </button>
           ))}
         </div>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           {mode === 'completo' ? 'Todas as notas, média, situação e observações.' : 'Apenas média e situação por aluno.'} {rows.length} aluno(s) na turma {className}.
         </p>
 
         {rows.length === 0 ? (
-          <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Sem alunos para gerar o boletim.</p>
+          <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">Sem alunos para gerar o boletim.</p>
         ) : (
           <>
             <div className="flex flex-wrap gap-2">
@@ -844,8 +844,8 @@ function BoletimModal({
                 <FileText size={16} /> Baixar PDF
               </Button>
             </div>
-            <div className="border-t border-slate-100 pt-3">
-              <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-400">Enviar resumo</p>
+            <div className="border-t border-border pt-3">
+              <p className="mb-2 text-xs font-black uppercase tracking-wide text-muted-foreground">Enviar resumo</p>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant="ghost"
@@ -862,7 +862,7 @@ function BoletimModal({
                   <Share2 size={16} /> E-mail
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-slate-400">Para baixar em PDF, use Imprimir e escolha "Salvar como PDF".</p>
+              <p className="mt-2 text-xs text-muted-foreground">Para baixar em PDF, use Imprimir e escolha "Salvar como PDF".</p>
             </div>
           </>
         )}
@@ -925,7 +925,7 @@ function ComposicaoModal({
   return (
     <Modal open={open} onClose={onClose} title={`Composição — ${TERM_LABEL[term]} / ${year}`}>
       <div className="space-y-4">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Defina as atividades e quanto cada uma vale neste trimestre. A nota {RECOVERY_ACTIVITY_NAME} é coringa: substitui a menor nota do aluno somente quando for maior.
         </p>
 
@@ -948,16 +948,16 @@ function ComposicaoModal({
               Não soma como nota extra. Ela troca a menor nota somente se a recuperação for maior.
             </p>
           </div>
-          <p className="rounded-lg bg-white/80 p-2 text-xs font-bold text-slate-600 sm:col-span-3">
+          <p className="rounded-lg bg-card/80 p-2 text-xs font-bold text-muted-foreground sm:col-span-3">
             Exemplo: notas 8, 6 e 5 com recuperação 7 viram 8, 6 e 7. Se a recuperação for 4, nada muda.
           </p>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div className="rounded-xl border border-border bg-muted p-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-black text-slate-800">Reaproveitar composição</p>
-              <p className="text-xs font-semibold text-slate-500">
+              <p className="text-sm font-black text-foreground">Reaproveitar composição</p>
+              <p className="text-xs font-semibold text-muted-foreground">
                 Clone o descritivo e os valores do trimestre anterior salvo para evitar redigitar tudo.
               </p>
             </div>
@@ -978,7 +978,7 @@ function ComposicaoModal({
 
         <div className="space-y-3">
           {items.map((a, i) => (
-            <div key={i} className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+            <div key={i} className="rounded-xl border border-border bg-muted p-2.5">
               <div className="flex items-center gap-2">
                 <Input
                   value={a.name}
@@ -1006,7 +1006,7 @@ function ComposicaoModal({
                 </button>
               </div>
               {!isRecoveryActivity(a.name) ? (
-                <label className="mt-2 flex items-center gap-2 px-1 text-xs font-bold text-slate-500">
+                <label className="mt-2 flex items-center gap-2 px-1 text-xs font-bold text-muted-foreground">
                   Prazo / entrega
                   <Input
                     type="date"
@@ -1025,7 +1025,7 @@ function ComposicaoModal({
         </Button>
 
         {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
-        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
+        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => save.mutate()} disabled={save.isPending}>
             {save.isPending ? 'Salvando…' : 'Salvar composição'}

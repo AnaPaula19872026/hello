@@ -71,22 +71,22 @@ export function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-4">
+    <main className="grid min-h-screen place-items-center bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-4 dark:from-background dark:via-background dark:to-background">
       <section className="w-full max-w-sm">
-        <div className="rounded-3xl border border-white bg-white/90 p-8 shadow-soft backdrop-blur">
+        <div className="rounded-3xl border border-border bg-card/90 p-8 shadow-soft backdrop-blur">
           <div className="mb-6 text-center">
             <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-emerald-600 text-3xl font-black text-white">
               h
             </div>
-            <h1 className="text-2xl font-black text-slate-900">hello</h1>
-            <p className="mt-1 text-sm font-medium text-slate-500">Gestão escolar — chamadas e cadastros.</p>
+            <h1 className="text-2xl font-black text-foreground">hello</h1>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">Gestão escolar — chamadas e cadastros.</p>
           </div>
 
           <form onSubmit={submit} className="space-y-4">
             {mode === 'signup' ? (
               <Field label="Nome completo">
                 <div className="relative">
-                  <User size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <User size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
@@ -101,7 +101,7 @@ export function LoginPage() {
             {mode === 'signup' ? (
               <Field label="Sua escola / organização">
                 <div className="relative">
-                  <Building2 size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Building2 size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Select value={orgId} onChange={(e) => setOrgId(e.target.value)} className="pl-10" required>
                     <option value="">{orgs.length ? 'Selecione a escola' : 'Carregando…'}</option>
                     {orgs.map((o) => (
@@ -113,7 +113,7 @@ export function LoginPage() {
             ) : null}
             <Field label="E-mail">
               <div className="relative">
-                <Mail size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Mail size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="email"
                   value={email}
@@ -128,7 +128,7 @@ export function LoginPage() {
 
             <Field label="Senha">
               <div className="relative">
-                <Lock size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Lock size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type={show ? 'text' : 'password'}
                   value={password}
@@ -142,7 +142,7 @@ export function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShow(!show)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
                   aria-label="Mostrar senha"
                 >
                   {show ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -166,7 +166,7 @@ export function LoginPage() {
           </form>
 
           <div className="mt-4 flex items-center justify-between text-sm">
-            <button onClick={reset} className="font-bold text-slate-500 hover:text-slate-900">
+            <button onClick={reset} className="font-bold text-muted-foreground hover:text-foreground">
               Esqueci a senha
             </button>
             <button

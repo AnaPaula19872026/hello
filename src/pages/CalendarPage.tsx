@@ -241,8 +241,8 @@ function CalendarCenter({
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-black uppercase tracking-wide text-emerald-700">Centro de calendários</p>
-          <h1 className="text-2xl font-black text-slate-900">Calendários da escola</h1>
-          <p className="mt-1 max-w-2xl text-sm font-medium text-slate-500">
+          <h1 className="text-2xl font-black text-foreground">Calendários da escola</h1>
+          <p className="mt-1 max-w-2xl text-sm font-medium text-muted-foreground">
             Crie quantos calendários precisar (anual, por trimestre, por turno…). Todos da organização visualizam; a edição é de quem cria
             mais a coordenação, e você pode liberar para outros usuários como participantes.
           </p>
@@ -259,29 +259,29 @@ function CalendarCenter({
       ) : null}
 
       {loading ? (
-        <div className="grid place-items-center p-16 text-sm font-bold text-slate-400">Carregando…</div>
+        <div className="grid place-items-center p-16 text-sm font-bold text-muted-foreground">Carregando…</div>
       ) : list.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <p className="text-sm font-bold text-slate-500">Nenhum calendário ainda.</p>
-          {canManage ? <p className="mt-1 text-xs text-slate-400">Clique em “+ Novo calendário” para começar.</p> : null}
+        <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+          <p className="text-sm font-bold text-muted-foreground">Nenhum calendário ainda.</p>
+          {canManage ? <p className="mt-1 text-xs text-muted-foreground">Clique em “+ Novo calendário” para começar.</p> : null}
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {list.map((c) => (
-            <article key={c.id} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
+            <article key={c.id} className="flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:shadow-md">
               <div className="flex items-start justify-between gap-2">
-                <h2 className="min-w-0 flex-1 truncate text-base font-black text-slate-900">{c.title || "Sem título"}</h2>
+                <h2 className="min-w-0 flex-1 truncate text-base font-black text-foreground">{c.title || "Sem título"}</h2>
                 {c.editors.length > 0 ? (
-                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-black text-muted-foreground">
                     {c.editors.length} participante(s)
                   </span>
                 ) : null}
               </div>
-              <p className="mt-1 text-xs font-bold text-slate-400">
+              <p className="mt-1 text-xs font-bold text-muted-foreground">
                 {c.createdByName ? `Criado por ${c.createdByName}` : "Criador desconhecido"}
               </p>
-              <p className="text-xs text-slate-400">{fmtStamp(c.updatedAt, c.updatedByName) ?? "Sem edições ainda"}</p>
-              <div className="mt-3 flex gap-2 border-t border-slate-100 pt-3">
+              <p className="text-xs text-muted-foreground">{fmtStamp(c.updatedAt, c.updatedByName) ?? "Sem edições ainda"}</p>
+              <div className="mt-3 flex gap-2 border-t border-border pt-3">
                 <Button variant="soft" className="flex-1" onClick={() => onOpen(c.id)}>Abrir</Button>
                 {canDelete(c) ? (
                   <button
@@ -321,11 +321,11 @@ function CalendarEditorLoader({
   const { data: people = [] } = useQuery({ queryKey: ["org-people"], queryFn: listOrgPeople, enabled: canManage });
   const { data: rec, isLoading } = useQuery({ queryKey: ["calendar", id, reloadKey], queryFn: () => loadCalendar(id) });
 
-  if (isLoading) return <div className="grid place-items-center p-16 text-sm font-bold text-slate-400">Carregando calendário…</div>;
+  if (isLoading) return <div className="grid place-items-center p-16 text-sm font-bold text-muted-foreground">Carregando calendário…</div>;
   if (!rec) {
     return (
       <div className="grid place-items-center gap-3 p-16 text-center">
-        <p className="text-sm font-bold text-slate-500">Calendário não encontrado (pode ter sido excluído).</p>
+        <p className="text-sm font-bold text-muted-foreground">Calendário não encontrado (pode ter sido excluído).</p>
         <Button variant="soft" onClick={onBack}>← Voltar aos calendários</Button>
       </div>
     );
@@ -863,14 +863,14 @@ function EditorsModal({
   return (
     <Modal open onClose={onClose} title="Participantes — quem pode editar" size="xl">
       <div className="space-y-4">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Todos da organização <b>veem</b> este calendário. Marque abaixo quem mais pode <b>editar</b>. Direção e coordenação já editam por
           padrão. As mudanças entram ao clicar em <b>Salvar</b>.
         </p>
         {people.length === 0 ? (
-          <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-bold text-slate-400">Nenhum usuário na organização ainda.</p>
+          <p className="rounded-lg bg-muted px-3 py-2 text-sm font-bold text-muted-foreground">Nenhum usuário na organização ainda.</p>
         ) : (
-          <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2">
+          <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-border p-2">
             {people.map((p) => {
               const byRole = alwaysEdit(p.role);
               const checked = byRole || set.has(p.user_id);
@@ -879,7 +879,7 @@ function EditorsModal({
                   key={p.user_id}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-2 py-2 text-sm",
-                    byRole ? "opacity-60" : "cursor-pointer hover:bg-slate-50",
+                    byRole ? "opacity-60" : "cursor-pointer hover:bg-muted",
                   )}
                 >
                   <input
@@ -889,15 +889,15 @@ function EditorsModal({
                     onChange={() => toggle(p.user_id)}
                     className="h-4 w-4 accent-emerald-600"
                   />
-                  <span className="min-w-0 flex-1 truncate font-bold text-slate-800">{p.full_name || p.email || p.user_id}</span>
-                  <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-black uppercase text-slate-500">{p.role}</span>
+                  <span className="min-w-0 flex-1 truncate font-bold text-foreground">{p.full_name || p.email || p.user_id}</span>
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-black uppercase text-muted-foreground">{p.role}</span>
                   {byRole ? <span className="shrink-0 text-[10px] font-bold text-emerald-700">edita por padrão</span> : null}
                 </label>
               );
             })}
           </div>
         )}
-        <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+        <div className="flex items-center justify-end gap-2 border-t border-border pt-4">
           <Button onClick={onClose}>Concluir</Button>
         </div>
       </div>
@@ -974,12 +974,12 @@ function ImportSmartModal({
           onFiles={(l) => handleFile(l?.[0])}
         />
 
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-muted-foreground">
           PDF e Word são lidos por aproximação — calendários com layout livre (dia sem mês, colunas) podem sair
           incompletos. Sempre revise antes de salvar; para garantir, use o Excel.
         </p>
 
-        {busy ? <p className="text-sm font-bold text-slate-500">Lendo “{fileName}”…</p> : null}
+        {busy ? <p className="text-sm font-bold text-muted-foreground">Lendo “{fileName}”…</p> : null}
         {err ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-600">{err}</p> : null}
 
         {events && events.length > 0 ? (
@@ -989,21 +989,21 @@ function ImportSmartModal({
                 Leitura aproximada de PDF/Word. Confira datas e títulos no editor — alguns eventos podem faltar.
               </p>
             ) : null}
-            <p className="mb-2 text-sm font-bold text-slate-700">{events.length} evento(s) encontrado(s):</p>
-            <div className="max-h-60 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2">
+            <p className="mb-2 text-sm font-bold text-foreground">{events.length} evento(s) encontrado(s):</p>
+            <div className="max-h-60 space-y-1 overflow-y-auto rounded-xl border border-border p-2">
               {events.slice(0, 80).map((e, i) => (
                 <div key={i} className="flex items-center gap-2 text-xs">
-                  <span className="w-24 shrink-0 font-bold text-slate-500">
+                  <span className="w-24 shrink-0 font-bold text-muted-foreground">
                     {e.start.slice(8, 10)}/{e.start.slice(5, 7)}
                     {e.end ? `–${e.end.slice(8, 10)}/${e.end.slice(5, 7)}` : ""}
                   </span>
-                  <span className="truncate font-bold text-slate-800">{e.title}</span>
-                  <span className="ml-auto shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-500">{e.categoryLabel}</span>
+                  <span className="truncate font-bold text-foreground">{e.title}</span>
+                  <span className="ml-auto shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-black text-muted-foreground">{e.categoryLabel}</span>
                 </div>
               ))}
-              {events.length > 80 ? <p className="px-1 pt-1 text-[11px] font-bold text-slate-400">+{events.length - 80} evento(s)…</p> : null}
+              {events.length > 80 ? <p className="px-1 pt-1 text-[11px] font-bold text-muted-foreground">+{events.length - 80} evento(s)…</p> : null}
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
               <Button variant="ghost" onClick={onClose}>Cancelar</Button>
               <Button variant="soft" onClick={() => onApply(events, "replace")}>Substituir eventos</Button>
               <Button onClick={() => onApply(events, "add")}>Adicionar {events.length} ao calendário</Button>

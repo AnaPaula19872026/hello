@@ -42,14 +42,14 @@ export function AvisosPage() {
       />
 
       {canSend ? (
-        <div className="mb-5 inline-flex rounded-xl bg-slate-100 p-1">
+        <div className="mb-5 inline-flex rounded-xl bg-muted p-1">
           {(['recebidos', 'enviados'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={cn(
                 'rounded-lg px-4 py-2 text-sm font-bold capitalize transition',
-                tab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500',
+                tab === t ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground',
               )}
             >
               {t}
@@ -90,14 +90,14 @@ function Recebidos({ uid }: { uid: string }) {
           <div className="flex items-start gap-3">
             {!n.read ? <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" /> : null}
             <div className="min-w-0 flex-1">
-              <p className="font-black text-slate-900">{n.title}</p>
+              <p className="font-black text-foreground">{n.title}</p>
               <p className="mt-0.5 text-xs font-bold text-emerald-700">
                 De: {n.authorName || 'Usuário'}
                 {n.authorRole ? ` · ${ROLE_LABEL[n.authorRole]}` : ''}
               </p>
-              <p className="mt-1.5 whitespace-pre-wrap text-sm text-slate-600">{n.body}</p>
+              <p className="mt-1.5 whitespace-pre-wrap text-sm text-muted-foreground">{n.body}</p>
               <AttachmentChips attachments={n.attachments} />
-              <p className="mt-2 text-xs font-bold text-slate-400">{fmt(n.created_at)}</p>
+              <p className="mt-2 text-xs font-bold text-muted-foreground">{fmt(n.created_at)}</p>
             </div>
           </div>
           <div className="mt-3 flex justify-end">
@@ -141,10 +141,10 @@ function Enviados({ uid }: { uid: string }) {
         <Card key={n.id}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="font-black text-slate-900">{n.title}</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{n.body}</p>
+              <p className="font-black text-foreground">{n.title}</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{n.body}</p>
               <AttachmentChips attachments={n.attachments} />
-              <p className="mt-2 text-xs font-bold text-slate-400">
+              <p className="mt-2 text-xs font-bold text-muted-foreground">
                 {AUDIENCE_LABEL(n.audience, n.target_role)} • {fmt(n.created_at)}
               </p>
             </div>
@@ -228,7 +228,7 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
             onChange={(e) => setBody(e.target.value)}
             rows={4}
             placeholder="Escreva o aviso…"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
           />
         </Field>
 
@@ -246,7 +246,7 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
                 onClick={() => setAudience(val)}
                 className={cn(
                   'rounded-xl border px-3 py-2.5 text-sm font-bold transition',
-                  audience === val ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600',
+                  audience === val ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-border text-muted-foreground',
                 )}
               >
                 {lbl}
@@ -295,12 +295,12 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
             }}
             className={cn(
               'flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-6 text-center transition',
-              dragOver ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100',
+              dragOver ? 'border-emerald-500 bg-emerald-50' : 'border-border bg-muted hover:bg-muted',
             )}
           >
-            <UploadCloud size={22} className="text-slate-400" />
-            <p className="text-sm font-bold text-slate-600">Clique ou arraste os arquivos aqui</p>
-            <p className="text-xs text-slate-400">PDF, DOC, DOCX, PNG, JPG, PPTX, XLSX…</p>
+            <UploadCloud size={22} className="text-muted-foreground" />
+            <p className="text-sm font-bold text-muted-foreground">Clique ou arraste os arquivos aqui</p>
+            <p className="text-xs text-muted-foreground">PDF, DOC, DOCX, PNG, JPG, PPTX, XLSX…</p>
             <input
               id="aviso-files"
               type="file"
@@ -318,15 +318,15 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
                 const localUrl = URL.createObjectURL(f);
                 const previewable = f.type.startsWith('image/') || f.type === 'application/pdf';
                 return (
-                  <div key={i} className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">
-                    <Paperclip size={14} className="shrink-0 text-slate-400" />
+                  <div key={i} className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs font-bold text-foreground">
+                    <Paperclip size={14} className="shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1 truncate">{f.name}</span>
                     {previewable ? (
-                      <a href={localUrl} target="_blank" rel="noopener noreferrer" aria-label="Pré-visualizar" className="text-slate-400 hover:text-emerald-700">
+                      <a href={localUrl} target="_blank" rel="noopener noreferrer" aria-label="Pré-visualizar" className="text-muted-foreground hover:text-emerald-700">
                         <Eye size={15} />
                       </a>
                     ) : null}
-                    <button onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} aria-label="Remover" className="text-slate-400 hover:text-red-600">
+                    <button onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} aria-label="Remover" className="text-muted-foreground hover:text-red-600">
                       <X size={14} />
                     </button>
                   </div>
@@ -339,7 +339,7 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
 
         {send.isError ? <p className="text-sm font-semibold text-red-600">{(send.error as Error).message}</p> : null}
 
-        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
+        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>

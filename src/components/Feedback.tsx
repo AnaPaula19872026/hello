@@ -66,12 +66,12 @@ export function FeedbackHost() {
       onClick={() => setMsg(null)}
     >
       <div
-        className="success-card w-full max-w-xs rounded-3xl bg-white p-8 text-center shadow-soft"
+        className="success-card w-full max-w-xs rounded-3xl bg-card p-8 text-center shadow-soft"
         onClick={(e) => e.stopPropagation()}
       >
         <AnimatedCheck />
-        <h3 className="text-2xl font-black text-slate-900">Ok!</h3>
-        <p className="mt-1.5 text-sm text-slate-500">{msg}</p>
+        <h3 className="text-2xl font-black text-foreground">Ok!</h3>
+        <p className="mt-1.5 text-sm text-muted-foreground">{msg}</p>
         <Button className="mt-6 w-full" onClick={() => setMsg(null)}>
           OK
         </Button>

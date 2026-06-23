@@ -34,10 +34,6 @@ export function PlanDocsCenter() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm font-medium text-slate-500">
-        Centro de arquivos do professor. Anexe planos, materiais e documentos — organizados por segmento, trimestre e turma.
-      </p>
-
       {isError ? (
         <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-700">
           Não foi possível carregar. Verifique se a migração `plan_docs` foi rodada no Supabase. {(error as Error).message}
@@ -45,7 +41,7 @@ export function PlanDocsCenter() {
       ) : null}
 
       {/* Abas de segmento */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-2">
         {SEGMENTS.map((s) => {
           const active = seg === s.key;
           return (
@@ -54,13 +50,13 @@ export function PlanDocsCenter() {
               onClick={() => setSeg(s.key)}
               className={cn(
                 'flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-bold transition',
-                active ? 'text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100',
+                active ? 'text-white shadow-sm' : 'text-muted-foreground hover:bg-muted',
               )}
               style={active ? { backgroundColor: s.color } : undefined}
             >
               <FileText size={15} />
               {s.label}
-              <span className={cn('rounded-full px-1.5 text-[11px] font-black', active ? 'bg-white/25' : 'bg-slate-200 text-slate-500')}>{countBySeg(s.key)}</span>
+              <span className={cn('rounded-full px-1.5 text-[11px] font-black', active ? 'bg-card/25' : 'bg-muted text-muted-foreground')}>{countBySeg(s.key)}</span>
             </button>
           );
         })}
@@ -173,8 +169,8 @@ function FileCenter({ segKey, docs, classes, loading }: { segKey: string; docs: 
             {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
         </div>
-        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 sm:max-w-xs">
-          <Search size={16} className="shrink-0 text-slate-400" />
+        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 sm:max-w-xs">
+          <Search size={16} className="shrink-0 text-muted-foreground" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar arquivo…" className="w-full bg-transparent text-sm outline-none" />
         </label>
         {filtered.length >= 2 ? (
@@ -189,32 +185,36 @@ function FileCenter({ segKey, docs, classes, loading }: { segKey: string; docs: 
         ) : null}
       </div>
 
-      {/* Dropzone limpo, com destino atual */}
-      <Dropzone onFiles={handleFiles} title={upload.isPending ? 'Enviando…' : `Soltar arquivos aqui — destino: ${destino}`} hint="Word, Excel, PDF, imagens (JPG/PNG/HEIC…) e mais. Ajuste trimestre/turma acima antes de enviar." />
+      {/* Dropzone slim — destino atual derivado dos filtros acima */}
+      <Dropzone
+        compact
+        onFiles={handleFiles}
+        title={upload.isPending ? 'Enviando…' : `Arraste ou clique para enviar — ${destino}`}
+      />
 
       {/* Lista */}
       {loading ? (
-        <p className="py-10 text-center text-sm font-bold text-slate-400">Carregando…</p>
+        <p className="py-10 text-center text-sm font-bold text-muted-foreground">Carregando…</p>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center">
-          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-slate-100 text-slate-400"><FileText size={22} /></div>
-          <p className="text-sm font-bold text-slate-600">Nenhum arquivo {term || turma || q ? 'com esse filtro' : 'ainda'}</p>
-          <p className="mt-1 text-xs text-slate-400">Arraste para a área acima ou clique para enviar.</p>
+        <div className="rounded-xl border border-dashed border-border bg-card py-12 text-center">
+          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-muted text-muted-foreground"><FileText size={22} /></div>
+          <p className="text-sm font-bold text-muted-foreground">Nenhum arquivo {term || turma || q ? 'com esse filtro' : 'ainda'}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Arraste para a área acima ou clique para enviar.</p>
         </div>
       ) : grouped ? (
         <div className="space-y-5">
           {grouped.map((g) => (
             <div key={String(g.term)}>
               <div className="mb-2 flex items-center gap-2 px-1">
-                <h3 className="text-[11px] font-black uppercase tracking-wide text-slate-400">{termLabel(g.term)}</h3>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-500">{g.items.length}</span>
+                <h3 className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">{termLabel(g.term)}</h3>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-black text-muted-foreground">{g.items.length}</span>
               </div>
-              <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card">{g.items.map(row)}</div>
+              <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-card">{g.items.map(row)}</div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card">{filtered.map(row)}</div>
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-card">{filtered.map(row)}</div>
       )}
 
       {preview?.url ? <PreviewModal name={preview.name} url={preview.url} mime={preview.mime} onClose={() => setPreview(null)} /> : null}
@@ -242,19 +242,19 @@ function FileRow({
   const openExternal = () => doc.url && window.open(doc.url, '_blank', 'noopener');
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5 transition hover:bg-slate-50 sm:px-4">
+    <div className="flex items-center gap-3 px-3 py-2.5 transition hover:bg-muted sm:px-4">
       <button
         onClick={canPrev ? onPreview : openExternal}
-        className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100 text-slate-400"
+        className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground"
         aria-label="Abrir"
       >
-        {isImg && doc.url ? <img src={doc.url} alt={doc.name} className="h-full w-full object-cover" /> : <span className="text-[9px] font-black text-slate-500">{ext}</span>}
+        {isImg && doc.url ? <img src={doc.url} alt={doc.name} className="h-full w-full object-cover" /> : <span className="text-[9px] font-black text-muted-foreground">{ext}</span>}
       </button>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-slate-800" title={doc.name}>{doc.name}</p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-slate-400">
-          {doc.turma_label ? <span className="font-bold text-slate-500">{doc.turma_label}</span> : null}
+        <p className="truncate text-sm font-bold text-foreground" title={doc.name}>{doc.name}</p>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground">
+          {doc.turma_label ? <span className="font-bold text-muted-foreground">{doc.turma_label}</span> : null}
           {doc.turma_label ? <span>·</span> : null}
           <span>{fmtDate(doc.created_at)}</span>
         </div>
@@ -287,7 +287,7 @@ function IconBtn({
 }) {
   const cls = cn(
     'grid h-8 w-8 place-items-center rounded-lg transition',
-    danger ? 'text-slate-400 hover:bg-red-50 hover:text-red-600' : 'text-slate-400 hover:bg-slate-200 hover:text-slate-700',
+    danger ? 'text-muted-foreground hover:bg-red-50 hover:text-red-600' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
   );
   if (href) return <a href={href} target="_blank" rel="noopener noreferrer" download={download} className={cls} title={label} aria-label={label}>{children}</a>;
   return <button type="button" onClick={onClick} className={cls} title={label} aria-label={label}>{children}</button>;
@@ -318,29 +318,29 @@ function EditDocModal({ doc, classes, onClose, onSaved }: { doc: PlanDoc; classe
   return (
     <Modal open onClose={onClose} title="Editar arquivo">
       <div className="space-y-3">
-        <label className="block"><span className="mb-1 block text-xs font-bold text-slate-500">Nome</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
+        <label className="block"><span className="mb-1 block text-xs font-bold text-muted-foreground">Nome</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <label className="block"><span className="mb-1 block text-xs font-bold text-slate-500">Segmento</span>
+          <label className="block"><span className="mb-1 block text-xs font-bold text-muted-foreground">Segmento</span>
             <Select value={segment} onChange={(e) => setSegment(e.target.value)}>
               {SEGMENTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
             </Select>
           </label>
-          <label className="block"><span className="mb-1 block text-xs font-bold text-slate-500">Trimestre</span>
+          <label className="block"><span className="mb-1 block text-xs font-bold text-muted-foreground">Trimestre</span>
             <Select value={term} onChange={(e) => setTerm(e.target.value)}>
               <option value="">—</option>
               {TERMS.map((t) => <option key={t} value={t}>{t}º</option>)}
             </Select>
           </label>
-          <label className="block"><span className="mb-1 block text-xs font-bold text-slate-500">Turma</span>
+          <label className="block"><span className="mb-1 block text-xs font-bold text-muted-foreground">Turma</span>
             <Select value={turma} onChange={(e) => setTurma(e.target.value)}>
               <option value="">Todas</option>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </label>
         </div>
-        <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+        <div className="flex justify-end gap-2 border-t border-border pt-3">
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? 'Salvando…' : 'Salvar'}</Button>
         </div>

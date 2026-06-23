@@ -24,9 +24,9 @@ export function PreviewModal({ name, url, mime, onClose }: { name: string; url: 
         {mime?.startsWith('image/') ? (
           <img src={url} alt={name} className="mx-auto max-h-[70vh] rounded-xl object-contain" />
         ) : mime === 'application/pdf' ? (
-          <iframe src={url} title={name} className="h-[70vh] w-full rounded-xl border border-slate-200" />
+          <iframe src={url} title={name} className="h-[70vh] w-full rounded-xl border border-border" />
         ) : (
-          <p className="text-sm text-slate-500">Pré-visualização não disponível para este tipo de arquivo.</p>
+          <p className="text-sm text-muted-foreground">Pré-visualização não disponível para este tipo de arquivo.</p>
         )}
         <a
           href={url}
@@ -78,14 +78,14 @@ export function AttachmentChips({ attachments, zipName = 'anexos' }: { attachmen
         {attachments.map((a) => (
           <div
             key={a.id}
-            className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700"
+            className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs font-bold text-foreground"
           >
-            <Paperclip size={14} className="shrink-0 text-slate-400" />
+            <Paperclip size={14} className="shrink-0 text-muted-foreground" />
             <a href={a.url} target="_blank" rel="noopener noreferrer" download={a.name} className="truncate hover:text-emerald-700">
               {a.name}
             </a>
             {canPreview(a.mime) && a.url ? (
-              <button onClick={() => setPreview(a)} aria-label="Pré-visualizar" className="shrink-0 text-slate-400 hover:text-emerald-700">
+              <button onClick={() => setPreview(a)} aria-label="Pré-visualizar" className="shrink-0 text-muted-foreground hover:text-emerald-700">
                 <Eye size={15} />
               </button>
             ) : null}

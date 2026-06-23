@@ -267,16 +267,16 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
           </p>
         ) : null}
 
-        <div className="inline-flex rounded-xl bg-slate-100 p-1">
+        <div className="inline-flex rounded-xl bg-muted p-1">
           <button
             onClick={() => setChannel('whatsapp')}
-            className={cn('flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition', channel === 'whatsapp' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500')}
+            className={cn('flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition', channel === 'whatsapp' ? 'bg-card text-emerald-700 shadow-sm' : 'text-muted-foreground')}
           >
             <MessageCircle size={16} /> WhatsApp
           </button>
           <button
             onClick={() => setChannel('email')}
-            className={cn('flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition', channel === 'email' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500')}
+            className={cn('flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition', channel === 'email' ? 'bg-card text-blue-700 shadow-sm' : 'text-muted-foreground')}
           >
             <Mail size={16} /> E-mail
           </button>
@@ -297,11 +297,11 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={6}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
           />
         </Field>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
           {!self ? (
             <Button variant="ghost" onClick={() => saveContact.mutate()} disabled={saveContact.isPending || (!phone.trim() && !email.trim())}>
               <Save size={16} /> {saveContact.isPending ? 'Salvando…' : 'Salvar contato'}
@@ -315,7 +315,7 @@ function SendModal({ plan, onClose, self = false }: { plan: PlanWithMeta; onClos
           </div>
         </div>
         {!self ? (
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-muted-foreground">
             "Salvar contato" guarda o WhatsApp/e-mail no perfil do professor — da próxima vez já vem preenchido, é só disparar.
           </p>
         ) : null}
@@ -337,9 +337,9 @@ function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className={cn('rounded-full px-2.5 py-1 text-[11px] font-black uppercase', st.cls)}>{st.label}</span>
-            <p className="font-black text-slate-900">{p.title}</p>
+            <p className="font-black text-foreground">{p.title}</p>
           </div>
-          <p className="mt-0.5 text-xs font-bold text-slate-400">
+          <p className="mt-0.5 text-xs font-bold text-muted-foreground">
             {showAuthor && p.authorName ? `${p.authorName} · ` : ''}
             {p.className ? `${p.className} · ` : ''}
             {p.week_start ? `Semana de ${format(parseISO(p.week_start), 'dd/MM/yyyy')}` : 'Sem data'}
@@ -349,13 +349,13 @@ function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?
           onClick={() => setChatOpen(true)}
           className={cn(
             'relative flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition',
-            unread > 0 ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700',
+            unread > 0 ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-muted text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700',
           )}
           title={unread > 0 ? `${unread} mensagem(ns) nova(s)` : 'Abrir conversa'}
         >
           <MessageSquare size={15} /> Conversa
           {unread > 0 ? (
-            <span className="grid min-w-5 place-items-center rounded-full bg-white px-1.5 text-[11px] font-black leading-5 text-emerald-700">
+            <span className="grid min-w-5 place-items-center rounded-full bg-card px-1.5 text-[11px] font-black leading-5 text-emerald-700">
               {unread > 9 ? '9+' : unread}
             </span>
           ) : null}
@@ -369,7 +369,7 @@ function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?
           <Eye size={14} /> Ver planejamento semanal
         </button>
       ) : p.content ? (
-        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{p.content}</p>
+        <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{p.content}</p>
       ) : null}
       <AttachmentChips attachments={p.attachments} zipName={safeFileName(p.title) || 'planejamento'} />
       {p.feedback ? (
@@ -378,7 +378,7 @@ function PlanCard({ plan: p, footer, showAuthor }: { plan: PlanWithMeta; footer?
           <p className="mt-0.5 whitespace-pre-wrap font-semibold">{p.feedback}</p>
         </div>
       ) : null}
-      {footer ? <div className="mt-3 border-t border-slate-100 pt-3">{footer}</div> : null}
+      {footer ? <div className="mt-3 border-t border-border pt-3">{footer}</div> : null}
       {chatOpen ? <ChatModal plan={p} onClose={() => setChatOpen(false)} /> : null}
       {viewOpen && p.plan_data ? (
         <Modal open onClose={() => setViewOpen(false)} title={p.title || 'Planejamento semanal'} size="xl">
@@ -438,11 +438,11 @@ function ChatModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void 
           ) : messages.length === 0 ? (
             <div className="grid h-full place-items-center text-center">
               <div>
-                <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-slate-100 text-slate-400">
+                <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
                   <MessageSquare size={22} />
                 </div>
-                <p className="text-sm font-bold text-slate-600">Nenhuma mensagem ainda</p>
-                <p className="mt-1 text-xs text-slate-400">Tire dúvidas ou peça ajustes diretamente aqui.</p>
+                <p className="text-sm font-bold text-muted-foreground">Nenhuma mensagem ainda</p>
+                <p className="mt-1 text-xs text-muted-foreground">Tire dúvidas ou peça ajustes diretamente aqui.</p>
               </div>
             </div>
           ) : (
@@ -453,13 +453,13 @@ function ChatModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void 
                   <div
                     className={cn(
                       'max-w-[85%] rounded-2xl px-3.5 py-2 text-sm shadow-sm',
-                      mine ? 'rounded-br-md bg-emerald-600 text-white' : 'rounded-bl-md bg-slate-100 text-slate-800',
+                      mine ? 'rounded-br-md bg-emerald-600 text-white' : 'rounded-bl-md bg-muted text-foreground',
                     )}
                   >
                     {!mine ? <p className="mb-0.5 text-[11px] font-black opacity-70">{m.authorName ?? 'Usuário'}</p> : null}
                     <p className="whitespace-pre-wrap break-words">{m.body}</p>
                   </div>
-                  <span className="mt-0.5 px-1 text-[10px] font-bold text-slate-400">
+                  <span className="mt-0.5 px-1 text-[10px] font-bold text-muted-foreground">
                     {format(parseISO(m.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
                   </span>
                 </div>
@@ -469,7 +469,7 @@ function ChatModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void 
           <div ref={endRef} />
         </div>
 
-        <div className="mt-3 flex items-end gap-2 border-t border-slate-100 pt-3">
+        <div className="mt-3 flex items-end gap-2 border-t border-border pt-3">
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -482,7 +482,7 @@ function ChatModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => void 
             rows={1}
             autoFocus
             placeholder="Escreva uma mensagem…  (Enter envia, Shift+Enter quebra linha)"
-            className="max-h-28 min-h-11 flex-1 resize-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            className="max-h-28 min-h-11 flex-1 resize-none rounded-xl border border-border bg-card px-4 py-2.5 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
           />
           <Button onClick={submit} disabled={!body.trim() || send.isPending} className="shrink-0">
             <Send size={16} /> Enviar
@@ -507,18 +507,18 @@ function DevolverModal({ plan, onClose }: { plan: PlanWithMeta; onClose: () => v
   return (
     <Modal open onClose={onClose} title="Devolver planejamento">
       <div className="space-y-4">
-        <p className="text-sm text-slate-500">Explique o que precisa ser ajustado. O professor verá esse retorno.</p>
+        <p className="text-sm text-muted-foreground">Explique o que precisa ser ajustado. O professor verá esse retorno.</p>
         <Field label="Feedback">
           <textarea
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
             rows={4}
             autoFocus
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             placeholder="Ex.: incluir os objetivos de aprendizagem da BNCC…"
           />
         </Field>
-        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
+        <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button variant="danger" onClick={() => ret.mutate()} disabled={!feedback.trim() || ret.isPending}>
             <Undo2 size={16} /> {ret.isPending ? 'Devolvendo…' : 'Devolver'}
@@ -612,7 +612,7 @@ function ComposeModal({ plan, onClose }: { plan: PlanWithMeta | null; onClose: (
           </Field>
         </div>
         {mode === 'semanal' ? (
-          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+          <div className="rounded-xl border border-border bg-muted/60 p-3">
             <p className="mb-3 flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-emerald-700">
               <CalendarRange size={14} /> Modelo semanal — preencha por dia e turma
             </p>
@@ -624,7 +624,7 @@ function ComposeModal({ plan, onClose }: { plan: PlanWithMeta | null; onClose: (
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={6}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
               placeholder="Objetivos de aprendizagem (BNCC), conteúdos, metodologia, recursos, avaliação…"
             />
           </Field>
@@ -638,10 +638,10 @@ function ComposeModal({ plan, onClose }: { plan: PlanWithMeta | null; onClose: (
           {files.length > 0 ? (
             <div className="mt-2 space-y-1.5">
               {files.map((f, i) => (
-                <div key={i} className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">
-                  <Paperclip size={14} className="shrink-0 text-slate-400" />
+                <div key={i} className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs font-bold text-foreground">
+                  <Paperclip size={14} className="shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                  <button onClick={() => setFiles((p) => p.filter((_, j) => j !== i))} aria-label="Remover" className="text-slate-400 hover:text-red-600">
+                  <button onClick={() => setFiles((p) => p.filter((_, j) => j !== i))} aria-label="Remover" className="text-muted-foreground hover:text-red-600">
                     <X size={14} />
                   </button>
                 </div>
@@ -652,7 +652,7 @@ function ComposeModal({ plan, onClose }: { plan: PlanWithMeta | null; onClose: (
 
         {plan?.attachments?.length ? (
           <div>
-            <p className="mb-1 text-xs font-bold text-slate-500">Anexos atuais</p>
+            <p className="mb-1 text-xs font-bold text-muted-foreground">Anexos atuais</p>
             <AttachmentChips attachments={plan.attachments} />
           </div>
         ) : null}

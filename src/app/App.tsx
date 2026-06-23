@@ -33,8 +33,8 @@ function Protected() {
 
   if (loading || (session && ctxLoading)) {
     return (
-      <div className="grid min-h-screen place-items-center bg-slate-50">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-600" />
+      <div className="grid min-h-screen place-items-center bg-muted">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-border border-t-emerald-600" />
       </div>
     );
   }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { cn } from '../lib/cn';
-import type { ReportPayload } from '../lib/types';
+import { groupByMonth, weekdayLetter } from '../lib/schooldays';
+import { MONTHS, type ReportPayload } from '../lib/types';
 
 const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
@@ -168,6 +169,13 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
   const dates = payload.dates ?? [];
   const examSet = new Set(payload.examDates ?? []);
   if (rows.length === 0) return <p className="text-center text-slate-400">Nenhum dado no período.</p>;
+
+  // Mapa de chamada mensal (grade P/F por dia letivo) — igual ao modelo impresso.
+  if (payload.layout === 'grid') {
+    if (!payload.gridDates?.length) return <p className="text-center text-slate-400">Sem dias letivos no período.</p>;
+    return <FreqGrid payload={payload} minPct={minPct} />;
+  }
+
   if (dates.length === 0) return <p className="text-center text-slate-400">Nenhuma aula registrada no período.</p>;
 
   const chip = compact ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-1 text-xs';
@@ -191,7 +199,10 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
             return (
               <tr key={r.name} className="border-t border-slate-100 align-top even:bg-slate-50/50">
                 <td className="p-3 font-bold text-slate-800">
-                  <span className="mr-2 inline-block w-5 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>{r.name}
+                  <div className="flex items-baseline gap-2">
+                    <span className="w-5 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>
+                    <span className="min-w-0 break-words leading-snug">{r.name}</span>
+                  </div>
                 </td>
                 <td className="p-3">
                   <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-700">{r.present} presença(s)</div>
@@ -221,6 +232,103 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
   );
 }
 
+/**
+ * Mapa de chamada mensal: matriz aluno × dia letivo (P/F), um bloco por mês.
+ * Só entram dias úteis (seg–sex, sem feriados) — escola não funciona fim de semana.
+ * Todo aluno começa presente; vira falta só onde há falta registrada na chamada.
+ * Resumo por mês: presenças, faltas, % de frequência e situação (Aprovado/Reprovado).
+ */
+function FreqGrid({ payload, minPct }: { payload: ReportPayload; minPct: number }) {
+  const rows = payload.freqRows ?? [];
+  const months = groupByMonth(payload.gridDates ?? []);
+  const examSet = new Set(payload.examDates ?? []);
+
+  return (
+    <div className="space-y-6">
+      {months.map((m) => (
+        <div key={m.key} className="break-inside-avoid overflow-x-auto rounded-xl border border-slate-200 bg-white print:border-slate-300">
+          <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-600">
+            {MONTHS[m.month - 1]} / {m.year} — {m.days.length} dias letivos
+          </div>
+          <table className="w-full border-collapse text-center text-[11px] tabular-nums">
+            <thead>
+              {/* Letra do dia da semana */}
+              <tr className="bg-slate-50 text-slate-400">
+                <th className="sticky left-0 z-10 bg-slate-50 px-2 py-1 text-left">&nbsp;</th>
+                {m.days.map((d) => (
+                  <th key={d} className="w-6 border-l border-slate-100 px-0 py-1 font-bold">{weekdayLetter(d)}</th>
+                ))}
+                <th className="border-l-2 border-slate-200 px-1 py-1" colSpan={4} />
+              </tr>
+              {/* Número do dia + cabeçalhos do resumo */}
+              <tr className="border-b-2 border-slate-200 bg-slate-50 text-slate-500">
+                <th className="sticky left-0 z-10 bg-slate-50 px-2 py-1 text-left text-[11px] font-black uppercase">Aluno</th>
+                {m.days.map((d) => (
+                  <th key={d} className={cn('w-6 border-l border-slate-100 px-0 py-1 font-bold', examSet.has(d) && 'text-amber-600')} title={examSet.has(d) ? 'Semana de provas' : undefined}>
+                    {d.slice(8, 10)}
+                  </th>
+                ))}
+                <th className="border-l-2 border-slate-200 px-1 py-1 text-[10px] font-black uppercase">Pres.</th>
+                <th className="px-1 py-1 text-[10px] font-black uppercase">Faltas</th>
+                <th className="px-1 py-1 text-[10px] font-black uppercase">%</th>
+                <th className="px-1 py-1 text-[10px] font-black uppercase">Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => {
+                let faltas = 0;
+                const cells = m.days.map((d) => {
+                  const absent = r.days?.[d] === false; // só falta registrada conta; resto = presente
+                  if (absent) faltas++;
+                  return { d, absent };
+                });
+                const total = m.days.length;
+                const present = total - faltas;
+                const pct = total ? Math.round((present / total) * 1000) / 10 : 0;
+                const reprovado = pct < minPct;
+                return (
+                  <tr key={r.name} className="border-t border-slate-100 even:bg-slate-50/40">
+                    <td className="sticky left-0 z-10 whitespace-nowrap bg-inherit px-2 py-1 text-left font-bold text-slate-800">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-5 shrink-0 text-right tabular-nums text-slate-400">{i + 1}</span>
+                        {r.name}
+                      </span>
+                    </td>
+                    {cells.map(({ d, absent }) => (
+                      <td
+                        key={d}
+                        className={cn(
+                          'w-6 border-l border-slate-100 px-0 py-1 font-black',
+                          absent ? 'bg-red-50 text-red-600' : 'text-emerald-600',
+                        )}
+                        style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}
+                      >
+                        {absent ? 'F' : 'P'}
+                      </td>
+                    ))}
+                    <td className="border-l-2 border-slate-200 px-1 py-1 font-black text-emerald-700">{present}</td>
+                    <td className="px-1 py-1 font-black text-red-600">{faltas}</td>
+                    <td className={cn('px-1 py-1 font-black', reprovado ? 'text-red-600' : 'text-emerald-700')}>{pct}%</td>
+                    <td className={cn('px-1 py-1 text-[10px] font-black uppercase', reprovado ? 'text-red-600' : 'text-emerald-700')}>
+                      {reprovado ? 'Reprovado' : 'Aprovado'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center gap-3 px-1 text-[11px] text-slate-400">
+        <span><span className="font-black text-emerald-600">P</span> Presente</span>
+        <span><span className="font-black text-red-600">F</span> Falta</span>
+        <span>Situação: frequência ≥ {minPct}% = Aprovado</span>
+        <span>Só dias letivos (seg–sex, sem feriados nacionais).</span>
+      </div>
+    </div>
+  );
+}
+
 function NotasBody({ payload, compact }: { payload: ReportPayload; compact: boolean }) {
   const rows = payload.notasRows ?? [];
   if (rows.length === 0) return <p className="text-center text-slate-400">Nenhum dado.</p>;
@@ -246,7 +354,10 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
               return (
                 <tr key={r.name} className="border-t border-slate-100">
                   <td className={cn('sticky left-0 bg-white font-bold text-slate-800', compact ? 'p-2' : 'p-3')}>
-                    <span className="mr-2 inline-block w-6 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>{r.name}
+                    <div className="flex items-baseline gap-2">
+                      <span className="w-6 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>
+                      <span className="min-w-0 break-words leading-snug">{r.name}</span>
+                    </div>
                   </td>
                   <td className={cn('text-center', pad)}>
                     {m != null ? <span className={cn('text-base font-black', m >= 6 ? 'text-emerald-700' : 'text-red-600')}>{m.toFixed(1)}</span> : '–'}

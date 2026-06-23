@@ -161,7 +161,7 @@ export function AttendancePage() {
           value={date}
           max={today}
           onChange={(e) => setDate(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
         />
       </div>
 
@@ -172,17 +172,17 @@ export function AttendancePage() {
       ) : null}
 
       {hasSavedAttendance && !editingAttendance ? (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
-          <Lock size={16} className="text-slate-400" />
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted px-4 py-3 text-sm font-semibold text-muted-foreground">
+          <Lock size={16} className="text-muted-foreground" />
           Chamada bloqueada para evitar alterações acidentais. Clique em Editar chamada para reabrir.
-          {lastMovement ? <span className="ml-auto text-xs font-bold text-slate-400">Últ. mov. {format(new Date(lastMovement), 'dd/MM')}</span> : null}
+          {lastMovement ? <span className="ml-auto text-xs font-bold text-muted-foreground">Últ. mov. {format(new Date(lastMovement), 'dd/MM')}</span> : null}
         </div>
       ) : null}
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
-          <p className="text-2xl font-black text-slate-900">{students.length}</p>
-          <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Alunos</p>
+        <div className="rounded-2xl border border-border bg-card p-3 text-center">
+          <p className="text-2xl font-black text-foreground">{students.length}</p>
+          <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Alunos</p>
         </div>
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center">
           <p className="text-2xl font-black text-emerald-700">{counts.present}</p>
@@ -192,11 +192,11 @@ export function AttendancePage() {
           <p className="text-2xl font-black text-red-600">{counts.absent}</p>
           <p className="text-[11px] font-black uppercase tracking-wide text-red-600/70">Faltas</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
-          <p className={cn('text-2xl font-black', students.length && counts.present / students.length < 0.75 ? 'text-amber-600' : 'text-slate-900')}>
+        <div className="rounded-2xl border border-border bg-card p-3 text-center">
+          <p className={cn('text-2xl font-black', students.length && counts.present / students.length < 0.75 ? 'text-amber-600' : 'text-foreground')}>
             {students.length ? Math.round((counts.present / students.length) * 100) : 0}%
           </p>
-          <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Presença</p>
+          <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Presença</p>
         </div>
       </div>
 
@@ -205,7 +205,7 @@ export function AttendancePage() {
         <button
           onClick={allPresent}
           disabled={!editingAttendance}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 text-sm font-bold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 text-sm font-bold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
         >
           <CheckCheck size={18} /> Todos presentes
         </button>
@@ -230,7 +230,7 @@ export function AttendancePage() {
                 disabled={!editingAttendance}
                 className={cn(
                   'flex w-full items-center gap-3 rounded-2xl border p-3 text-left shadow-sm transition active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-80 disabled:active:scale-100',
-                  absent ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white hover:border-emerald-200',
+                  absent ? 'border-red-200 bg-red-50' : 'border-border bg-card hover:border-emerald-200',
                 )}
               >
                 <span
@@ -241,7 +241,7 @@ export function AttendancePage() {
                 >
                   {i + 1}
                 </span>
-                <span className={cn('min-w-0 flex-1 truncate text-base font-bold', absent ? 'text-red-800' : 'text-slate-800')}>
+                <span className={cn('min-w-0 flex-1 break-words text-base font-bold leading-snug', absent ? 'text-red-800' : 'text-foreground')}>
                   {s.full_name}
                 </span>
                 <span
@@ -260,13 +260,13 @@ export function AttendancePage() {
       )}
 
       {students.length > 0 ? (
-        <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:pl-72">
+        <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 p-3 backdrop-blur lg:pl-72">
           <div className="mx-auto flex max-w-5xl items-center gap-2 px-1 sm:gap-3">
             <div className="hidden min-w-0 flex-1 sm:block">
-              <p className="truncate text-sm font-bold text-slate-700">
+              <p className="truncate text-sm font-bold text-foreground">
                 {saved ? '✓ Chamada salva e bloqueada' : editingAttendance ? 'Edição aberta' : 'Chamada do dia'}
               </p>
-              <p className="truncate text-xs text-slate-400">{counts.absent} falta(s) • {students.length} alunos</p>
+              <p className="truncate text-xs text-muted-foreground">{counts.absent} falta(s) • {students.length} alunos</p>
             </div>
             {editingAttendance ? (
               <>
@@ -274,7 +274,7 @@ export function AttendancePage() {
                   <button
                     onClick={resetRecordsFromSaved}
                     disabled={save.isPending}
-                    className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                    className="inline-flex min-h-12 items-center justify-center rounded-xl border border-border px-4 text-sm font-black text-muted-foreground transition hover:bg-muted disabled:opacity-60"
                   >
                     Cancelar
                   </button>
@@ -417,9 +417,9 @@ function ExamRoll({
 
       {/* Seleção de turmas que estão na sala */}
       <Card className="mb-4">
-        <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Turmas nesta sala</p>
+        <p className="mb-2 text-xs font-black uppercase tracking-wide text-muted-foreground">Turmas nesta sala</p>
         {examClasses.length === 0 ? (
-          <p className="text-sm text-slate-500">Nenhuma turma faz provas. Marque "Esta turma faz provas" no cadastro da turma.</p>
+          <p className="text-sm text-muted-foreground">Nenhuma turma faz provas. Marque "Esta turma faz provas" no cadastro da turma.</p>
         ) : null}
         <div className="flex flex-wrap gap-2">
           {examClasses.map((c) => {
@@ -430,7 +430,7 @@ function ExamRoll({
                 onClick={() => toggleClass(c.id)}
                 className={cn(
                   'rounded-xl border px-3 py-2 text-sm font-bold transition',
-                  on ? 'border-emerald-300 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                  on ? 'border-emerald-300 bg-emerald-600 text-white' : 'border-border bg-card text-muted-foreground hover:bg-muted',
                 )}
               >
                 {c.name}
@@ -439,13 +439,13 @@ function ExamRoll({
           })}
         </div>
         <div className="mt-3">
-          <label className="mb-1 block text-xs font-black uppercase tracking-wide text-slate-500">Data</label>
+          <label className="mb-1 block text-xs font-black uppercase tracking-wide text-muted-foreground">Data</label>
           <input
             type="date"
             value={date}
             max={today}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 sm:w-56"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 sm:w-56"
           />
         </div>
       </Card>
@@ -455,9 +455,9 @@ function ExamRoll({
       ) : (
         <>
           <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
-              <p className="text-2xl font-black text-slate-900">{students.length}</p>
-              <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Alunos</p>
+            <div className="rounded-2xl border border-border bg-card p-3 text-center">
+              <p className="text-2xl font-black text-foreground">{students.length}</p>
+              <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Alunos</p>
             </div>
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center">
               <p className="text-2xl font-black text-emerald-700">{counts.present}</p>
@@ -467,9 +467,9 @@ function ExamRoll({
               <p className="text-2xl font-black text-red-600">{counts.absent}</p>
               <p className="text-[11px] font-black uppercase tracking-wide text-red-600/70">Faltas</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
-              <p className="text-2xl font-black text-slate-900">{selIds.length}</p>
-              <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Turmas</p>
+            <div className="rounded-2xl border border-border bg-card p-3 text-center">
+              <p className="text-2xl font-black text-foreground">{selIds.length}</p>
+              <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Turmas</p>
             </div>
           </div>
 
@@ -489,15 +489,15 @@ function ExamRoll({
                     onClick={() => toggleStudent(s.id)}
                     className={cn(
                       'flex w-full items-center gap-3 rounded-2xl border p-3 text-left shadow-sm transition active:scale-[.99]',
-                      absent ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white hover:border-emerald-200',
+                      absent ? 'border-red-200 bg-red-50' : 'border-border bg-card hover:border-emerald-200',
                     )}
                   >
                     <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-black tabular-nums', absent ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700')}>
                       {i + 1}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className={cn('block truncate text-base font-bold', absent ? 'text-red-800' : 'text-slate-800')}>{s.full_name}</span>
-                      <span className="text-xs font-bold text-slate-400">{classNameById.get(s.class_id) ?? 'Turma'}</span>
+                      <span className={cn('block break-words text-base font-bold leading-snug', absent ? 'text-red-800' : 'text-foreground')}>{s.full_name}</span>
+                      <span className="text-xs font-bold text-muted-foreground">{classNameById.get(s.class_id) ?? 'Turma'}</span>
                     </span>
                     <span className={cn('flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-black', absent ? 'bg-red-600 text-white' : 'bg-emerald-50 text-emerald-700')}>
                       {absent ? <X size={18} /> : <Check size={18} />}
@@ -512,11 +512,11 @@ function ExamRoll({
       )}
 
       {students.length > 0 ? (
-        <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:pl-72">
+        <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 p-3 backdrop-blur lg:pl-72">
           <div className="mx-auto flex max-w-5xl items-center gap-2 px-1 sm:gap-3">
             <div className="hidden min-w-0 flex-1 sm:block">
-              <p className="truncate text-sm font-bold text-slate-700">Chamada de prova • {selIds.length} turma(s)</p>
-              <p className="truncate text-xs text-slate-400">{counts.absent} falta(s) • {students.length} alunos • {format(new Date(date + 'T00:00:00'), 'dd/MM')}</p>
+              <p className="truncate text-sm font-bold text-foreground">Chamada de prova • {selIds.length} turma(s)</p>
+              <p className="truncate text-xs text-muted-foreground">{counts.absent} falta(s) • {students.length} alunos • {format(new Date(date + 'T00:00:00'), 'dd/MM')}</p>
             </div>
             <button
               onClick={() => save.mutate()}

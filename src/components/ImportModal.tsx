@@ -101,8 +101,8 @@ export function ImportModal({
       {done !== null ? (
         <div className="py-2 text-center">
           <CheckCircle2 size={48} className="mx-auto text-emerald-600" />
-          <p className="mt-3 text-lg font-black text-slate-900">{done.created} cadastrado(s)!</p>
-          {done.note ? <p className="mt-1 text-sm text-slate-500">{done.note}</p> : null}
+          <p className="mt-3 text-lg font-black text-foreground">{done.created} cadastrado(s)!</p>
+          {done.note ? <p className="mt-1 text-sm text-muted-foreground">{done.note}</p> : null}
           {dups.length ? (
             <div className="mt-4 rounded-xl bg-amber-50 p-3 text-left">
               <p className="flex items-center gap-2 text-sm font-bold text-amber-800">
@@ -121,8 +121,8 @@ export function ImportModal({
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-sm font-medium text-slate-600">
+          <div className="rounded-xl bg-muted p-4">
+            <p className="text-sm font-medium text-muted-foreground">
               1. Baixe a planilha modelo, preencha uma linha por aluno (a linha de exemplo é ignorada) e suba o arquivo.
             </p>
             <Button variant="ghost" className="mt-3" onClick={() => downloadTemplate(templateFileName, columns)}>
@@ -143,21 +143,21 @@ export function ImportModal({
               onDragLeave={() => setDragging(false)}
               onDrop={onDrop}
               className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition ${
-                dragging ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 hover:border-emerald-400 hover:bg-emerald-50/40'
+                dragging ? 'border-emerald-500 bg-emerald-50' : 'border-border hover:border-emerald-400 hover:bg-emerald-50/40'
               }`}
             >
-              <Upload size={24} className={dragging ? 'text-emerald-600' : 'text-slate-400'} />
-              <span className="text-sm font-bold text-slate-700">
+              <Upload size={24} className={dragging ? 'text-emerald-600' : 'text-muted-foreground'} />
+              <span className="text-sm font-bold text-foreground">
                 {dragging ? 'Solte o arquivo aqui' : fileName || 'Clique ou arraste a planilha aqui'}
               </span>
-              <span className="text-xs text-slate-400">.xlsx ou .csv</span>
+              <span className="text-xs text-muted-foreground">.xlsx ou .csv</span>
               <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onInputChange} />
             </label>
           )}
 
           {parsed ? (
-            <div className="rounded-xl border border-slate-200 p-4">
-              <p className="flex items-center gap-2 text-sm font-bold text-slate-800">
+            <div className="rounded-xl border border-border p-4">
+              <p className="flex items-center gap-2 text-sm font-bold text-foreground">
                 <FileSpreadsheet size={16} /> {parsed.rows.length} linha(s) válida(s)
               </p>
               {parsed.errors.length ? (
@@ -172,7 +172,7 @@ export function ImportModal({
 
           {error ? <p className="text-sm font-semibold text-red-600">{error}</p> : null}
 
-          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
+          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
             <Button variant="ghost" onClick={close}>
               Cancelar
             </Button>

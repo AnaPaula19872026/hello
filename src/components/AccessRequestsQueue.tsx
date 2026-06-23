@@ -24,8 +24,8 @@ export function AccessRequestsQueue() {
           <Clock size={18} />
         </span>
         <div>
-          <h2 className="font-black text-slate-900">Solicitações de acesso</h2>
-          <p className="text-xs font-bold text-slate-500">{reqs.length} pessoa(s) aguardando liberação</p>
+          <h2 className="font-black text-foreground">Solicitações de acesso</h2>
+          <p className="text-xs font-bold text-muted-foreground">{reqs.length} pessoa(s) aguardando liberação</p>
         </div>
       </div>
       <div className="space-y-2">
@@ -51,19 +51,19 @@ function RequestRow({ req }: { req: AccessRequest }) {
   });
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
+    <div className="rounded-xl border border-border bg-card p-3">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <UserPlus size={16} className="shrink-0 text-emerald-600" />
-        <span className="font-black text-slate-900">{req.full_name || req.email || 'Usuário'}</span>
-        {req.email ? <span className="text-xs font-bold text-slate-400">{req.email}</span> : null}
+        <span className="font-black text-foreground">{req.full_name || req.email || 'Usuário'}</span>
+        {req.email ? <span className="text-xs font-bold text-muted-foreground">{req.email}</span> : null}
       </div>
-      <p className="mt-0.5 text-xs font-bold text-slate-500">
+      <p className="mt-0.5 text-xs font-bold text-muted-foreground">
         {req.org_name} · pediu como {ROLE_LABEL[req.requested_role]}
       </p>
-      {req.note ? <p className="mt-1 rounded-lg bg-slate-50 px-2.5 py-1.5 text-sm text-slate-600">{req.note}</p> : null}
+      {req.note ? <p className="mt-1 rounded-lg bg-muted px-2.5 py-1.5 text-sm text-muted-foreground">{req.note}</p> : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <label className="text-xs font-bold text-slate-500">Liberar como</label>
+        <label className="text-xs font-bold text-muted-foreground">Liberar como</label>
         <Select value={role} onChange={(e) => setRole(e.target.value as AppRole)} className="h-10 w-auto py-2">
           {ASSIGNABLE_ROLES.map((r) => (
             <option key={r} value={r}>{ROLE_LABEL[r]}</option>

@@ -129,15 +129,15 @@ export function SchoolsPage() {
               {sel.active ? <CheckBox checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} /> : null}
               <Logo src={s.logo_url} name={s.name} />
               <div className="min-w-0 flex-1">
-                <h3 className="truncate text-base font-black text-slate-900">{s.name}</h3>
-                {s.director ? <p className="truncate text-sm text-slate-600">Dir.: {s.director}</p> : null}
+                <h3 className="truncate text-base font-black text-foreground">{s.name}</h3>
+                {s.director ? <p className="truncate text-sm text-muted-foreground">Dir.: {s.director}</p> : null}
                 {s.city || s.address ? (
-                  <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
+                  <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
                     <MapPin size={14} /> {[s.address, s.city].filter(Boolean).join(' — ')}
                   </p>
                 ) : null}
                 {s.phone ? (
-                  <p className="mt-0.5 flex items-center gap-1 text-sm text-slate-500">
+                  <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
                     <Phone size={14} /> {s.phone}
                   </p>
                 ) : null}
@@ -173,11 +173,11 @@ export function SchoolsPage() {
                 <input type="file" accept="image/*" className="hidden" onChange={onLogo} />
               </label>
               {logo ? (
-                <button type="button" onClick={() => setLogo(null)} className="ml-2 inline-flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-red-600">
+                <button type="button" onClick={() => setLogo(null)} className="ml-2 inline-flex items-center gap-1 text-sm font-bold text-muted-foreground hover:text-red-600">
                   <X size={14} /> Remover
                 </button>
               ) : null}
-              <p className="mt-1 text-xs text-slate-400">PNG/JPG. Fica leve e salva no banco.</p>
+              <p className="mt-1 text-xs text-muted-foreground">PNG/JPG. Fica leve e salva no banco.</p>
               {logoErr ? <p className="mt-1 text-xs font-semibold text-red-600">{logoErr}</p> : null}
             </div>
           </div>
@@ -206,7 +206,7 @@ export function SchoolsPage() {
           </div>
 
           {save.isError ? <p className="text-sm font-semibold text-red-600">{(save.error as Error).message}</p> : null}
-          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-4">
+          <div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
@@ -233,10 +233,10 @@ export function SchoolsPage() {
 function Logo({ src, name, size = 'md' }: { src?: string | null; name: string; size?: 'md' | 'lg' }) {
   const dim = size === 'lg' ? 'h-20 w-20 text-2xl' : 'h-14 w-14 text-lg';
   if (src) {
-    return <img src={src} alt={name} className={`${dim} shrink-0 rounded-xl border border-slate-200 object-contain bg-white p-1`} />;
+    return <img src={src} alt={name} className={`${dim} shrink-0 rounded-xl border border-border object-contain bg-card p-1`} />;
   }
   return (
-    <div className={`${dim} grid shrink-0 place-items-center rounded-xl bg-slate-100 font-black uppercase text-slate-400`}>
+    <div className={`${dim} grid shrink-0 place-items-center rounded-xl bg-muted font-black uppercase text-muted-foreground`}>
       {name ? name.slice(0, 1) : <Building2 size={22} />}
     </div>
   );

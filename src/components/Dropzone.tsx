@@ -57,24 +57,24 @@ export function Dropzone({
         compact
           ? cn(
               'flex items-center justify-center gap-2 border px-3 py-2.5 text-xs font-bold',
-              over ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-white text-slate-500 hover:border-slate-400 hover:bg-slate-50',
+              over ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-border bg-card text-muted-foreground hover:border-slate-400 hover:bg-muted',
             )
           : cn(
               'flex flex-col items-center justify-center gap-2 border-2 px-4 py-7 text-center',
-              over ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200' : 'border-slate-300 bg-white hover:bg-slate-50',
+              over ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200' : 'border-border bg-card hover:bg-muted',
             ),
       )}
     >
       {compact ? (
         <>
-          <UploadCloud size={15} className={cn('shrink-0 transition', over ? 'text-emerald-600' : 'text-slate-400')} />
+          <UploadCloud size={15} className={cn('shrink-0 transition', over ? 'text-emerald-600' : 'text-muted-foreground')} />
           <span className="truncate">{title}</span>
         </>
       ) : (
         <>
-          <UploadCloud size={24} className={cn('transition', over ? 'text-emerald-600' : 'text-slate-400')} />
-          <p className="text-sm font-bold text-slate-600">{title}</p>
-          {hint ? <p className="text-xs text-slate-400">{hint}</p> : null}
+          <UploadCloud size={24} className={cn('transition', over ? 'text-emerald-600' : 'text-muted-foreground')} />
+          <p className="text-sm font-bold text-muted-foreground">{title}</p>
+          {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
           <button
             type="button"
             onClick={(e) => {

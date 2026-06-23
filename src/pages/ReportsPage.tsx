@@ -7,9 +7,11 @@ import { ReportView } from '../components/ReportView';
 import { ShareModal } from '../components/ShareModal';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented, Select, Loading} from '../components/ui';
 import { cn } from '../lib/cn';
+import { listNationalHolidays } from '../lib/holidays';
 import { downloadXlsx } from '../lib/importSheet';
+import { groupByMonth, schoolDaysBetween, weekdayLetter } from '../lib/schooldays';
 import { listClasses, listSchools, listStudentsByClass, reportAttendance, reportTerms } from '../lib/queries';
-import { SCHOOL_YEAR_MONTHS, SUBJECT, TERM_MONTHS, type ReportPayload } from '../lib/types';
+import { MONTHS, SCHOOL_YEAR_MONTHS, SUBJECT, TERM_MONTHS, type ReportPayload } from '../lib/types';
 
 type Tipo = 'freq' | 'notas';
 const today = new Date();
@@ -27,6 +29,7 @@ export function ReportsPage() {
   const [onlyBelow, setOnlyBelow] = useState(false);
   const [notaTerm, setNotaTerm] = useState(0); // 0 = todos os trimestres
   const [activePreset, setActivePreset] = useState('mes');
+  const [freqLayout, setFreqLayout] = useState<'list' | 'grid'>('grid');
   const [compact, setCompact] = useState(false);
   const [preview, setPreview] = useState(false);
   const [share, setShare] = useState(false);
@@ -59,6 +62,25 @@ export function ReportsPage() {
     queryFn: () => reportTerms(classId, year),
     enabled: tipo === 'notas' && !!classId,
   });
+
+  // Feriados nacionais dos anos do período — para tirar do mapa de chamada (dias letivos).
+  const fromYear = Number(from.slice(0, 4));
+  const toYear = Number(to.slice(0, 4));
+  const holidaysQ = useQuery({
+    queryKey: ['national-holidays', fromYear, toYear],
+    queryFn: async () => {
+      const years = Array.from({ length: toYear - fromYear + 1 }, (_, i) => fromYear + i);
+      const lists = await Promise.all(years.map((y) => listNationalHolidays(y)));
+      return new Set(lists.flat().map((h) => h.date));
+    },
+    enabled: tipo === 'freq' && freqLayout === 'grid' && !!classId,
+  });
+
+  // Colunas do mapa de chamada: todos os dias letivos (seg–sex, sem feriados) do período.
+  const gridDates = useMemo(
+    () => (freqLayout === 'grid' ? schoolDaysBetween(from, to, holidaysQ.data) : []),
+    [freqLayout, from, to, holidaysQ.data],
+  );
 
   function preset(p: 'mes' | 'mesPassado' | 'ano' | 'tri1' | 'tri2' | 'tri3') {
     setActivePreset(p);
@@ -114,6 +136,8 @@ export function ReportsPage() {
         sessions: freq.data?.sessions ?? 0,
         examDates: freq.data?.examDates ?? [],
         dates: freq.data?.dates ?? [],
+        gridDates,
+        layout: freqLayout,
         freqRows: freqRows.map((r) => ({ name: r.name, present: r.present, absent: r.absent, total: r.total, pct: r.pct, absentDates: r.absentDates, days: r.days })),
       };
     }
@@ -128,11 +152,32 @@ export function ReportsPage() {
       notasRows: notasRows.map((r) => ({ name: r.name, terms: r.terms, final: r.final })),
       notasTerm: notaTerm,
     };
-  }, [classId, tipo, school, className, from, to, minPct, freq.data, freqRows, year, notasRows, notaTerm]);
+  }, [classId, tipo, school, className, from, to, minPct, freq.data, freqRows, gridDates, freqLayout, year, notasRows, notaTerm]);
 
   function exportExcel() {
     const titulo = [school?.name ?? 'Escola'];
-    if (tipo === 'freq') {
+    if (tipo === 'freq' && freqLayout === 'grid' && gridDates.length) {
+      // Mapa de chamada: matriz aluno × dia letivo (P/F), um bloco por mês.
+      const aoa: (string | number | null)[][] = [titulo, [`Mapa de chamada — Turma ${className} — ${fmtBR(from)} a ${fmtBR(to)}`], []];
+      for (const m of groupByMonth(gridDates)) {
+        aoa.push([`${MONTHS[m.month - 1]} / ${m.year}`]);
+        aoa.push(['', ...m.days.map((d) => weekdayLetter(d))]);
+        aoa.push(['Aluno', ...m.days.map((d) => Number(d.slice(8, 10))), 'Pres.', 'Faltas', '%', 'Situação']);
+        for (const r of freqRows) {
+          let faltas = 0;
+          const cells = m.days.map((d) => {
+            const absent = r.days?.[d] === false;
+            if (absent) faltas++;
+            return absent ? 'F' : 'P';
+          });
+          const present = m.days.length - faltas;
+          const pct = m.days.length ? Math.round((present / m.days.length) * 1000) / 10 : 0;
+          aoa.push([r.name, ...cells, present, faltas, pct, pct < minPct ? 'Reprovado' : 'Aprovado']);
+        }
+        aoa.push([]);
+      }
+      downloadXlsx(`mapa-chamada-${slug(className)}-${from}_a_${to}.xlsx`, aoa, 'Mapa de chamada');
+    } else if (tipo === 'freq') {
       const aoa: (string | number | null)[][] = [
         titulo,
         [`Frequência — Turma ${className} — ${fmtBR(from)} a ${fmtBR(to)}`],
@@ -233,14 +278,14 @@ export function ReportsPage() {
                   onClick={() => preset(key)}
                   className={cn(
                     'rounded-lg px-3 py-1.5 text-xs font-bold transition',
-                    activePreset === key ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                    activePreset === key ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground hover:bg-muted',
                   )}
                 >
                   {label}
                 </button>
               ))}
               <div className="ml-auto flex items-center gap-2">
-                <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
                   <input type="checkbox" checked={onlyBelow} onChange={(e) => setOnlyBelow(e.target.checked)} />
                   Só faltosos abaixo de
                 </label>
@@ -251,6 +296,18 @@ export function ReportsPage() {
                 </Select>
               </div>
             </div>
+          ) : null}
+
+          {tipo === 'freq' ? (
+            <Segmented<'list' | 'grid'>
+              className="mt-3"
+              value={freqLayout}
+              onChange={setFreqLayout}
+              options={[
+                { value: 'grid', label: 'Mapa de chamada' },
+                { value: 'list', label: 'Lista detalhada' },
+              ]}
+            />
           ) : null}
 
           {tipo === 'notas' ? (
@@ -270,7 +327,7 @@ export function ReportsPage() {
 
         {/* Barra de ações (responsiva) */}
         {classId ? (
-          <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-soft">
+          <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-soft">
             <Button variant="ghost" onClick={() => setCompact((c) => !c)} className="flex-1 sm:flex-none" title="Alternar layout">
               {compact ? <Rows3 size={18} /> : <List size={18} />} {compact ? 'Detalhado' : 'Compacto'}
             </Button>
