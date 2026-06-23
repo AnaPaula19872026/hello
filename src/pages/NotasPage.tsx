@@ -26,19 +26,21 @@ import {
 } from '../lib/queries';
 import { CREDITO_OVERRIDE_KEY, DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, actKey, calcMedia, isRecoveryActivity, orderGradeActivities, sanitizeGrade, type GradeActivity, type School } from '../lib/types';
 
-/** Cabeçalho profissional para impressão (logo, escola, contato) — usado no boletim e no relatório. */
-function schoolHeaderHtml(school: School | undefined, label: string): string {
+/** Cabeçalho profissional para impressão (logo, escola, contato) — usado no boletim e no relatório.
+ *  compact: versão reduzida p/ empilhar 3 boletins por folha. */
+function schoolHeaderHtml(school: School | undefined, label: string, compact = false): string {
   const name = school?.name ?? 'Escola';
   const contato = [school?.address, school?.city, school?.phone].filter(Boolean).map((x) => escapeHtml(String(x))).join(' • ');
+  const ls = compact ? 38 : 60; // tamanho do logo
   const logo = school?.logo_url
-    ? `<img src="${escapeHtml(school.logo_url)}" alt="" style="height:60px;width:60px;object-fit:contain;border:1px solid #e2e8f0;border-radius:10px;padding:3px;background:#fff;" />`
-    : `<div style="height:60px;width:60px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#f1f5f9;font-size:24px;font-weight:800;color:#94a3b8;">${escapeHtml(name.slice(0, 1))}</div>`;
-  return `<div style="display:flex; align-items:center; gap:14px; border-bottom:2px solid #0f172a; padding-bottom:12px; margin-bottom:14px;">
+    ? `<img src="${escapeHtml(school.logo_url)}" alt="" style="height:${ls}px;width:${ls}px;object-fit:contain;border:1px solid #e2e8f0;border-radius:8px;padding:2px;background:#fff;" />`
+    : `<div style="height:${ls}px;width:${ls}px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#f1f5f9;font-size:${compact ? 16 : 24}px;font-weight:800;color:#94a3b8;">${escapeHtml(name.slice(0, 1))}</div>`;
+  return `<div style="display:flex; align-items:center; gap:${compact ? 10 : 14}px; border-bottom:2px solid #0f172a; padding-bottom:${compact ? 7 : 12}px; margin-bottom:${compact ? 9 : 14}px;">
     ${logo}
     <div style="flex:1; min-width:0;">
-      <div style="font-size:18px; font-weight:800; line-height:1.1;">${escapeHtml(name)}</div>
-      <div style="font-size:13px; font-weight:700; letter-spacing:.08em; color:#475569;">${escapeHtml(label)}</div>
-      ${contato ? `<div style="font-size:11px; color:#94a3b8; margin-top:2px;">${contato}</div>` : ''}
+      <div style="font-size:${compact ? 15 : 18}px; font-weight:800; line-height:1.1;">${escapeHtml(name)}</div>
+      <div style="font-size:${compact ? 11 : 13}px; font-weight:700; letter-spacing:.08em; color:#475569;">${escapeHtml(label)}</div>
+      ${contato ? `<div style="font-size:10px; color:#94a3b8; margin-top:2px;">${contato}</div>` : ''}
     </div>
     <div style="text-align:right; font-size:10px; color:#94a3b8;">Gerado em<br/>${new Date().toLocaleDateString('pt-BR')}</div>
   </div>`;
@@ -684,21 +686,22 @@ function BoletimEscolarModal({
     }).join('');
     // Resultado final é APROVADO/REPROVADO (a nota de recuperação já está embutida na média).
     const sf = r.final == null ? { txt: '—', cls: '' } : r.final >= MEDIA_APROVACAO ? { txt: 'Aprovado', cls: 'ok' } : { txt: 'Reprovado', cls: 'fail' };
-    // Empilha boletins p/ economizar papel: SEM quebra forçada. Cada boletim é
-    // indivisível (break-inside: avoid) e o navegador empacota quantos couberem
-    // na folha — 2 ou 3 conforme o tamanho. Separador tracejado entre eles.
+    // 3 boletins por folha: cada um indivisível (break-inside: avoid) e quebra
+    // de página forçada a cada 3 (após índices 2, 5, 8…). Layout compacto
+    // (header reduzido, fontes/margens menores) p/ os três caberem no A4.
     const isLast = i === total - 1;
-    return `<section style="break-inside: avoid; max-width: 720px; margin: 0 auto; padding: 14px 0 16px; ${isLast ? '' : 'border-bottom: 1px dashed #cbd5e1;'}">
-      ${schoolHeaderHtml(school, `BOLETIM ESCOLAR — ${year}`)}
-      <p style="font-size:13px; margin:0 0 12px;"><strong>Aluno(a):</strong> ${escapeHtml(r.name)} &nbsp;·&nbsp; <strong>Turma:</strong> ${escapeHtml(className)}</p>
+    const pageBreak = i % 3 === 2 && !isLast;
+    return `<section style="break-inside: avoid; ${pageBreak ? 'page-break-after: always;' : ''} max-width: 720px; margin: 0 auto; padding: 8px 0 10px; ${isLast || pageBreak ? '' : 'border-bottom: 1px dashed #cbd5e1;'}">
+      ${schoolHeaderHtml(school, `BOLETIM ESCOLAR — ${year}`, true)}
+      <p style="font-size:12px; margin:0 0 8px;"><strong>Aluno(a):</strong> ${escapeHtml(r.name)} &nbsp;·&nbsp; <strong>Turma:</strong> ${escapeHtml(className)}</p>
       <table><thead><tr><th class="name">Período</th><th>Média</th><th>Situação</th></tr></thead>
       <tbody>${linhas}
         <tr style="background:#f1f5f9; font-weight:800;"><td class="name">Média final</td><td>${r.final == null ? '—' : r.final.toFixed(1)}</td><td><span class="${sf.cls}">${sf.txt}</span></td></tr>
       </tbody></table>
-      <p style="font-size:13px; margin:14px 0;"><strong>Resultado final:</strong> <span class="${sf.cls}">${sf.txt}</span> &nbsp; (média de aprovação: ${MEDIA_APROVACAO.toFixed(1)} · a recuperação já está considerada na média)</p>
-      <div style="display:flex; gap:40px; margin-top:18px; font-size:12px; color:#475569;">
-        <div style="flex:1; border-top:1px solid #94a3b8; padding-top:6px; text-align:center;">Coordenação</div>
-        <div style="flex:1; border-top:1px solid #94a3b8; padding-top:6px; text-align:center;">Responsável</div>
+      <p style="font-size:11px; margin:8px 0;"><strong>Resultado final:</strong> <span class="${sf.cls}">${sf.txt}</span> &nbsp; (média de aprovação: ${MEDIA_APROVACAO.toFixed(1)} · recuperação já considerada na média)</p>
+      <div style="display:flex; gap:40px; margin-top:12px; font-size:11px; color:#475569;">
+        <div style="flex:1; border-top:1px solid #94a3b8; padding-top:5px; text-align:center;">Coordenação</div>
+        <div style="flex:1; border-top:1px solid #94a3b8; padding-top:5px; text-align:center;">Responsável</div>
       </div>
     </section>`;
   }
@@ -714,7 +717,7 @@ function BoletimEscolarModal({
     <Modal open={open} onClose={onClose} title="Boletins escolares" size="xl">
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Gera um boletim por aluno ({className} · {year}) com os 3 trimestres, média final e situação — dois por página (economiza papel), pronto para imprimir ou salvar em PDF.
+          Gera um boletim por aluno ({className} · {year}) com os 3 trimestres, média final e situação — três por página (economiza papel), pronto para imprimir ou salvar em PDF.
         </p>
 
         {isLoading ? (
