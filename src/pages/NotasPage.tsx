@@ -676,7 +676,7 @@ function BoletimEscolarModal({
     return m >= MEDIA_APROVACAO ? { txt: 'Aprovado', cls: 'ok' } : { txt: 'Recuperação', cls: 'fail' };
   }
 
-  function boletimHtml(r: TermsReportRow, last: boolean): string {
+  function boletimHtml(r: TermsReportRow, i: number, total: number): string {
     const linhas = TERMS.map((t) => {
       const m = r.terms[t - 1] ?? null;
       const s = sit(m);
@@ -684,7 +684,11 @@ function BoletimEscolarModal({
     }).join('');
     // Resultado final é APROVADO/REPROVADO (a nota de recuperação já está embutida na média).
     const sf = r.final == null ? { txt: '—', cls: '' } : r.final >= MEDIA_APROVACAO ? { txt: 'Aprovado', cls: 'ok' } : { txt: 'Reprovado', cls: 'fail' };
-    return `<section style="${last ? '' : 'page-break-after: always;'} max-width: 720px; margin: 0 auto;">
+    // Empilha boletins p/ economizar papel: SEM quebra forçada. Cada boletim é
+    // indivisível (break-inside: avoid) e o navegador empacota quantos couberem
+    // na folha — 2 ou 3 conforme o tamanho. Separador tracejado entre eles.
+    const isLast = i === total - 1;
+    return `<section style="break-inside: avoid; max-width: 720px; margin: 0 auto; padding: 14px 0 16px; ${isLast ? '' : 'border-bottom: 1px dashed #cbd5e1;'}">
       ${schoolHeaderHtml(school, `BOLETIM ESCOLAR — ${year}`)}
       <p style="font-size:13px; margin:0 0 12px;"><strong>Aluno(a):</strong> ${escapeHtml(r.name)} &nbsp;·&nbsp; <strong>Turma:</strong> ${escapeHtml(className)}</p>
       <table><thead><tr><th class="name">Período</th><th>Média</th><th>Situação</th></tr></thead>
@@ -692,7 +696,7 @@ function BoletimEscolarModal({
         <tr style="background:#f1f5f9; font-weight:800;"><td class="name">Média final</td><td>${r.final == null ? '—' : r.final.toFixed(1)}</td><td><span class="${sf.cls}">${sf.txt}</span></td></tr>
       </tbody></table>
       <p style="font-size:13px; margin:14px 0;"><strong>Resultado final:</strong> <span class="${sf.cls}">${sf.txt}</span> &nbsp; (média de aprovação: ${MEDIA_APROVACAO.toFixed(1)} · a recuperação já está considerada na média)</p>
-      <div style="display:flex; gap:40px; margin-top:46px; font-size:12px; color:#475569;">
+      <div style="display:flex; gap:40px; margin-top:18px; font-size:12px; color:#475569;">
         <div style="flex:1; border-top:1px solid #94a3b8; padding-top:6px; text-align:center;">Coordenação</div>
         <div style="flex:1; border-top:1px solid #94a3b8; padding-top:6px; text-align:center;">Responsável</div>
       </div>
@@ -702,7 +706,7 @@ function BoletimEscolarModal({
   function gerar() {
     const sel = rows.filter((r) => selected.has(r.student_id));
     if (!sel.length) return;
-    const body = sel.map((r, i) => boletimHtml(r, i === sel.length - 1)).join('');
+    const body = sel.map((r, i) => boletimHtml(r, i, sel.length)).join('');
     printDocument(`Boletins — ${className} ${year}`, body);
   }
 
@@ -710,7 +714,7 @@ function BoletimEscolarModal({
     <Modal open={open} onClose={onClose} title="Boletins escolares" size="xl">
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Gera um boletim por aluno ({className} · {year}) com os 3 trimestres, média final e situação — um por página, pronto para imprimir ou salvar em PDF.
+          Gera um boletim por aluno ({className} · {year}) com os 3 trimestres, média final e situação — dois por página (economiza papel), pronto para imprimir ou salvar em PDF.
         </p>
 
         {isLoading ? (
