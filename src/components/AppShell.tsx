@@ -12,6 +12,7 @@ import {
   LogOut,
   Megaphone,
   Menu,
+  Network,
   Settings,
   ShieldCheck,
   Users,
