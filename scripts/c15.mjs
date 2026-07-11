@@ -1,0 +1,16 @@
+import puppeteer from 'puppeteer-core';
+import fs from 'node:fs';
+const session = JSON.parse(fs.readFileSync('/tmp/session.json','utf8'));
+const b = await puppeteer.launch({executablePath:'/usr/bin/google-chrome-stable',headless:'new',args:['--no-sandbox']});
+const p = await b.newPage(); await p.setViewport({width:1280,height:900});
+const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:5173/',{waitUntil:'domcontentloaded'});
+await p.evaluate(([k,v])=>localStorage.setItem(k,v),['sb-rogvgrnkjvxdulkcunuo-auth-token',JSON.stringify(session)]);
+await p.goto('http://localhost:5173/escolas',{waitUntil:'networkidle2'});
+await new Promise(x=>setTimeout(x,1500));
+console.log('botoes Acoes (kebab):', await p.evaluate(()=>document.querySelectorAll('[aria-label=Ações]').length));
+await p.evaluate(()=>{const b=document.querySelector('[aria-label=Ações]'); b&&b.click();});
+await new Promise(x=>setTimeout(x,500));
+console.log('menu itens:', await p.evaluate(()=>[...document.querySelectorAll('[role=menuitem]')].map(i=>i.textContent.trim())));
+console.log('erros:', errs.length?errs.join(' | '):'NENHUM');
+await b.close();

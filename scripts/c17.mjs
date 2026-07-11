@@ -1,0 +1,20 @@
+import puppeteer from 'puppeteer-core';
+import fs from 'node:fs';
+const session = JSON.parse(fs.readFileSync('/tmp/session.json','utf8'));
+const b = await puppeteer.launch({executablePath:'/usr/bin/google-chrome-stable',headless:'new',args:['--no-sandbox']});
+const p = await b.newPage(); await p.setViewport({width:1280,height:900});
+const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:5173/',{waitUntil:'domcontentloaded'});
+await p.evaluate(([k,v])=>localStorage.setItem(k,v),['sb-rogvgrnkjvxdulkcunuo-auth-token',JSON.stringify(session)]);
+await p.goto('http://localhost:5173/notas',{waitUntil:'networkidle2'});
+await new Promise(x=>setTimeout(x,1200));
+console.log('Notas trimestres:', await p.evaluate(()=>[...document.querySelectorAll('button')].map(b=>b.textContent.trim()).filter(t=>/trimestre/.test(t))));
+await p.goto('http://localhost:5173/relatorios',{waitUntil:'networkidle2'});
+await new Promise(x=>setTimeout(x,1000));
+// muda pra Notas
+await p.evaluate(()=>{const b=[...document.querySelectorAll('button')].find(x=>x.textContent.trim()==='Notas'); b&&b.click();});
+await new Promise(x=>setTimeout(x,600));
+console.log('Relatorio notas filtros:', await p.evaluate(()=>[...document.querySelectorAll('button')].map(b=>b.textContent.trim()).filter(t=>/^Todos$|trimestre/.test(t))));
+console.log('Freq presets:', await p.evaluate(()=>{const b=[...document.querySelectorAll('button')].find(x=>x.textContent.trim()==='Frequência'); b&&b.click(); return [...document.querySelectorAll('button')].map(x=>x.textContent.trim()).filter(t=>/Ano letivo|trimestre|Este mês/.test(t));}));
+console.log('erros:', errs.length?errs.slice(0,5).join(' | '):'NENHUM');
+await b.close();
