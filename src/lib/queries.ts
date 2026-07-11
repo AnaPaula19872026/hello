@@ -168,6 +168,21 @@ export async function deleteStudent(id: string): Promise<void> {
   const { error } = await scoped(supabase.from('students').delete()).eq('id', id);
   if (error) throw new Error(error.message);
 }
+export async function archiveStudent(id: string): Promise<void> {
+  const { error: updateError } = await scoped(supabase.from('students').update({ active: false })).eq('id', id);
+  if (updateError) throw new Error(updateError.message);
+
+  const relatedDeletes = [
+    supabase.from('attendance_records').delete().eq('student_id', id),
+    supabase.from('term_grades').delete().eq('student_id', id),
+    supabase.from('evaluation_grades').delete().eq('student_id', id),
+  ];
+
+  for (const query of relatedDeletes) {
+    const { error } = await scoped(query);
+    if (error) throw new Error(error.message);
+  }
+}
 export async function bulkDeleteStudents(ids: string[]): Promise<void> {
   const { error } = await scoped(supabase.from('students').delete()).in('id', ids);
   if (error) throw new Error(error.message);

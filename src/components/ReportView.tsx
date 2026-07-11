@@ -287,7 +287,7 @@ function FreqGrid({ payload, minPct }: { payload: ReportPayload; minPct: number 
                 {show.present ?? true ? <th className="border-l-2 border-slate-200 px-1 py-1 text-[10px] font-black uppercase">Pres.</th> : null}
                 {show.absent ?? true ? <th className="px-1 py-1 text-[10px] font-black uppercase">Faltas</th> : null}
                 {show.pct ?? true ? <th className="px-1 py-1 text-[10px] font-black uppercase">%</th> : null}
-                {show.pct ?? true ? <th className="px-1 py-1 text-[10px] font-black uppercase">Situação</th> : null}
+                {show.situation ?? true ? <th className="px-1 py-1 text-[10px] font-black uppercase">Situação</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -325,7 +325,7 @@ function FreqGrid({ payload, minPct }: { payload: ReportPayload; minPct: number 
                     {show.present ?? true ? <td className="border-l-2 border-slate-200 px-1 py-1 font-black text-emerald-700">{present}</td> : null}
                     {show.absent ?? true ? <td className="px-1 py-1 font-black text-red-600">{faltas}</td> : null}
                     {show.pct ?? true ? <td className={cn('px-1 py-1 font-black', reprovado ? 'text-red-600' : 'text-emerald-700')}>{pct}%</td> : null}
-                    {show.pct ?? true ? <td className={cn('px-1 py-1 text-[10px] font-black uppercase', reprovado ? 'text-red-600' : 'text-emerald-700')}>{reprovado ? 'Reprovado' : 'Aprovado'}</td> : null}
+                    {show.situation ?? true ? <td className={cn('px-1 py-1 text-[10px] font-black uppercase', reprovado ? 'text-red-600' : 'text-emerald-700')}>{reprovado ? 'Reprovado' : 'Aprovado'}</td> : null}
                   </tr>
                 );
               })}

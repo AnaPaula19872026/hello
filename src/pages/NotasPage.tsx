@@ -9,6 +9,7 @@ import { ConfirmClearModal } from '../components/ConfirmClearModal';
 import { canManageOrg } from '../lib/permissions';
 import { cn } from '../lib/cn';
 import { printDocument, escapeHtml } from '../lib/print';
+import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { usePersistentState } from '../lib/usePersistentState';
 import {
   bulkDeleteTermGrades,
@@ -24,6 +25,7 @@ import {
   saveTermGrades,
   type TermsReportRow,
 } from '../lib/queries';
+import { enqueueGrades, getQueuedGrades } from '../lib/offlineQueue';
 import { CREDITO_OVERRIDE_KEY, DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, actKey, calcMedia, isRecoveryActivity, orderGradeActivities, sanitizeGrade, type GradeActivity, type School } from '../lib/types';
 
 /** Cabeçalho profissional para impressão (logo, escola, contato) — usado no boletim e no relatório.
@@ -69,7 +71,15 @@ export function NotasPage() {
   const [boletimOpen, setBoletimOpen] = useState(false);
   const [boletimEscolarOpen, setBoletimEscolarOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
+  const online = useOnlineStatus();
+  const [pendingQueue, setPendingQueue] = useState(() => getQueuedGrades());
   const orgReady = !ctxLoading && !!activeOrgId;
+
+  useEffect(() => {
+    const handleQueueUpdate = () => setPendingQueue(getQueuedGrades());
+    window.addEventListener('offline-queue-updated', handleQueueUpdate);
+    return () => window.removeEventListener('offline-queue-updated', handleQueueUpdate);
+  }, []);
 
   const { data: classes = [] } = useQuery({ queryKey: ['classes', activeOrgId], queryFn: listClasses, enabled: orgReady });
   useEffect(() => {
@@ -211,6 +221,30 @@ export function NotasPage() {
     setSaved(false);
   }
 
+  // Focus/navigation helpers: move focus to next input in the row/column
+  function focusNext(studentId: string, actKeyStr: string, dir: 'right' | 'left' | 'down' | 'up') {
+    try {
+      const selector = `input[data-student="${studentId}"]`;
+      const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(selector)).filter((el) => !el.disabled);
+      const idx = inputs.findIndex((el) => el.dataset.act === actKeyStr);
+      if (idx === -1) return;
+      let next: HTMLInputElement | undefined;
+      if (dir === 'right') next = inputs[idx + 1];
+      else if (dir === 'left') next = inputs[idx - 1];
+      else if (dir === 'down') {
+        // next row: find input with same act in the next student row
+        const all = Array.from(document.querySelectorAll<HTMLInputElement>(`input[data-act="${actKeyStr}"]`)).filter((el) => !el.disabled);
+        const curIndex = all.findIndex((el) => el.dataset.student === studentId);
+        if (curIndex !== -1) next = all[curIndex + 1];
+      } else if (dir === 'up') {
+        const all = Array.from(document.querySelectorAll<HTMLInputElement>(`input[data-act="${actKeyStr}"]`)).filter((el) => !el.disabled);
+        const curIndex = all.findIndex((el) => el.dataset.student === studentId);
+        if (curIndex !== -1) next = all[curIndex - 1];
+      }
+      if (next) next.focus();
+    } catch {}
+  }
+
   const list = useMemo(() => students.filter((s) => s.full_name.toLowerCase().includes(q.toLowerCase())), [students, q]);
 
   const save = useMutation({
@@ -236,6 +270,34 @@ export function NotasPage() {
       successToast('Notas salvas com sucesso');
     },
   });
+
+  function buildGradeRows() {
+    return students
+      .map((s) => {
+        const row = scores[s.id] || {};
+        const obj: Record<string, number> = {};
+        columns.forEach((a) => {
+          const k = actKey(a);
+          if (row[k] !== '' && row[k] != null) obj[k] = Number(row[k]);
+        });
+        if (row[CREDITO_OVERRIDE_KEY] !== '' && row[CREDITO_OVERRIDE_KEY] != null) obj[CREDITO_OVERRIDE_KEY] = Number(row[CREDITO_OVERRIDE_KEY]);
+        return { student_id: s.id, scores: obj, observacao: (obs[s.id] ?? '').trim() || null };
+      })
+      .filter((r) => Object.keys(r.scores).length > 0 || r.observacao);
+  }
+
+  function handleSave() {
+    const rows = buildGradeRows();
+    if (!online) {
+      enqueueGrades({ classId, year, term, rows });
+      setPendingQueue(getQueuedGrades());
+      setSaved(true);
+      setEditingGrades(false);
+      successToast('Notas salvas localmente. Serão enviadas quando reconectar.');
+      return;
+    }
+    save.mutate();
+  }
 
   // Limpa (apaga do banco) as notas da turma no trimestre/ano selecionados.
   const clearGrades = useMutation({
@@ -347,6 +409,11 @@ export function NotasPage() {
                 <div className="mb-3 flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-3 text-sm font-semibold text-muted-foreground">
                   <Lock size={16} className="text-muted-foreground" />
                   Notas bloqueadas para evitar alterações acidentais. Clique em Editar notas para reabrir.
+                </div>
+              ) : null}
+              {pendingQueue.length > 0 ? (
+                <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                  Há {pendingQueue.length} lançamento(s) offline aguardando sincronização.
                 </div>
               ) : null}
 
@@ -568,7 +635,7 @@ export function NotasPage() {
                   </button>
                 ) : null}
                 <button
-                  onClick={() => save.mutate()}
+                  onClick={handleSave}
                   disabled={save.isPending}
                   className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:flex-none sm:px-8"
                 >

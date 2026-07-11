@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { ImportModal } from '../components/ImportModal';
 import { successToast } from '../components/Feedback';
 import { ActionsMenu, AddButton, Button, Card, CheckBox, EmptyState, Field, Input, Modal, PageHeader, SearchInput, Select, SelectionBar, SelectModeButton, Loading} from '../components/ui';
-import { bulkDeleteStudents, bulkImportAll, importResultToModal, deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
+import { archiveStudent, bulkDeleteStudents, bulkImportAll, importResultToModal, deleteStudent, listClasses, listStudents, saveStudent } from '../lib/queries';
 import { CADASTRO_COLUMNS } from '../lib/importSheet';
 import type { Student } from '../lib/types';
 import { useSelection } from '../lib/useSelection';
@@ -42,6 +42,13 @@ export function StudentsPage() {
     onSuccess: () => {
       refresh();
       successToast('Aluno excluído com sucesso');
+    },
+  });
+  const archive = useMutation({
+    mutationFn: archiveStudent,
+    onSuccess: () => {
+      refresh();
+      successToast('Aluno arquivado com sucesso');
     },
   });
   const sel = useSelection();
@@ -175,6 +182,7 @@ export function StudentsPage() {
               </div>
               <ActionsMenu
                 onEdit={() => openEdit(s)}
+                onArchive={() => confirm(`Arquivar o aluno "${s.full_name}"? Isso também removerá notas, faltas e avaliações relacionadas.`) && archive.mutate(s.id)}
                 onDelete={() => confirm(`Excluir o aluno "${s.full_name}"?`) && remove.mutate(s.id)}
               />
             </Card>

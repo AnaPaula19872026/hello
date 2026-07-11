@@ -12,22 +12,24 @@ import {
   LogOut,
   Megaphone,
   Menu,
-  Network,
   Settings,
   ShieldCheck,
   Users,
   X,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { canAccessModule, type ModuleKey } from '../lib/permissions';
-import { listAccessRequests, listSchools, planUnreadCounts, unreadNoticeCount } from '../lib/queries';
+import { listAccessRequests, listSchools, planUnreadCounts, unreadNoticeCount, saveEvalGrades, saveTermGrades, saveAttendance } from '../lib/queries';
 import { ROLE_LABEL } from '../lib/types';
 import { signOut } from '../lib/supabase';
+import { useOnlineStatus } from '../lib/useOnlineStatus';
+import { getOfflineQueue, syncOfflineQueue, type OfflineQueueItem } from '../lib/offlineQueue';
 
 type NavItem = { label: string; to: string; icon: ReactNode; module: ModuleKey };
 
@@ -217,7 +219,97 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const qc = useQueryClient();
+  const online = useOnlineStatus();
+  const [queueCount, setQueueCount] = useState(() => getOfflineQueue().length);
   const [open, setOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    const handleQueueUpdate = () => setQueueCount(getOfflineQueue().length);
+    window.addEventListener('offline-queue-updated', handleQueueUpdate);
+    return () => window.removeEventListener('offline-queue-updated', handleQueueUpdate);
+  }, []);
+
+  useEffect(() => {
+    if (!online || queueCount === 0 || syncing) return;
+    let cancelled = false;
+    setSyncing(true);
+    syncOfflineQueue(async (item: OfflineQueueItem) => {
+      if (cancelled) return false;
+      if (item.type === 'grades') {
+        const { classId, year, term, rows } = item.payload as { classId: string; year: number; term: number; rows: Array<Record<string, any>> };
+        await saveTermGrades(classId, year, term, rows);
+        return true;
+      }
+      if (item.type === 'attendance') {
+        const { classId, date, records, examMode } = item.payload as { classId: string; date: string; records: Array<Record<string, any>>; examMode?: boolean };
+        await saveAttendance(classId, date, records, { examMode });
+        return true;
+      }
+      if (item.type === 'evaluations') {
+        const { classId, year, term, rows } = item.payload as { classId: string; year: number; term: number; rows: Array<Record<string, any>> };
+        await saveEvalGrades(classId, year, term, rows);
+        return true;
+      }
+      return false;
+    })
+      .then((removed) => {
+        if (!cancelled) {
+          setSyncing(false);
+          if (removed > 0) {
+            successToast('Dados offline sincronizados com sucesso');
+            qc.invalidateQueries();
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSyncing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [online, queueCount, syncing, qc]);
+
+  useEffect(() => {
+    if (!online || queueCount === 0 || syncing) return;
+    let cancelled = false;
+    setSyncing(true);
+    syncOfflineQueue(async (item: OfflineQueueItem) => {
+      if (cancelled) return false;
+      if (item.type === 'grades') {
+        const { classId, year, term, rows } = item.payload as { classId: string; year: number; term: number; rows: Array<Record<string, any>> };
+        await saveTermGrades(classId, year, term, rows);
+        return true;
+      }
+      if (item.type === 'attendance') {
+        const { classId, date, records, examMode } = item.payload as { classId: string; date: string; records: Array<Record<string, any>>; examMode?: boolean };
+        await saveAttendance(classId, date, records, { examMode });
+        return true;
+      }
+      if (item.type === 'evaluations') {
+        const { classId, year, term, rows } = item.payload as { classId: string; year: number; term: number; rows: Array<Record<string, any>> };
+        await saveEvalGrades(classId, year, term, rows);
+        return true;
+      }
+      return false;
+    })
+      .then((removed) => {
+        if (!cancelled) {
+          setSyncing(false);
+          if (removed > 0) {
+            successToast('Dados offline sincronizados com sucesso');
+            qc.invalidateQueries();
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSyncing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [online, queueCount, syncing, qc]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -269,6 +361,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Menu size={20} />
           </button>
           <span className="text-lg font-black">hello</span>
+          <div className="ml-auto hidden items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs font-black text-muted-foreground sm:flex">
+            <span className={cn('inline-flex h-2.5 w-2.5 rounded-full', online ? 'bg-emerald-500' : 'bg-red-500')} />
+            {online ? (queueCount > 0 ? `${queueCount} em fila` : 'Online') : 'Offline'}
+          </div>
         </header>
         <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:py-8">{children}</main>
       </div>
