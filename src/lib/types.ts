@@ -402,6 +402,8 @@ export interface ReportPayload {
   subject?: string;
   notasRows?: ReportNotasRow[];
   notasTerm?: number; // 0 = todos os trimestres; 1-4 = só aquele trimestre
+  // Opções de exibição: chave -> incluir no relatório (permite ao professor marcar campos)
+  show?: Record<string, boolean>;
 }
 
 export const SHIFTS = ['Manhã', 'Tarde', 'Noite', 'Integral'] as const;

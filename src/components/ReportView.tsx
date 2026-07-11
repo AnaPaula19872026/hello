@@ -176,6 +176,7 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
   const rows = payload.freqRows ?? [];
   const dates = payload.dates ?? [];
   const examSet = new Set(payload.examDates ?? []);
+  const show = payload.show ?? {};
   if (rows.length === 0) return <p className="text-center text-slate-400">Nenhum dado no período.</p>;
 
   // Mapa de chamada mensal (grade P/F por dia letivo) — igual ao modelo impresso.
@@ -194,9 +195,9 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
         <thead className="border-b-2 border-slate-200 bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
           <tr>
             <th className="p-3">Aluno</th>
-            <th className="p-3">Presenças</th>
-            <th className="p-3">Faltas</th>
-            <th className="p-3 text-center">Frequência</th>
+            {show.present ?? true ? <th className="p-3">Presenças</th> : null}
+            {show.absent ?? true ? <th className="p-3">Faltas</th> : null}
+            {show.pct ?? true ? <th className="p-3 text-center">Frequência</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -212,15 +213,20 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
                     <span className="min-w-0 break-words leading-snug">{r.name}</span>
                   </div>
                 </td>
-                <td className="p-3">
-                  <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-700">{r.present} presença(s)</div>
-                  <DateChips dates={presentDates} cls="border border-emerald-200 bg-emerald-50/70 text-emerald-700" chip={chip} />
-                </td>
-                <td className="p-3">
-                  <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-red-600">{r.absent} falta(s)</div>
-                  <DateChips dates={absentDates} cls="border border-red-200 bg-red-50/70 text-red-700" chip={chip} examSet={examSet} max={12} />
-                </td>
-                <td className="p-3">
+                {show.present ?? true ? (
+                  <td className="p-3">
+                    <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-700">{r.present} presença(s)</div>
+                    <DateChips dates={presentDates} cls="border border-emerald-200 bg-emerald-50/70 text-emerald-700" chip={chip} />
+                  </td>
+                ) : null}
+                {show.absent ?? true ? (
+                  <td className="p-3">
+                    <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-red-600">{r.absent} falta(s)</div>
+                    <DateChips dates={absentDates} cls="border border-red-200 bg-red-50/70 text-red-700" chip={chip} examSet={examSet} max={12} />
+                  </td>
+                ) : null}
+                {show.pct ?? true ? (
+                  <td className="p-3">
                   <div className="flex flex-col items-center gap-1.5">
                     <span className={cn('text-base font-black tabular-nums', low ? 'text-red-600' : 'text-emerald-700')}>{r.pct}%</span>
                     <div className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-100">
@@ -230,7 +236,8 @@ function FreqBody({ payload, compact, minPct }: { payload: ReportPayload; compac
                       />
                     </div>
                   </div>
-                </td>
+                  </td>
+                ) : null}
               </tr>
             );
           })}
@@ -250,6 +257,7 @@ function FreqGrid({ payload, minPct }: { payload: ReportPayload; minPct: number 
   const rows = payload.freqRows ?? [];
   const months = groupByMonth(payload.gridDates ?? []);
   const examSet = new Set(payload.examDates ?? []);
+  const show = payload.show ?? {};
 
   return (
     <div className="space-y-6">
@@ -276,10 +284,10 @@ function FreqGrid({ payload, minPct }: { payload: ReportPayload; minPct: number 
                     {d.slice(8, 10)}
                   </th>
                 ))}
-                <th className="border-l-2 border-slate-200 px-1 py-1 text-[10px] font-black uppercase">Pres.</th>
-                <th className="px-1 py-1 text-[10px] font-black uppercase">Faltas</th>
-                <th className="px-1 py-1 text-[10px] font-black uppercase">%</th>
-                <th className="px-1 py-1 text-[10px] font-black uppercase">Situação</th>
+                {show.present ?? true ? <th className="border-l-2 border-slate-200 px-1 py-1 text-[10px] font-black uppercase">Pres.</th> : null}
+                {show.absent ?? true ? <th className="px-1 py-1 text-[10px] font-black uppercase">Faltas</th> : null}
+                {show.pct ?? true ? <th className="px-1 py-1 text-[10px] font-black uppercase">%</th> : null}
+                {show.pct ?? true ? <th className="px-1 py-1 text-[10px] font-black uppercase">Situação</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -314,12 +322,10 @@ function FreqGrid({ payload, minPct }: { payload: ReportPayload; minPct: number 
                         {absent ? 'F' : 'P'}
                       </td>
                     ))}
-                    <td className="border-l-2 border-slate-200 px-1 py-1 font-black text-emerald-700">{present}</td>
-                    <td className="px-1 py-1 font-black text-red-600">{faltas}</td>
-                    <td className={cn('px-1 py-1 font-black', reprovado ? 'text-red-600' : 'text-emerald-700')}>{pct}%</td>
-                    <td className={cn('px-1 py-1 text-[10px] font-black uppercase', reprovado ? 'text-red-600' : 'text-emerald-700')}>
-                      {reprovado ? 'Reprovado' : 'Aprovado'}
-                    </td>
+                    {show.present ?? true ? <td className="border-l-2 border-slate-200 px-1 py-1 font-black text-emerald-700">{present}</td> : null}
+                    {show.absent ?? true ? <td className="px-1 py-1 font-black text-red-600">{faltas}</td> : null}
+                    {show.pct ?? true ? <td className={cn('px-1 py-1 font-black', reprovado ? 'text-red-600' : 'text-emerald-700')}>{pct}%</td> : null}
+                    {show.pct ?? true ? <td className={cn('px-1 py-1 text-[10px] font-black uppercase', reprovado ? 'text-red-600' : 'text-emerald-700')}>{reprovado ? 'Reprovado' : 'Aprovado'}</td> : null}
                   </tr>
                 );
               })}
@@ -342,6 +348,7 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
   if (rows.length === 0) return <p className="text-center text-slate-400">Nenhum dado.</p>;
   const pad = compact ? 'p-1.5' : 'p-2';
   const TLABEL = ['1º tri', '2º tri', '3º tri'];
+  const show = payload.show ?? {};
 
   // Filtro por trimestre específico: mostra só a média daquele trimestre.
   const t = payload.notasTerm ?? 0;
@@ -352,8 +359,8 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
           <thead className="border-b-2 border-slate-200 bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
             <tr>
               <th className={cn('sticky left-0 bg-slate-50', compact ? 'p-2' : 'p-3')}>Aluno</th>
-              <th className={cn('text-center', pad)}>{TLABEL[t - 1]}</th>
-              <th className={cn('text-center', pad)}>Situação</th>
+              {show[`term${t}`] ?? true ? <th className={cn('text-center', pad)}>{TLABEL[t - 1]}</th> : null}
+              {show.situation ?? true ? <th className={cn('text-center', pad)}>Situação</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -367,10 +374,12 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
                       <span className="min-w-0 break-words leading-snug">{r.name}</span>
                     </div>
                   </td>
-                  <td className={cn('text-center', pad)}>
-                    {m != null ? <span className={cn('text-base font-black', m >= 6 ? 'text-emerald-700' : 'text-red-600')}>{m.toFixed(1)}</span> : '–'}
-                  </td>
-                  <td className={cn('text-center text-xs font-bold', pad)}>{situacao(m)}</td>
+                  {show[`term${t}`] ?? true ? (
+                    <td className={cn('text-center', pad)}>
+                      {m != null ? <span className={cn('text-base font-black', m >= 6 ? 'text-emerald-700' : 'text-red-600')}>{m.toFixed(1)}</span> : '–'}
+                    </td>
+                  ) : null}
+                  {show.situation ?? true ? <td className={cn('text-center text-xs font-bold', pad)}>{situacao(m)}</td> : null}
                 </tr>
               );
             })}
@@ -386,11 +395,11 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
         <thead className="bg-slate-50 text-left text-xs font-black uppercase text-slate-500">
           <tr>
             <th className={cn('sticky left-0 bg-slate-50', compact ? 'p-2' : 'p-3')}>Aluno</th>
-            {TLABEL.map((t) => (
-              <th key={t} className={cn('text-center', pad)}>{t}</th>
+            {TLABEL.map((t, idx) => (
+              (show[`term${idx + 1}`] ?? true) ? <th key={t} className={cn('text-center', pad)}>{t}</th> : null
             ))}
-            <th className={cn('text-center', pad)}>Final</th>
-            <th className={cn('text-center', pad)}>Situação</th>
+            {(show.final ?? true) ? <th className={cn('text-center', pad)}>Final</th> : null}
+            {(show.situation ?? true) ? <th className={cn('text-center', pad)}>Situação</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -399,15 +408,17 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
               <td className={cn('sticky left-0 bg-white font-bold text-slate-800', compact ? 'p-2' : 'p-3')}>
                 <span className="mr-2 inline-block w-6 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>{r.name}
               </td>
-              {r.terms.map((m, j) => (
+              {r.terms.map((m, j) => ((show[`term${j + 1}`] ?? true) ? (
                 <td key={j} className={cn('text-center', pad)}>
                   {m != null ? <span className={cn('font-bold', m >= 6 ? 'text-emerald-700' : 'text-red-600')}>{m.toFixed(1)}</span> : '–'}
                 </td>
-              ))}
-              <td className={cn('text-center', pad)}>
-                {r.final != null ? <span className={cn('font-black', r.final >= 6 ? 'text-emerald-700' : 'text-red-600')}>{r.final.toFixed(1)}</span> : '–'}
-              </td>
-              <td className={cn('text-center text-xs font-bold', pad)}>{situacao(r.final)}</td>
+              ) : null))}
+              {(show.final ?? true) ? (
+                <td className={cn('text-center', pad)}>
+                  {r.final != null ? <span className={cn('font-black', r.final >= 6 ? 'text-emerald-700' : 'text-red-600')}>{r.final.toFixed(1)}</span> : '–'}
+                </td>
+              ) : null}
+              {(show.situation ?? true) ? <td className={cn('text-center text-xs font-bold', pad)}>{situacao(r.final)}</td> : null}
             </tr>
           ))}
         </tbody>

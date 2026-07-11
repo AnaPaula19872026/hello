@@ -34,6 +34,21 @@ export function ReportsPage() {
   const [preview, setPreview] = useState(false);
   const [share, setShare] = useState(false);
 
+  // Campos que o professor pode escolher para incluir no relatório
+  const [showFields, setShowFields] = useState<Record<string, boolean>>(() => ({
+    // notas
+    term1: true,
+    term2: true,
+    term3: true,
+    final: true,
+    situation: true,
+    // frequência
+    present: true,
+    absent: true,
+    pct: true,
+    absentDays: false,
+  }));
+
   const location = useLocation();
   useEffect(() => {
     const fromState = (location.state as { classId?: string } | null)?.classId;
@@ -139,6 +154,7 @@ export function ReportsPage() {
         gridDates,
         layout: freqLayout,
         freqRows: freqRows.map((r) => ({ name: r.name, present: r.present, absent: r.absent, total: r.total, pct: r.pct, absentDates: r.absentDates, days: r.days })),
+        show: showFields,
       };
     }
     return {
@@ -151,8 +167,9 @@ export function ReportsPage() {
       subject: SUBJECT,
       notasRows: notasRows.map((r) => ({ name: r.name, terms: r.terms, final: r.final })),
       notasTerm: notaTerm,
+      show: showFields,
     };
-  }, [classId, tipo, school, className, from, to, minPct, freq.data, freqRows, gridDates, freqLayout, year, notasRows, notaTerm]);
+  }, [classId, tipo, school, className, from, to, minPct, freq.data, freqRows, gridDates, freqLayout, year, notasRows, notaTerm, showFields]);
 
   function exportExcel() {
     const titulo = [school?.name ?? 'Escola'];
@@ -323,6 +340,30 @@ export function ReportsPage() {
               ]}
             />
           ) : null}
+
+          {/* Campos selecionáveis pelo professor */}
+          <div className="mt-4">
+            <Field label="Campos do relatório">
+              <div className="flex flex-wrap gap-2">
+                {tipo === 'notas' ? (
+                  <>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.term1} onChange={(e) => setShowFields(s => ({ ...s, term1: e.target.checked }))} /> 1º tri</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.term2} onChange={(e) => setShowFields(s => ({ ...s, term2: e.target.checked }))} /> 2º tri</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.term3} onChange={(e) => setShowFields(s => ({ ...s, term3: e.target.checked }))} /> 3º tri</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.final} onChange={(e) => setShowFields(s => ({ ...s, final: e.target.checked }))} /> Final</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.situation} onChange={(e) => setShowFields(s => ({ ...s, situation: e.target.checked }))} /> Situação</label>
+                  </>
+                ) : (
+                  <>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.present} onChange={(e) => setShowFields(s => ({ ...s, present: e.target.checked }))} /> Presenças</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.absent} onChange={(e) => setShowFields(s => ({ ...s, absent: e.target.checked }))} /> Faltas</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.pct} onChange={(e) => setShowFields(s => ({ ...s, pct: e.target.checked }))} /> % Presença</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.absentDays} onChange={(e) => setShowFields(s => ({ ...s, absentDays: e.target.checked }))} /> Dias de falta</label>
+                  </>
+                )}
+              </div>
+            </Field>
+          </div>
         </Card>
 
         {/* Barra de ações (responsiva) */}
