@@ -7,6 +7,8 @@ import { Card, EmptyState, PageHeader, SearchInput, Segmented, Select, Loading} 
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { getRecords, getSession, listClasses, listStudentsByClass, saveAttendance } from '../lib/queries';
+import { enqueueAttendance, getQueuedAttendance } from '../lib/offlineQueue';
+import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { usePersistentState } from '../lib/usePersistentState';
 import type { AttendanceStatus, ClassRoom } from '../lib/types';
 
@@ -25,6 +27,14 @@ export function AttendancePage() {
   const [records, setRecords] = useState<Record<string, AttendanceStatus>>({});
   const [saved, setSaved] = useState(false);
   const [editingAttendance, setEditingAttendance] = useState(false);
+  const online = useOnlineStatus();
+  const [pendingQueue, setPendingQueue] = useState(() => getQueuedAttendance());
+
+  useEffect(() => {
+    const handleQueueUpdate = () => setPendingQueue(getQueuedAttendance());
+    window.addEventListener('offline-queue-updated', handleQueueUpdate);
+    return () => window.removeEventListener('offline-queue-updated', handleQueueUpdate);
+  }, []);
 
   useEffect(() => {
     if (!orgReady) return;
@@ -109,6 +119,23 @@ export function AttendancePage() {
     },
   });
 
+  function buildAttendanceRows() {
+    return students.map((s) => ({ student_id: s.id, status: records[s.id] ?? 'present', note: null }));
+  }
+
+  function handleSave() {
+    const rows = buildAttendanceRows();
+    if (!online) {
+      enqueueAttendance({ classId, date, examMode: false, records: rows });
+      setPendingQueue(getQueuedAttendance());
+      setSaved(true);
+      setEditingAttendance(false);
+      successToast('Chamada salva localmente. Será enviada quando reconectar.');
+      return;
+    }
+    save.mutate();
+  }
+
   function toggle(id: string) {
     if (!editingAttendance) return;
     setRecords((prev) => ({ ...prev, [id]: prev[id] === 'absent' ? 'present' : 'absent' }));
@@ -178,12 +205,12 @@ export function AttendancePage() {
           {lastMovement ? <span className="ml-auto text-xs font-bold text-muted-foreground">Últ. mov. {format(new Date(lastMovement), 'dd/MM')}</span> : null}
         </div>
       ) : null}
-
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <div className="rounded-2xl border border-border bg-card p-3 text-center">
-          <p className="text-2xl font-black text-foreground">{students.length}</p>
-          <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Alunos</p>
+      {pendingQueue.length > 0 ? (
+        <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+          Há {pendingQueue.length} chamada(s) offline aguardando sincronização.
         </div>
+      ) : null}
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center">
           <p className="text-2xl font-black text-emerald-700">{counts.present}</p>
           <p className="text-[11px] font-black uppercase tracking-wide text-emerald-700/70">Presentes</p>
@@ -280,7 +307,7 @@ export function AttendancePage() {
                   </button>
                 ) : null}
                 <button
-                  onClick={() => save.mutate()}
+                  onClick={handleSave}
                   disabled={save.isPending}
                   className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:flex-none sm:px-8"
                 >

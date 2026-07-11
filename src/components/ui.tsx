@@ -1,5 +1,5 @@
 import { Dialog, DialogPanel, DialogTitle, Menu, MenuButton, MenuItem, MenuItems, Transition, TransitionChild } from '@headlessui/react';
-import { ArrowLeft, Check, CheckSquare, MoreVertical, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { Archive, ArrowLeft, Check, CheckSquare, MoreVertical, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { Fragment, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/cn';
@@ -310,7 +310,7 @@ export function CheckBox({ checked, onChange }: { checked: boolean; onChange: ()
 }
 
 /* --------------------------- Menu de ações da linha ---------------------------- */
-export function ActionsMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+export function ActionsMenu({ onEdit, onArchive, onDelete }: { onEdit: () => void; onArchive?: () => void; onDelete: () => void }) {
   return (
     <Menu as="div" className="relative shrink-0">
       <MenuButton
@@ -332,6 +332,16 @@ export function ActionsMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete
             <Pencil size={16} /> Editar
           </button>
         </MenuItem>
+        {onArchive ? (
+          <MenuItem>
+            <button
+              onClick={onArchive}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-bold text-amber-700 data-[focus]:bg-amber-50"
+            >
+              <Archive size={16} /> Arquivar
+            </button>
+          </MenuItem>
+        ) : null}
         <MenuItem>
           <button
             onClick={onDelete}

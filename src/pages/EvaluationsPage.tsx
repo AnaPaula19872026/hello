@@ -18,7 +18,9 @@ import {
   saveEvalGrades,
   type EvalGradeRow,
 } from '../lib/queries';
+import { enqueueEvaluations, getQueuedEvaluations } from '../lib/offlineQueue';
 import { actKey, CREDITO_ACTIVITIES, sanitizeGrade, TERMS, TERM_LABEL, type GradeActivity } from '../lib/types';
+import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { usePersistentState } from '../lib/usePersistentState';
 
 type CellState = { done: boolean; score: string };
@@ -42,9 +44,17 @@ export function EvaluationsPage() {
   const [saved, setSaved] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
+  const [pendingQueue, setPendingQueue] = useState(() => getQueuedEvaluations());
+  const online = useOnlineStatus();
   const orgReady = !ctxLoading && !!activeOrgId;
 
   const { data: classes = [] } = useQuery({ queryKey: ['classes', activeOrgId], queryFn: listClasses, enabled: orgReady });
+  useEffect(() => {
+    const handleQueueUpdate = () => setPendingQueue(getQueuedEvaluations());
+    window.addEventListener('offline-queue-updated', handleQueueUpdate);
+    return () => window.removeEventListener('offline-queue-updated', handleQueueUpdate);
+  }, []);
+
   useEffect(() => {
     if (!orgReady || !classes.length) return;
     if (!classId || !classes.some((c) => c.id === classId)) setClassId(classes[0].id);
@@ -144,6 +154,34 @@ export function EvaluationsPage() {
       successToast(applied ? 'Avaliações salvas e crédito lançado nas notas' : 'Avaliações salvas com sucesso');
     },
   });
+
+  function buildEvalRows() {
+    return students
+      .map((s) => {
+        const row = cells[s.id] || {};
+        const marks: Record<string, { done: boolean; score: number | null }> = {};
+        activities.forEach((a) => {
+          const k = actKey(a);
+          const c = row[k];
+          if (c && (c.done || c.score !== '')) marks[k] = { done: c.done || c.score !== '', score: c.score !== '' ? Number(c.score) : null };
+        });
+        return { student_id: s.id, marks };
+      })
+      .filter((r) => Object.keys(r.marks).length > 0);
+  }
+
+  function handleSave() {
+    const rows = buildEvalRows();
+    if (!online) {
+      enqueueEvaluations({ classId, year, term, rows });
+      setPendingQueue(getQueuedEvaluations());
+      setSaved(true);
+      setEditing(false);
+      successToast('Avaliações salvas localmente. Serão enviadas quando reconectar.');
+      return;
+    }
+    save.mutate();
+  }
 
   // Limpa (apaga) as avaliações da turma no trimestre/ano e remove o crédito das notas.
   const clearEval = useMutation({
@@ -283,6 +321,11 @@ export function EvaluationsPage() {
               {hasSavedMarks && !editing ? (
                 <div className="mb-3 flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-3 text-sm font-semibold text-muted-foreground">
                   <Lock size={16} className="text-muted-foreground" /> Avaliações bloqueadas para evitar alterações acidentais. Clique em Editar para reabrir.
+                </div>
+              ) : null}
+              {pendingQueue.length > 0 ? (
+                <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                  Há {pendingQueue.length} avaliação(ões) offline aguardando sincronização.
                 </div>
               ) : null}
 
@@ -451,7 +494,7 @@ export function EvaluationsPage() {
                   </button>
                 ) : null}
                 <button
-                  onClick={() => save.mutate()}
+                  onClick={handleSave}
                   disabled={save.isPending}
                   className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:flex-none sm:px-8"
                 >

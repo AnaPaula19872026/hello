@@ -205,21 +205,29 @@ export function ReportsPage() {
       downloadXlsx(`frequencia-${slug(className)}-${from}_a_${to}.xlsx`, aoa, 'Frequência');
     } else {
       const sit = (m: number | null) => (m == null ? '—' : m >= 6 ? 'Aprovado' : 'Recuperação');
+      const includeSituation = !!showFields.situation;
       const aoa: (string | number | null)[][] =
         notaTerm >= 1 && notaTerm <= 3
           ? [
               titulo,
               [`Notas (${SUBJECT}) — Turma ${className} — ${notaTerm}º trimestre / ${year}`],
               [],
-              ['Aluno', `${notaTerm}º tri`, 'Situação'],
-              ...notasRows.map((r) => [r.name, r.terms[notaTerm - 1], sit(r.terms[notaTerm - 1])]),
+              ['Aluno', `${notaTerm}º tri`, ...(includeSituation ? ['Situação'] : [])],
+              ...notasRows.map((r) => [r.name, r.terms[notaTerm - 1], ...(includeSituation ? [sit(r.terms[notaTerm - 1])] : [])]),
             ]
           : [
               titulo,
               [`Notas (${SUBJECT}) — Turma ${className} — ${year}`],
               [],
-              ['Aluno', '1º tri', '2º tri', '3º tri', 'Final'],
-              ...notasRows.map((r) => [r.name, ...r.terms, r.final]),
+              ['Aluno', ...(showFields.term1 ? ['1º tri'] : []), ...(showFields.term2 ? ['2º tri'] : []), ...(showFields.term3 ? ['3º tri'] : []), ...(showFields.final ? ['Final'] : []), ...(includeSituation ? ['Situação'] : [])],
+              ...notasRows.map((r) => [
+                r.name,
+                ...(showFields.term1 ? [r.terms[0]] : []),
+                ...(showFields.term2 ? [r.terms[1]] : []),
+                ...(showFields.term3 ? [r.terms[2]] : []),
+                ...(showFields.final ? [r.final] : []),
+                ...(includeSituation ? [sit(r.final)] : []),
+              ]),
             ];
       const suffix = notaTerm >= 1 ? `-${notaTerm}tri` : '';
       downloadXlsx(`notas-${slug(className)}-${year}${suffix}.xlsx`, aoa, 'Notas');
