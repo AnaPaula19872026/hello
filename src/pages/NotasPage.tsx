@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Award, Check, ClipboardList, FileText, GraduationCap, Lock, Pencil, Plus, Printer, Save, Share2, Sliders, Trash2 } from 'lucide-react';
+import { Award, Check, ClipboardList, FileDown, FileText, GraduationCap, Lock, Pencil, Plus, Printer, Save, Share2, Sliders, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
@@ -9,6 +9,7 @@ import { ConfirmClearModal } from '../components/ConfirmClearModal';
 import { canManageOrg } from '../lib/permissions';
 import { cn } from '../lib/cn';
 import { printDocument, escapeHtml } from '../lib/print';
+import { downloadXlsx } from '../lib/importSheet';
 import { fmtNumber } from '../lib/format';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { usePersistentState } from '../lib/usePersistentState';
@@ -932,6 +933,28 @@ function BoletimModal({
     return `*${titulo}*\n${sub}\n\n${linhas.join('\n')}`;
   }
 
+  // Exporta a mesma seleção de colunas/campos para Excel (mesma lógica do relatório).
+  function exportExcel(): void {
+    const activeActs = displayCols.filter((a) => selectedActs.has(a.name));
+    const header = ['#', 'Aluno', ...activeActs.map((a) => a.name), ...(showMedia ? ['Média'] : []), ...(showSituation ? ['Situação'] : []), ...(showObs ? ['Observações'] : [])];
+    const body = rows.map((r, i) => {
+      const acts = activeActs.map((a) => {
+        const raw = a.id === CREDITO_OVERRIDE_KEY ? creditoSumFrom((ca) => r.scores[ca.name], creditActs) : (r.scores[a.name] === '' || r.scores[a.name] == null ? null : Number(r.scores[a.name]));
+        return raw == null ? '—' : raw;
+      });
+      return [
+        i + 1,
+        r.name,
+        ...acts,
+        ...(showMedia ? [r.media == null ? '—' : r.media] : []),
+        ...(showSituation ? [situacao(r.media)] : []),
+        ...(showObs ? [r.obs] : []),
+      ];
+    });
+    const aoa: (string | number | null)[][] = [[school?.name ?? 'Escola'], [`Notas — Turma ${className} — ${TERM_LABEL[term]} / ${year}`], [], header, ...body];
+    downloadXlsx(`notas-${TERM_LABEL[term].replace(/\D/g, '')}tri-${year}.xlsx`, aoa, 'Notas');
+  }
+
   const nothingSelected = selectedActs.size === 0 && !showMedia && !showSituation && !showObs;
 
   return (
@@ -1028,39 +1051,39 @@ function BoletimModal({
           <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">Sem alunos para gerar o boletim.</p>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-2 border-t border-border pt-4 sm:flex sm:flex-wrap">
-              <Button onClick={() => printDocument(titulo, buildHtml())} disabled={nothingSelected} className="w-full sm:w-auto">
-                <Printer size={16} /> Imprimir
+            {/* Barra de ações — mesmo layout dos Relatórios (2 colunas + Excel full-width) */}
+            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-card p-2 shadow-soft">
+              <Button variant="ghost" onClick={() => printDocument(titulo, buildHtml())} disabled={nothingSelected} className="w-full">
+                <Printer size={18} /> Imprimir
               </Button>
-              <Button variant="soft" onClick={() => printDocument(titulo, buildHtml())} disabled={nothingSelected} className="w-full sm:w-auto">
-                <FileText size={16} /> Baixar PDF
+              <Button variant="ghost" onClick={() => printDocument(titulo, buildHtml())} disabled={nothingSelected} className="w-full">
+                <FileText size={18} /> PDF
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText())}`, '_blank', 'noopener')}
+                className="w-full"
+              >
+                <Share2 size={18} /> WhatsApp
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  window.location.href = `mailto:?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(shareText())}`;
+                }}
+                className="w-full"
+              >
+                <Share2 size={18} /> E-mail
+              </Button>
+              <Button onClick={exportExcel} disabled={nothingSelected} className="col-span-2 w-full">
+                <FileDown size={18} /> Excel
               </Button>
             </div>
             {nothingSelected ? (
               <p className="text-xs font-semibold text-amber-600">Selecione ao menos uma coluna ou campo para gerar o relatório.</p>
-            ) : null}
-            <div className="border-t border-border pt-3">
-              <p className="mb-2 text-xs font-black uppercase tracking-wide text-muted-foreground">Enviar resumo</p>
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                <Button
-                  variant="ghost"
-                  onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText())}`, '_blank', 'noopener')}
-                  className="w-full sm:w-auto"
-                >
-                  <Share2 size={16} /> WhatsApp
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    window.location.href = `mailto:?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(shareText())}`;
-                  }}
-                  className="w-full sm:w-auto"
-                >
-                  <Share2 size={16} /> E-mail
-                </Button>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">Para baixar em PDF, use Imprimir e escolha "Salvar como PDF".</p>
-            </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Para PDF, use Imprimir/PDF e escolha "Salvar como PDF".</p>
+            )}
           </>
         )}
       </div>
