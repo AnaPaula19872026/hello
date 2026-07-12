@@ -24,7 +24,7 @@ export function printDocument(title: string, bodyHtml: string, opts?: { autoPrin
   td.name, th.name { text-align: left; }
   .zero { color: #dc2626; font-weight: 700; }
   .fail { color: #dc2626; font-weight: 700; }
-  .ok { color: #059669; font-weight: 700; }
+  .ok { color: #0f172a; font-weight: 700; }
   .foot { margin-top: 16px; font-size: 11px; color: #94a3b8; }
   @media print { body { margin: 0; } @page { margin: 14mm; } }
 </style></head><body>${bodyHtml}

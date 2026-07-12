@@ -53,7 +53,7 @@ function situacao(media: number | null) {
 /** Cor da situação/nota: verde ≥ 6,0 · vermelho < 6,0. */
 function situacaoCls(media: number | null): string {
   if (media == null) return 'text-slate-400';
-  return media >= 6 ? 'text-emerald-700' : 'text-red-600';
+  return media >= 6 ? 'text-slate-900' : 'text-red-600';
 }
 
 export function ReportView({ payload, compact = false }: { payload: ReportPayload; compact?: boolean }) {
@@ -78,7 +78,7 @@ export function ReportView({ payload, compact = false }: { payload: ReportPayloa
               <p className="truncate text-xs text-slate-400">{[school.address, school.city, school.phone].filter(Boolean).join(' • ')}</p>
             ) : null}
             <h2 className="mt-2 text-xl font-black leading-tight text-slate-900">{payload.title}</h2>
-            {payload.subject ? <p className="text-sm font-black text-emerald-700">Matéria: {payload.subject}</p> : null}
+            {payload.subject ? <p className="text-sm font-black text-slate-700">Disciplina: {payload.subject}</p> : null}
             <p className="text-sm font-medium text-slate-500">Turma {payload.className} • {payload.period}</p>
           </div>
           <div className="ml-auto hidden shrink-0 text-right sm:block">
@@ -178,7 +178,7 @@ function ReportSummary({ payload, minPct, compact }: { payload: ReportPayload; m
             ]
           : [
               { label: 'Alunos', value: rows.length },
-              { label: 'Média da turma', value: turma != null ? fmtNumber(turma, 1) : '–', color: turma != null && turma >= 6 ? 'text-emerald-700' : 'text-red-600' },
+              { label: 'Média da turma', value: turma != null ? fmtNumber(turma, 1) : '–', color: turma != null && turma >= 6 ? 'text-slate-900' : 'text-red-600' },
               { label: `Aprovados · ${pct}%`, value: aprov, color: 'text-emerald-700', box: 'border-emerald-200 bg-emerald-50' },
               { label: 'Em recuperação', value: vals.length - aprov, color: 'text-red-600', box: 'border-red-200 bg-red-50' },
             ]
@@ -401,7 +401,7 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
                     const ok = score != null && score >= max * 0.6;
                     return (
                       <td key={k} className={cn('text-center', pad)}>
-                        {score != null ? <span className={cn('text-base font-black', ok ? 'text-emerald-700' : 'text-red-600')}>{fmtNumber(score, 1)}</span> : '–'}
+                        {score != null ? <span className={cn('text-base font-black', ok ? 'text-slate-900' : 'text-red-600')}>{fmtNumber(score, 1)}</span> : '–'}
                       </td>
                     );
                   })}
@@ -436,12 +436,12 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
               </td>
               {r.terms.map((m, j) => ((show[`term${j + 1}`] ?? true) ? (
                 <td key={j} className={cn('text-center', pad)}>
-                  {m != null ? <span className={cn('font-bold', m >= 6 ? 'text-emerald-700' : 'text-red-600')}>{fmtNumber(m, 1)}</span> : '–'}
+                  {m != null ? <span className={cn('font-bold', m >= 6 ? 'text-slate-900' : 'text-red-600')}>{fmtNumber(m, 1)}</span> : '–'}
                 </td>
               ) : null))}
               {(show.final ?? true) ? (
                 <td className={cn('text-center', pad)}>
-                  {r.final != null ? <span className={cn('font-black', r.final >= 6 ? 'text-emerald-700' : 'text-red-600')}>{fmtNumber(r.final, 1)}</span> : '–'}
+                  {r.final != null ? <span className={cn('font-black', r.final >= 6 ? 'text-slate-900' : 'text-red-600')}>{fmtNumber(r.final, 1)}</span> : '–'}
                 </td>
               ) : null}
               {(show.situation ?? true) ? <td className={cn('text-center text-xs font-bold', pad, situacaoCls(r.final))}>{situacao(r.final)}</td> : null}

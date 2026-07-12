@@ -44,7 +44,7 @@ function schoolHeaderHtml(school: School | undefined, label: string, compact = f
     <div style="flex:1; min-width:0;">
       <div style="font-size:${compact ? 15 : 18}px; font-weight:800; line-height:1.1;">${escapeHtml(name)}</div>
       <div style="font-size:${compact ? 11 : 13}px; font-weight:700; letter-spacing:.08em; color:#475569;">${escapeHtml(label)}</div>
-      ${subject ? `<div style="font-size:${compact ? 11 : 12}px; font-weight:800; color:#059669; margin-top:1px;">Matéria: ${escapeHtml(subject)}</div>` : ''}
+      ${subject ? `<div style="font-size:${compact ? 11 : 12}px; font-weight:800; color:#334155; margin-top:1px;">Disciplina: ${escapeHtml(subject)}</div>` : ''}
       ${contato ? `<div style="font-size:10px; color:#94a3b8; margin-top:2px;">${contato}</div>` : ''}
     </div>
     <div style="text-align:right; font-size:10px; color:#94a3b8;">Gerado em<br/>${new Date().toLocaleDateString('pt-BR')}</div>
@@ -404,7 +404,7 @@ export function NotasPage() {
                       <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Alunos</p>
                     </div>
                     <div className="rounded-2xl border border-border bg-card p-3 text-center">
-                      <p className={cn('text-2xl font-black', turma == null ? 'text-muted-foreground' : turma >= MEDIA_APROVACAO ? 'text-emerald-700' : 'text-red-600')}>
+                      <p className={cn('text-2xl font-black', turma == null ? 'text-muted-foreground' : turma >= MEDIA_APROVACAO ? 'text-foreground' : 'text-red-600')}>
                         {turma != null ? fmtNumber(turma, 1) : '–'}
                       </p>
                       <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Média da turma</p>
@@ -482,7 +482,7 @@ export function NotasPage() {
                                 placeholder="–"
                                 className={cn(
                                   'h-10 w-14 rounded-lg border text-center font-bold tabular-nums outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed',
-                                  lowNote ? 'border-red-200 bg-red-50 text-red-600' : okNote ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-border bg-card text-muted-foreground',
+                                  lowNote ? 'border-red-200 bg-red-50 text-red-600' : okNote ? 'border-border bg-card text-foreground' : 'border-border bg-card text-muted-foreground',
                                   !editingGrades && 'bg-transparent disabled:bg-transparent',
                                 )}
                               />
@@ -515,7 +515,7 @@ export function NotasPage() {
                         ) : null}
                         <td className="px-3 py-3 text-center">
                           {m != null ? (
-                            <span className={cn('inline-block min-w-[44px] rounded-lg px-2 py-1 text-base font-black tabular-nums', ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600')}>
+                            <span className={cn('inline-block min-w-[44px] rounded-lg px-2 py-1 text-base font-black tabular-nums', ok ? 'text-foreground' : 'bg-red-50 text-red-600')}>
                               {fmtNumber(m, 1)}
                             </span>
                           ) : (
@@ -789,7 +789,7 @@ function BoletimEscolarModal({
                 <label key={r.student_id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted">
                   <input type="checkbox" checked={selected.has(r.student_id)} onChange={() => toggle(r.student_id)} className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500" />
                   <span className="flex-1 font-bold text-foreground">{r.name}</span>
-                  <span className={cn('text-xs font-black', r.final == null ? 'text-muted-foreground' : r.final >= MEDIA_APROVACAO ? 'text-emerald-600' : 'text-red-600')}>
+                  <span className={cn('text-xs font-black', r.final == null ? 'text-muted-foreground' : r.final >= MEDIA_APROVACAO ? 'text-foreground' : 'text-red-600')}>
                     {r.final == null ? '–' : fmtNumber(r.final, 1)}
                   </span>
                 </label>
