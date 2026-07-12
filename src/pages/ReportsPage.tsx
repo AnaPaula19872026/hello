@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { endOfMonth, format, startOfMonth, subMonths } from 'date-fns';
-import { BarChart3, Eye, FileDown, List, Printer, Rows3, Send } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { BarChart3, Check, Eye, FileDown, List, Printer, Rows3, Send } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ReportView } from '../components/ReportView';
 import { ShareModal } from '../components/ShareModal';
@@ -84,6 +84,17 @@ export function ReportsPage() {
     queryFn: () => reportTermDetails(classId, year, notaTerm),
     enabled: tipo === 'notas' && !!classId && notaTerm >= 1,
   });
+
+  // Chaves das atividades do trimestre; inicializa a seleção com TODAS sempre que mudam
+  // (turma/ano/trimestre). Assim "Limpar" realmente esvazia e "Todas" remarca.
+  const termActKeys = useMemo(() => (termDetails.data?.activities ?? []).map((a) => a.id ?? a.name), [termDetails.data]);
+  const termActSig = termActKeys.join('|');
+  useEffect(() => {
+    if (termActKeys.length) setSelectedActivities(termActKeys);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [termActSig]);
+
+  const toggleField = (k: string) => setShowFields((s) => ({ ...s, [k]: !s[k] }));
 
   // Feriados nacionais dos anos do período — para tirar do mapa de chamada (dias letivos).
   const fromYear = Number(from.slice(0, 4));
@@ -179,7 +190,7 @@ export function ReportsPage() {
         notasRows: rows.map((r) => ({ name: r.name, terms: [r.termAvg], final: r.termAvg, activityScores: r.activities })),
         notasTerm: notaTerm,
         termActivities: activities,
-        termSelectedActivities: selectedActivities.length ? selectedActivities : activities.map((a) => a.id ?? a.name),
+        termSelectedActivities: selectedActivities,
         show: showFields,
       };
     }
@@ -376,47 +387,68 @@ export function ReportsPage() {
           ) : null}
 
           {/* Campos selecionáveis pelo professor */}
-          <div className="mt-4">
-            <Field label="Campos do relatório">
+          <div className="mt-4 space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
+            <div>
+              <p className="mb-2.5 text-xs font-black uppercase tracking-wide text-muted-foreground">Campos do relatório</p>
               <div className="flex flex-wrap gap-2">
                 {tipo === 'notas' ? (
                   <>
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.term1} onChange={(e) => setShowFields(s => ({ ...s, term1: e.target.checked }))} /> 1º tri</label>
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.term2} onChange={(e) => setShowFields(s => ({ ...s, term2: e.target.checked }))} /> 2º tri</label>
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.term3} onChange={(e) => setShowFields(s => ({ ...s, term3: e.target.checked }))} /> 3º tri</label>
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.final} onChange={(e) => setShowFields(s => ({ ...s, final: e.target.checked }))} /> Final</label>
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.situation} onChange={(e) => setShowFields(s => ({ ...s, situation: e.target.checked }))} /> Situação</label>
-                    {notaTerm >= 1 && termDetails.data ? (
-                      <div className="w-full mt-2">
-                        <p className="mb-2 text-sm font-bold">Atividades do trimestre (selecionar colunas):</p>
-                        <div className="flex flex-wrap gap-2">
-                          <button className="rounded-lg bg-muted px-2 py-1 text-xs font-bold" onClick={() => setSelectedActivities(termDetails.data!.activities.map(a => a.id ?? a.name))}>Selecionar todas</button>
-                          <button className="rounded-lg bg-muted px-2 py-1 text-xs font-bold" onClick={() => setSelectedActivities([])}>Limpar</button>
-                        </div>
-                        <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                          {termDetails.data.activities.map((a) => {
-                            const k = a.id ?? a.name;
-                            const checked = selectedActivities.length ? selectedActivities.includes(k) : true;
-                            return (
-                              <label key={k} className="flex items-center gap-2 text-sm">
-                                <input type="checkbox" checked={checked} onChange={(e) => setSelectedActivities(s => e.target.checked ? Array.from(new Set([...s, k])) : s.filter(x => x !== k))} /> {a.name}
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
+                    {notaTerm === 0 ? (
+                      <>
+                        <Chip on={!!showFields.term1} onClick={() => toggleField('term1')}>1º tri</Chip>
+                        <Chip on={!!showFields.term2} onClick={() => toggleField('term2')}>2º tri</Chip>
+                        <Chip on={!!showFields.term3} onClick={() => toggleField('term3')}>3º tri</Chip>
+                        <Chip on={!!showFields.final} onClick={() => toggleField('final')}>Final</Chip>
+                      </>
                     ) : null}
+                    <Chip on={!!showFields.situation} onClick={() => toggleField('situation')}>Situação</Chip>
                   </>
                 ) : (
                   <>
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.present} onChange={(e) => setShowFields(s => ({ ...s, present: e.target.checked }))} /> Presenças</label>
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.absent} onChange={(e) => setShowFields(s => ({ ...s, absent: e.target.checked }))} /> Faltas</label>
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.pct} onChange={(e) => setShowFields(s => ({ ...s, pct: e.target.checked }))} /> % Presença</label>
-                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.absentDays} onChange={(e) => setShowFields(s => ({ ...s, absentDays: e.target.checked }))} /> Dias de falta</label>
+                    <Chip on={!!showFields.present} onClick={() => toggleField('present')}>Presenças</Chip>
+                    <Chip on={!!showFields.absent} onClick={() => toggleField('absent')}>Faltas</Chip>
+                    <Chip on={!!showFields.pct} onClick={() => toggleField('pct')}>% Presença</Chip>
+                    <Chip on={!!showFields.absentDays} onClick={() => toggleField('absentDays')}>Dias de falta</Chip>
                   </>
                 )}
               </div>
-            </Field>
+            </div>
+
+            {tipo === 'notas' && notaTerm >= 1 && termDetails.data ? (
+              <div className="border-t border-border pt-3">
+                <div className="mb-2.5 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Atividades do trimestre</p>
+                    <p className="text-[11px] font-semibold text-muted-foreground">{selectedActivities.length} de {termActKeys.length} selecionada(s)</p>
+                  </div>
+                  <div className="flex shrink-0 gap-1.5">
+                    <button
+                      onClick={() => setSelectedActivities(termActKeys)}
+                      className="rounded-lg bg-card px-2.5 py-1 text-xs font-bold text-muted-foreground shadow-sm transition hover:text-foreground"
+                    >
+                      Todas
+                    </button>
+                    <button
+                      onClick={() => setSelectedActivities([])}
+                      className="rounded-lg bg-card px-2.5 py-1 text-xs font-bold text-muted-foreground shadow-sm transition hover:text-foreground"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {termDetails.data.activities.map((a) => {
+                    const k = a.id ?? a.name;
+                    const on = selectedActivities.includes(k);
+                    return (
+                      <Chip key={k} on={on} onClick={() => setSelectedActivities((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]))}>
+                        {a.name}
+                      </Chip>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </div>
         </Card>
 
@@ -463,4 +495,26 @@ export function ReportsPage() {
 
 function slug(s: string) {
   return s.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'turma';
+}
+
+/** Chip selecionável (toggle) — padrão visual compartilhado com o modal de Notas. */
+function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-bold transition',
+        on
+          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+          : 'border-border bg-card text-muted-foreground hover:border-emerald-300 hover:text-foreground',
+      )}
+    >
+      <span className={cn('grid h-4 w-4 shrink-0 place-items-center rounded-full border', on ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-border')}>
+        {on ? <Check size={11} strokeWidth={3} /> : null}
+      </span>
+      {children}
+    </button>
+  );
 }
