@@ -242,6 +242,31 @@ export function ReportsPage() {
     };
   }, [classId, tipo, school, className, from, to, minPct, freq.data, freqRows, gridDates, freqLayout, year, notasRows, notaTerm, showFields, termDetails.data, selectedActivities]);
 
+  // Nome automático do arquivo: Disciplina - Turma - Trimestre - Atividade(s).
+  const safeFileName = (s: string) => s.replace(/[\/\\:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim();
+  function reportBaseName(): string {
+    if (tipo === 'freq') {
+      const kind = freqLayout === 'grid' ? 'Mapa de chamada' : 'Frequência';
+      return safeFileName(`${kind} - ${className} - ${fmtBR(from)} a ${fmtBR(to)}`);
+    }
+    if (notaTerm >= 1) {
+      const acts = termDisplayActs.filter((a) => selectedActivities.includes(a.id ?? a.name)).map((a) => a.name);
+      return safeFileName(`${SUBJECT} - ${className} - ${notaTerm}º trimestre - ${acts.length ? acts.join(', ') : 'Notas'}`);
+    }
+    return safeFileName(`${SUBJECT} - ${className} - Ano ${year} - Notas`);
+  }
+
+  function printPdf() {
+    const prev = document.title;
+    document.title = reportBaseName();
+    const restore = () => {
+      document.title = prev;
+      window.removeEventListener('afterprint', restore);
+    };
+    window.addEventListener('afterprint', restore);
+    window.print();
+  }
+
   function exportExcel() {
     const titulo = [school?.name ?? 'Escola'];
     if (tipo === 'freq' && freqLayout === 'grid' && gridDates.length) {
@@ -265,7 +290,7 @@ export function ReportsPage() {
         }
         aoa.push([]);
       }
-      downloadXlsx(`mapa-chamada-${slug(className)}-${from}_a_${to}.xlsx`, aoa, 'Mapa de chamada');
+      downloadXlsx(`${reportBaseName()}.xlsx`, aoa, 'Mapa de chamada');
     } else if (tipo === 'freq') {
       const aoa: (string | number | null)[][] = [
         titulo,
@@ -274,7 +299,7 @@ export function ReportsPage() {
         ['Aluno', 'Presenças', 'Faltas', 'Total', '% Presença', 'Dias de falta'],
         ...freqRows.map((r) => [r.name, r.present, r.absent, r.total, r.pct, r.absentDates.map(fmtBR).join(', ')]),
       ];
-      downloadXlsx(`frequencia-${slug(className)}-${from}_a_${to}.xlsx`, aoa, 'Frequência');
+      downloadXlsx(`${reportBaseName()}.xlsx`, aoa, 'Frequência');
     } else {
       const sit = (m: number | null) => (m == null ? '—' : m >= 6 ? 'Aprovado' : 'Recuperação');
       const includeSituation = !!showFields.situation;
@@ -301,8 +326,7 @@ export function ReportsPage() {
                 ...(includeSituation ? [sit(r.final)] : []),
               ]),
             ];
-      const suffix = notaTerm >= 1 ? `-${notaTerm}tri` : '';
-      downloadXlsx(`notas-${slug(className)}-${year}${suffix}.xlsx`, aoa, 'Notas');
+      downloadXlsx(`${reportBaseName()}.xlsx`, aoa, 'Notas');
     }
   }
 
@@ -504,7 +528,7 @@ export function ReportsPage() {
             <Button variant="ghost" onClick={() => setShare(true)} disabled={!payload} className="w-full sm:w-auto">
               <Send size={18} /> Enviar
             </Button>
-            <Button variant="ghost" onClick={() => window.print()} className="w-full sm:w-auto">
+            <Button variant="ghost" onClick={printPdf} className="w-full sm:w-auto">
               <Printer size={18} /> PDF
             </Button>
             <Button onClick={exportExcel} className="col-span-2 w-full sm:ml-auto sm:w-auto">

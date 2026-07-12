@@ -764,7 +764,7 @@ function BoletimEscolarModal({
     const sel = rows.filter((r) => selected.has(r.student_id));
     if (!sel.length) return;
     const body = sel.map((r, i) => boletimHtml(r, i, sel.length)).join('');
-    printDocument(`Boletins — ${className} ${year}`, body);
+    printDocument(`${SUBJECT} - ${className} - Boletim Escolar - ${year}`.replace(/[\/\\:*?"<>|]+/g, '-'), body);
   }
 
   return (
@@ -864,6 +864,14 @@ function BoletimModal({
   const school = schools.find((s) => s.id === schoolId);
   const titulo = `Relatório — ${className}`;
   const sub = `${TERM_LABEL[term]} • ${year} • aprovação a partir de ${fmtNumber(MEDIA_APROVACAO, 1)}`;
+  // Nome automático do arquivo: Disciplina - Turma - Trimestre - Atividade(s).
+  // Ex.: "Língua Inglesa - 6º ANO - FUND II - 2º trimestre - TESTE"
+  const safeFileName = (s: string) => s.replace(/[\/\\:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim();
+  const reportFileName = (() => {
+    const acts = displayCols.filter((a) => selectedActs.has(a.name)).map((a) => a.name);
+    const atividade = acts.length ? acts.join(', ') : 'Notas';
+    return safeFileName(`${SUBJECT} - ${className} - ${term}º trimestre - ${atividade}`);
+  })();
 
   function situacao(m: number | null): 'Aprovado' | 'Recuperação' | '–' {
     if (m == null) return '–';
@@ -921,7 +929,7 @@ function BoletimModal({
       ];
     });
     const aoa: (string | number | null)[][] = [[school?.name ?? 'Escola'], [`Notas — Turma ${className} — ${TERM_LABEL[term]} / ${year}`], [], header, ...body];
-    downloadXlsx(`notas-${TERM_LABEL[term].replace(/\D/g, '')}tri-${year}.xlsx`, aoa, 'Notas');
+    downloadXlsx(`${reportFileName}.xlsx`, aoa, 'Notas');
   }
 
   const [share, setShare] = useState(false);
@@ -1060,13 +1068,13 @@ function BoletimModal({
               <Button variant="ghost" onClick={() => setCompact((c) => !c)} className="w-full sm:w-auto" title="Alternar layout do relatório">
                 {compact ? <Rows3 size={18} /> : <List size={18} />} {compact ? 'Detalhado' : 'Compacto'}
               </Button>
-              <Button variant="ghost" onClick={() => printDocument(titulo, buildHtml(), { autoPrint: false })} disabled={nothingSelected} className="w-full sm:w-auto">
+              <Button variant="ghost" onClick={() => printDocument(reportFileName, buildHtml(), { autoPrint: false })} disabled={nothingSelected} className="w-full sm:w-auto">
                 <Eye size={18} /> Visualizar
               </Button>
               <Button variant="ghost" onClick={() => setShare(true)} disabled={nothingSelected} className="w-full sm:w-auto">
                 <Send size={18} /> Enviar
               </Button>
-              <Button variant="ghost" onClick={() => printDocument(titulo, buildHtml())} disabled={nothingSelected} className="w-full sm:w-auto">
+              <Button variant="ghost" onClick={() => printDocument(reportFileName, buildHtml())} disabled={nothingSelected} className="w-full sm:w-auto">
                 <Printer size={18} /> PDF
               </Button>
               <Button onClick={exportExcel} disabled={nothingSelected} className="col-span-2 w-full sm:ml-auto sm:w-auto">
