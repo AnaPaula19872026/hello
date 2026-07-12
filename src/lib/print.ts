@@ -4,7 +4,8 @@
  * oferece 'Salvar como PDF' na caixa de impressão). Estilo embutido para não
  * depender do CSS do app.
  */
-export function printDocument(title: string, bodyHtml: string): void {
+export function printDocument(title: string, bodyHtml: string, opts?: { autoPrint?: boolean }): void {
+  const autoPrint = opts?.autoPrint !== false; // padrão: imprime; passe false só para pré-visualizar
   const win = window.open('', '_blank', 'width=900,height=700');
   if (!win) {
     alert('Permita pop-ups para imprimir/baixar.');
@@ -27,7 +28,7 @@ export function printDocument(title: string, bodyHtml: string): void {
   .foot { margin-top: 16px; font-size: 11px; color: #94a3b8; }
   @media print { body { margin: 0; } @page { margin: 14mm; } }
 </style></head><body>${bodyHtml}
-<script>window.onload=function(){window.print();}</script>
+${autoPrint ? '<script>window.onload=function(){window.print();}</script>' : ''}
 </body></html>`);
   win.document.close();
 }

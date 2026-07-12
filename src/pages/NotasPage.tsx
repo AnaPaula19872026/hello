@@ -1,5 +1,6 @@
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Award, Check, ClipboardList, FileDown, FileText, GraduationCap, Lock, Pencil, Plus, Printer, Save, Share2, Sliders, Trash2 } from 'lucide-react';
+import { Award, Check, ClipboardList, Eye, FileDown, FileText, GraduationCap, List, Lock, Mail, Pencil, Plus, Printer, Rows3, Save, Send, Share2, Sliders, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
@@ -857,6 +858,7 @@ function BoletimModal({
   activities: GradeActivity[];
   rows: BoletimRow[];
 }) {
+  const [compact, setCompact] = useState(false);
   // Colunas exibidas: as várias atividades de crédito viram UMA coluna "Crédito variável".
   const displayCols = collapseCreditoColumns(activities);
   const creditActs = activities.filter((a) => !isRecoveryActivity(a.name) && (a.credito === true || a.max < 10));
@@ -898,7 +900,7 @@ function BoletimModal({
     return m >= MEDIA_APROVACAO ? 'Aprovado' : 'Recuperação';
   }
 
-  function buildHtml(): string {
+  function buildHtml(isCompact = compact): string {
     const activeActs = displayCols.filter((a) => selectedActs.has(a.name));
     const cols = ['#', 'Aluno', ...activeActs.map((a) => `${a.name} (0–${a.max})`), ...(showMedia ? ['Média'] : []), ...(showSituation ? ['Situação'] : []), ...(showObs ? ['Observações'] : [])];
     const head = `<tr>${cols.map((c, i) => `<th class="${i === 1 ? 'name' : ''}">${escapeHtml(c)}</th>`).join('')}</tr>`;
@@ -922,8 +924,10 @@ function BoletimModal({
         return `<tr><td>${i + 1}</td><td class="name">${escapeHtml(r.name)}</td>${acts}${showMedia ? `<td>${mediaCell}</td>` : ''}${showSituation ? `<td>${sitCell}</td>` : ''}${showObs ? `<td class="name">${escapeHtml(r.obs)}</td>` : ''}</tr>`;
       })
       .join('');
-    return `${schoolHeaderHtml(school, `RELATÓRIO DE NOTAS — ${TERM_LABEL[term]} / ${year}`)}
-      <p style="font-size:13px; margin:0 0 12px;"><strong>Turma:</strong> ${escapeHtml(className)} &nbsp;·&nbsp; ${rows.length} aluno(s)</p>
+    // Modo compacto: fontes/margens menores p/ caber mais alunos por folha.
+    const compactStyle = isCompact ? '<style>th,td{padding:2px 5px !important;font-size:9px !important}</style>' : '';
+    return `${compactStyle}${schoolHeaderHtml(school, `RELATÓRIO DE NOTAS — ${TERM_LABEL[term]} / ${year}`, isCompact)}
+      <p style="font-size:${isCompact ? 11 : 13}px; margin:0 0 ${isCompact ? 8 : 12}px;"><strong>Turma:</strong> ${escapeHtml(className)} &nbsp;·&nbsp; ${rows.length} aluno(s)</p>
       <table><thead>${head}</thead><tbody>${body}</tbody></table>
       <p class="foot">${escapeHtml(sub)}</p>`;
   }
@@ -1051,38 +1055,51 @@ function BoletimModal({
           <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">Sem alunos para gerar o boletim.</p>
         ) : (
           <>
-            {/* Barra de ações — mesmo layout dos Relatórios (2 colunas + Excel full-width) */}
-            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-card p-2 shadow-soft">
-              <Button variant="ghost" onClick={() => printDocument(titulo, buildHtml())} disabled={nothingSelected} className="w-full">
-                <Printer size={18} /> Imprimir
+            {/* Barra de ações — mesma lógica dos Relatórios (Compacto, Visualizar, Enviar, PDF + Excel) */}
+            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-card p-2 shadow-soft sm:flex sm:flex-wrap sm:items-center">
+              <Button variant="ghost" onClick={() => setCompact((c) => !c)} className="w-full sm:w-auto" title="Alternar layout do relatório">
+                {compact ? <Rows3 size={18} /> : <List size={18} />} {compact ? 'Detalhado' : 'Compacto'}
               </Button>
-              <Button variant="ghost" onClick={() => printDocument(titulo, buildHtml())} disabled={nothingSelected} className="w-full">
-                <FileText size={18} /> PDF
+              <Button variant="ghost" onClick={() => printDocument(titulo, buildHtml(), { autoPrint: false })} disabled={nothingSelected} className="w-full sm:w-auto">
+                <Eye size={18} /> Visualizar
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText())}`, '_blank', 'noopener')}
-                className="w-full"
-              >
-                <Share2 size={18} /> WhatsApp
+              <Menu as="div" className="relative w-full sm:w-auto">
+                <MenuButton
+                  disabled={nothingSelected}
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-card px-4 py-2.5 text-sm font-bold text-foreground shadow-soft ring-1 ring-inset ring-border transition-all duration-200 hover:bg-muted active:scale-[.98] disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
+                >
+                  <Send size={18} /> Enviar
+                </MenuButton>
+                <MenuItems anchor="bottom start" className="z-[60] mt-1 w-48 rounded-xl border border-border bg-card p-1 text-sm shadow-soft focus:outline-none">
+                  <MenuItem>
+                    <button
+                      onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText())}`, '_blank', 'noopener')}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-bold text-foreground data-[focus]:bg-muted"
+                    >
+                      <Share2 size={16} /> WhatsApp
+                    </button>
+                  </MenuItem>
+                  <MenuItem>
+                    <button
+                      onClick={() => { window.location.href = `mailto:?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(shareText())}`; }}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-bold text-foreground data-[focus]:bg-muted"
+                    >
+                      <Mail size={16} /> E-mail
+                    </button>
+                  </MenuItem>
+                </MenuItems>
+              </Menu>
+              <Button variant="ghost" onClick={() => printDocument(titulo, buildHtml())} disabled={nothingSelected} className="w-full sm:w-auto">
+                <Printer size={18} /> PDF
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  window.location.href = `mailto:?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(shareText())}`;
-                }}
-                className="w-full"
-              >
-                <Share2 size={18} /> E-mail
-              </Button>
-              <Button onClick={exportExcel} disabled={nothingSelected} className="col-span-2 w-full">
+              <Button onClick={exportExcel} disabled={nothingSelected} className="col-span-2 w-full sm:ml-auto sm:w-auto">
                 <FileDown size={18} /> Excel
               </Button>
             </div>
             {nothingSelected ? (
               <p className="text-xs font-semibold text-amber-600">Selecione ao menos uma coluna ou campo para gerar o relatório.</p>
             ) : (
-              <p className="text-xs text-muted-foreground">Para PDF, use Imprimir/PDF e escolha "Salvar como PDF".</p>
+              <p className="text-xs text-muted-foreground">Visualizar abre a prévia; em PDF, escolha "Salvar como PDF" na impressão.</p>
             )}
           </>
         )}
