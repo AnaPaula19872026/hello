@@ -485,7 +485,7 @@ export function NotasPage() {
                     const m = mediaOf(s.id);
                     const ok = m != null && m >= MEDIA_APROVACAO;
                     return (
-                      <tr key={s.id} className="border-t border-border transition hover:bg-emerald-50/30 even:bg-muted/40">
+                      <tr key={s.id} className="border-t border-border bg-card transition even:bg-muted hover:bg-emerald-50">
                         <td className="sticky left-0 z-10 w-[160px] min-w-[160px] max-w-[160px] bg-inherit px-3 py-2.5 align-middle shadow-[2px_0_0_0_rgba(241,245,249,1)]">
                           <div className="flex items-center gap-2.5">
                             <span className="w-6 shrink-0 text-right text-xs font-bold tabular-nums text-muted-foreground">{i + 1}</span>
