@@ -87,6 +87,10 @@ a {
   .no-print {
     display: none !important;
   }
+  /* O cabeçalho institucional do relatório também é um <header>: precisa aparecer no PDF. */
+  .report-view header {
+    display: block !important;
+  }
   .lg\:pl-72 {
     padding-left: 0 !important;
   }
