@@ -93,7 +93,7 @@ export function ReportView({ payload, compact = false }: { payload: ReportPayloa
         </div>
       ) : null}
 
-      <ReportSummary payload={payload} minPct={minPct} />
+      <ReportSummary payload={payload} minPct={minPct} compact={compact} />
 
       {kind === 'freq' ? <FreqBody payload={payload} compact={compact} minPct={minPct} /> : <NotasBody payload={payload} compact={compact} />}
 
@@ -113,7 +113,20 @@ function ReportFooter({ generatedAt }: { generatedAt: string }) {
   );
 }
 
-function SummaryGrid({ stats }: { stats: { label: string; value: React.ReactNode; color?: string; box?: string }[] }) {
+function SummaryGrid({ stats, compact }: { stats: { label: string; value: React.ReactNode; color?: string; box?: string }[]; compact?: boolean }) {
+  if (compact) {
+    // Modo compacto: rótulo e valor na mesma linha, cartões baixinhos — economiza espaço vertical.
+    return (
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 print:grid-cols-4">
+        {stats.map((s, i) => (
+          <div key={i} className={cn('flex items-baseline justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 print:shadow-none', s.box)}>
+            <p className="truncate text-[10px] font-bold uppercase tracking-wide text-slate-400">{s.label}</p>
+            <p className={cn('shrink-0 text-lg font-black leading-none text-slate-900', s.color)}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4 print:grid-cols-4">
       {stats.map((s, i) => (
@@ -126,7 +139,7 @@ function SummaryGrid({ stats }: { stats: { label: string; value: React.ReactNode
   );
 }
 
-function ReportSummary({ payload, minPct }: { payload: ReportPayload; minPct: number }) {
+function ReportSummary({ payload, minPct, compact }: { payload: ReportPayload; minPct: number; compact?: boolean }) {
   if (payload.kind === 'freq') {
     const rows = payload.freqRows ?? [];
     if (!rows.length) return null;
@@ -135,6 +148,7 @@ function ReportSummary({ payload, minPct }: { payload: ReportPayload; minPct: nu
     const presencas = rows.reduce((a, r) => a + r.present, 0);
     return (
       <SummaryGrid
+        compact={compact}
         stats={[
           { label: 'Alunos', value: rows.length },
           { label: 'Presença média', value: `${presMed}%`, color: presMed < minPct ? 'text-amber-600' : 'text-emerald-700', box: 'border-emerald-200 bg-emerald-50' },
@@ -153,6 +167,7 @@ function ReportSummary({ payload, minPct }: { payload: ReportPayload; minPct: nu
   const pct = vals.length ? Math.round((aprov / vals.length) * 100) : 0;
   return (
     <SummaryGrid
+      compact={compact}
       stats={
         t >= 1 && t <= 3
           ? [
