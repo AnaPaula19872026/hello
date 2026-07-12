@@ -436,6 +436,21 @@ export function actKey(a: GradeActivity): string {
 }
 
 /**
+ * Compatibilidade de leitura: notas antigas foram salvas com a CHAVE = nome da
+ * atividade; hoje a chave é o id. Este helper devolve os scores também acessíveis
+ * pela chave atual (id), copiando do nome quando o id não existir. Só leitura —
+ * não altera valores nem cálculo, apenas garante que a nota seja encontrada.
+ */
+export function normalizeScores(scores: Record<string, number>, activities: GradeActivity[]): Record<string, number> {
+  const out: Record<string, number> = { ...scores };
+  for (const a of activities) {
+    const k = actKey(a);
+    if (out[k] == null && scores[a.name] != null) out[k] = scores[a.name];
+  }
+  return out;
+}
+
+/**
  * Sanitiza a digitação de uma nota: aceita vírgula OU ponto (ex.: 8,07 / 8.07),
  * mantém um único separador, até 2 casas decimais, e limita ao máximo da coluna.
  * Devolve string (para controlar o input) — não força valor enquanto se digita.

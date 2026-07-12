@@ -151,7 +151,9 @@ export function NotasPage() {
       const g = termGrades.find((x) => x.student_id === s.id);
       const row: Record<string, string> = {};
       columns.forEach((a) => {
-        const v = g?.scores?.[actKey(a)];
+        // Compatibilidade: notas antigas foram salvas pela CHAVE = nome da atividade.
+        // Hoje a chave é o id; então busca por id e, se não achar, cai para o nome.
+        const v = g?.scores?.[actKey(a)] ?? g?.scores?.[a.name];
         row[actKey(a)] = v != null ? String(v) : '';
       });
       // Colunas de crédito variável (do Central de Avaliações, por id): nota de lá quando existir.

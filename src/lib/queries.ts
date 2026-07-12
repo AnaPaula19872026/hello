@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { calcMedia, withRecoveryActivity, type GradeActivity } from './types';
+import { calcMedia, normalizeScores, withRecoveryActivity, type GradeActivity } from './types';
 import { getActiveOrgId } from './org';
 import { assertUploadFile } from './fileSecurity';
 import { safeFileName, uploadToBucket } from './storage';
@@ -844,7 +844,9 @@ export async function reportTerms(classId: string, year: number): Promise<TermsR
   return students.map((s) => {
     const terms: (number | null)[] = [1, 2, 3].map((t) => {
       const g = grades.find((x) => x.student_id === s.id && x.term === t);
-      return g ? calcMedia(g.scores, actByTerm.get(t)) : null;
+      const acts = actByTerm.get(t);
+      // Compatibilidade: notas antigas salvas pela chave = nome (ver normalizeScores).
+      return g ? calcMedia(normalizeScores(g.scores, acts ?? []), acts) : null;
     });
     const got = terms.filter((x): x is number => x != null);
     const final = got.length ? Math.round((got.reduce((a, b) => a + b, 0) / got.length) * 10) / 10 : null;
@@ -888,13 +890,14 @@ export async function reportTermDetails(classId: string, year: number, term: num
 
   const rows: TermActivityRow[] = students.map((s) => {
     const g = grades.find((x) => x.student_id === s.id && x.term === term);
-    const scores = (g?.scores as Record<string, number> | undefined) ?? {};
+    // Compatibilidade: notas antigas salvas pela chave = nome (ver normalizeScores).
+    const scores = normalizeScores((g?.scores as Record<string, number> | undefined) ?? {}, activities);
     const activitiesMap: Record<string, number | null> = {};
     for (const a of activities) {
       const k = a.id ?? a.name;
       activitiesMap[k] = scores[k] != null ? Number(scores[k]) : null;
     }
-    const termAvg = g ? calcMedia(g.scores, activities) : null;
+    const termAvg = g ? calcMedia(scores, activities) : null;
     return { student_id: s.id, name: s.full_name, activities: activitiesMap, termAvg };
   });
 
