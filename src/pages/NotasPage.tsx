@@ -31,8 +31,8 @@ import {
 import { CREDITO_OVERRIDE_KEY, DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, SUBJECT, TERMS, TERM_LABEL, actKey, calcMedia, collapseCreditoColumns, creditoSumFrom, isRecoveryActivity, orderGradeActivities, sanitizeGrade, type GradeActivity, type ReportPayload, type School } from '../lib/types';
 
 /** Cabeçalho profissional para impressão (logo, escola, contato) — usado no boletim e no relatório.
- *  compact: versão reduzida p/ empilhar 3 boletins por folha. */
-function schoolHeaderHtml(school: School | undefined, label: string, compact = false): string {
+ *  compact: versão reduzida p/ empilhar 3 boletins por folha. subject: matéria (aparece no cabeçalho). */
+function schoolHeaderHtml(school: School | undefined, label: string, compact = false, subject?: string): string {
   const name = school?.name ?? 'Escola';
   const contato = [school?.address, school?.city, school?.phone].filter(Boolean).map((x) => escapeHtml(String(x))).join(' • ');
   const ls = compact ? 38 : 60; // tamanho do logo
@@ -44,6 +44,7 @@ function schoolHeaderHtml(school: School | undefined, label: string, compact = f
     <div style="flex:1; min-width:0;">
       <div style="font-size:${compact ? 15 : 18}px; font-weight:800; line-height:1.1;">${escapeHtml(name)}</div>
       <div style="font-size:${compact ? 11 : 13}px; font-weight:700; letter-spacing:.08em; color:#475569;">${escapeHtml(label)}</div>
+      ${subject ? `<div style="font-size:${compact ? 11 : 12}px; font-weight:800; color:#059669; margin-top:1px;">Matéria: ${escapeHtml(subject)}</div>` : ''}
       ${contato ? `<div style="font-size:10px; color:#94a3b8; margin-top:2px;">${contato}</div>` : ''}
     </div>
     <div style="text-align:right; font-size:10px; color:#94a3b8;">Gerado em<br/>${new Date().toLocaleDateString('pt-BR')}</div>
@@ -745,7 +746,7 @@ function BoletimEscolarModal({
     const isLast = i === total - 1;
     const pageBreak = i % 3 === 2 && !isLast;
     return `<section style="break-inside: avoid; ${pageBreak ? 'page-break-after: always;' : ''} max-width: 720px; margin: 0 auto; padding: 8px 0 10px; ${isLast || pageBreak ? '' : 'border-bottom: 1px dashed #cbd5e1;'}">
-      ${schoolHeaderHtml(school, `BOLETIM ESCOLAR — ${year}`, true)}
+      ${schoolHeaderHtml(school, `BOLETIM ESCOLAR — ${year}`, true, SUBJECT)}
       <p style="font-size:12px; margin:0 0 8px;"><strong>Aluno(a):</strong> ${escapeHtml(r.name)} &nbsp;·&nbsp; <strong>Turma:</strong> ${escapeHtml(className)}</p>
       <table><thead><tr><th class="name">Período</th><th>Média</th><th>Situação</th></tr></thead>
       <tbody>${linhas}
@@ -895,7 +896,7 @@ function BoletimModal({
       .join('');
     // Modo compacto: fontes/margens menores p/ caber mais alunos por folha.
     const compactStyle = isCompact ? '<style>th,td{padding:2px 5px !important;font-size:9px !important}</style>' : '';
-    return `${compactStyle}${schoolHeaderHtml(school, `RELATÓRIO DE NOTAS — ${TERM_LABEL[term]} / ${year}`, isCompact)}
+    return `${compactStyle}${schoolHeaderHtml(school, `RELATÓRIO DE NOTAS — ${TERM_LABEL[term]} / ${year}`, isCompact, SUBJECT)}
       <p style="font-size:${isCompact ? 11 : 13}px; margin:0 0 ${isCompact ? 8 : 12}px;"><strong>Turma:</strong> ${escapeHtml(className)} &nbsp;·&nbsp; ${rows.length} aluno(s)</p>
       <table><thead>${head}</thead><tbody>${body}</tbody></table>
       <p class="foot">${escapeHtml(sub)}</p>`;
@@ -945,7 +946,7 @@ function BoletimModal({
       kind: 'notas',
       school: school ? { name: school.name, logo_url: school.logo_url, address: school.address, city: school.city, phone: school.phone } : null,
       className,
-      title: `Relatório parcial de notas — ${SUBJECT}`,
+      title: `Relatório parcial de notas`,
       period: `${term}º trimestre / ${year}`,
       generatedAt: new Date().toLocaleDateString('pt-BR'),
       subject: SUBJECT,

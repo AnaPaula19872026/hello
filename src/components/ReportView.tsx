@@ -78,6 +78,7 @@ export function ReportView({ payload, compact = false }: { payload: ReportPayloa
               <p className="truncate text-xs text-slate-400">{[school.address, school.city, school.phone].filter(Boolean).join(' • ')}</p>
             ) : null}
             <h2 className="mt-2 text-xl font-black leading-tight text-slate-900">{payload.title}</h2>
+            {payload.subject ? <p className="text-sm font-black text-emerald-700">Matéria: {payload.subject}</p> : null}
             <p className="text-sm font-medium text-slate-500">Turma {payload.className} • {payload.period}</p>
           </div>
           <div className="ml-auto hidden shrink-0 text-right sm:block">
