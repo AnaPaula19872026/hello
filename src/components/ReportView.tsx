@@ -284,7 +284,7 @@ function FreqGrid({ payload, minPct }: { payload: ReportPayload; minPct: number 
             <thead>
               {/* Letra do dia da semana */}
               <tr className="bg-slate-50 text-slate-400">
-                <th className="sticky left-0 z-10 bg-slate-50 px-2 py-1 text-left">&nbsp;</th>
+                <th className="sticky left-0 z-10 bg-slate-50 px-2 py-1 text-left shadow-[2px_0_0_0_rgba(226,232,240,1)]">&nbsp;</th>
                 {m.days.map((d) => (
                   <th key={d} className="w-6 border-l border-slate-100 px-0 py-1 font-bold">{weekdayLetter(d)}</th>
                 ))}
@@ -292,7 +292,7 @@ function FreqGrid({ payload, minPct }: { payload: ReportPayload; minPct: number 
               </tr>
               {/* Número do dia + cabeçalhos do resumo */}
               <tr className="border-b-2 border-slate-200 bg-slate-50 text-slate-500">
-                <th className="sticky left-0 z-10 bg-slate-50 px-2 py-1 text-left text-[11px] font-black uppercase">Aluno</th>
+                <th className="sticky left-0 z-10 bg-slate-50 px-2 py-1 text-left text-[11px] font-black uppercase shadow-[2px_0_0_0_rgba(226,232,240,1)]">Aluno</th>
                 {m.days.map((d) => (
                   <th key={d} className={cn('w-6 border-l border-slate-100 px-0 py-1 font-bold', examSet.has(d) && 'text-amber-600')} title={examSet.has(d) ? 'Semana de provas' : undefined}>
                     {d.slice(8, 10)}
@@ -317,8 +317,8 @@ function FreqGrid({ payload, minPct }: { payload: ReportPayload; minPct: number 
                 const pct = total ? Math.round((present / total) * 1000) / 10 : 0;
                 const reprovado = pct < minPct;
                 return (
-                  <tr key={r.name} className="border-t border-slate-100 even:bg-slate-50/40">
-                    <td className="sticky left-0 z-10 whitespace-nowrap bg-inherit px-2 py-1 text-left font-bold text-slate-800">
+                  <tr key={r.name} className="border-t border-slate-100 bg-white even:bg-slate-50">
+                    <td className="sticky left-0 z-10 whitespace-nowrap bg-inherit px-2 py-1 text-left font-bold text-slate-800 shadow-[2px_0_0_0_rgba(226,232,240,1)]">
                       <span className="inline-flex items-center gap-1.5">
                         <span className="w-5 shrink-0 text-right tabular-nums text-slate-400">{i + 1}</span>
                         {r.name}
