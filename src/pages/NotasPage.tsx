@@ -28,7 +28,6 @@ import {
   saveTermGrades,
   type TermsReportRow,
 } from '../lib/queries';
-import { enqueueGrades, getQueuedGrades } from '../lib/offlineQueue';
 import { CREDITO_OVERRIDE_KEY, DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, SUBJECT, TERMS, TERM_LABEL, actKey, calcMedia, collapseCreditoColumns, creditoSumFrom, isRecoveryActivity, orderGradeActivities, sanitizeGrade, type GradeActivity, type ReportPayload, type School } from '../lib/types';
 
 /** Cabeçalho profissional para impressão (logo, escola, contato) — usado no boletim e no relatório.
@@ -75,14 +74,7 @@ export function NotasPage() {
   const [boletimEscolarOpen, setBoletimEscolarOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const online = useOnlineStatus();
-  const [pendingQueue, setPendingQueue] = useState(() => getQueuedGrades());
   const orgReady = !ctxLoading && !!activeOrgId;
-
-  useEffect(() => {
-    const handleQueueUpdate = () => setPendingQueue(getQueuedGrades());
-    window.addEventListener('offline-queue-updated', handleQueueUpdate);
-    return () => window.removeEventListener('offline-queue-updated', handleQueueUpdate);
-  }, []);
 
   const { data: classes = [] } = useQuery({ queryKey: ['classes', activeOrgId], queryFn: listClasses, enabled: orgReady });
   useEffect(() => {
@@ -274,29 +266,9 @@ export function NotasPage() {
     },
   });
 
-  function buildGradeRows() {
-    return students
-      .map((s) => {
-        const row = scores[s.id] || {};
-        const obj: Record<string, number> = {};
-        columns.forEach((a) => {
-          const k = actKey(a);
-          if (row[k] !== '' && row[k] != null) obj[k] = Number(row[k]);
-        });
-        if (row[CREDITO_OVERRIDE_KEY] !== '' && row[CREDITO_OVERRIDE_KEY] != null) obj[CREDITO_OVERRIDE_KEY] = Number(row[CREDITO_OVERRIDE_KEY]);
-        return { student_id: s.id, scores: obj, observacao: (obs[s.id] ?? '').trim() || null };
-      })
-      .filter((r) => Object.keys(r.scores).length > 0 || r.observacao);
-  }
-
   function handleSave() {
-    const rows = buildGradeRows();
     if (!online) {
-      enqueueGrades({ classId, year, term, rows });
-      setPendingQueue(getQueuedGrades());
-      setSaved(true);
-      setEditingGrades(false);
-      successToast('Notas salvas localmente. Serão enviadas quando reconectar.');
+      alert('Sem conexão com a internet. Conecte-se para salvar as notas — assim nada se perde.');
       return;
     }
     save.mutate();
@@ -412,11 +384,6 @@ export function NotasPage() {
                 <div className="mb-3 flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-3 text-sm font-semibold text-muted-foreground">
                   <Lock size={16} className="text-muted-foreground" />
                   Notas bloqueadas para evitar alterações acidentais. Clique em Editar notas para reabrir.
-                </div>
-              ) : null}
-              {pendingQueue.length > 0 ? (
-                <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-                  Há {pendingQueue.length} lançamento(s) offline aguardando sincronização.
                 </div>
               ) : null}
 

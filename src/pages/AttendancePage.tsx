@@ -7,7 +7,6 @@ import { Card, EmptyState, PageHeader, SearchInput, Segmented, Select, Loading} 
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
 import { getRecords, getSession, listClasses, listStudentsByClass, saveAttendance } from '../lib/queries';
-import { enqueueAttendance, getQueuedAttendance } from '../lib/offlineQueue';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { usePersistentState } from '../lib/usePersistentState';
 import type { AttendanceStatus, ClassRoom } from '../lib/types';
@@ -28,13 +27,6 @@ export function AttendancePage() {
   const [saved, setSaved] = useState(false);
   const [editingAttendance, setEditingAttendance] = useState(false);
   const online = useOnlineStatus();
-  const [pendingQueue, setPendingQueue] = useState(() => getQueuedAttendance());
-
-  useEffect(() => {
-    const handleQueueUpdate = () => setPendingQueue(getQueuedAttendance());
-    window.addEventListener('offline-queue-updated', handleQueueUpdate);
-    return () => window.removeEventListener('offline-queue-updated', handleQueueUpdate);
-  }, []);
 
   useEffect(() => {
     if (!orgReady) return;
@@ -119,18 +111,9 @@ export function AttendancePage() {
     },
   });
 
-  function buildAttendanceRows() {
-    return students.map((s) => ({ student_id: s.id, status: records[s.id] ?? 'present', note: null }));
-  }
-
   function handleSave() {
-    const rows = buildAttendanceRows();
     if (!online) {
-      enqueueAttendance({ classId, date, examMode: false, records: rows });
-      setPendingQueue(getQueuedAttendance());
-      setSaved(true);
-      setEditingAttendance(false);
-      successToast('Chamada salva localmente. Será enviada quando reconectar.');
+      alert('Sem conexão com a internet. Conecte-se para salvar a chamada — assim nada se perde.');
       return;
     }
     save.mutate();
@@ -203,11 +186,6 @@ export function AttendancePage() {
           <Lock size={16} className="text-muted-foreground" />
           Chamada bloqueada para evitar alterações acidentais. Clique em Editar chamada para reabrir.
           {lastMovement ? <span className="ml-auto text-xs font-bold text-muted-foreground">Últ. mov. {format(new Date(lastMovement), 'dd/MM')}</span> : null}
-        </div>
-      ) : null}
-      {pendingQueue.length > 0 ? (
-        <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-          Há {pendingQueue.length} chamada(s) offline aguardando sincronização.
         </div>
       ) : null}
       <div className="mb-4 grid gap-3 sm:grid-cols-3">

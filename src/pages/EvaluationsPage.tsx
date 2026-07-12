@@ -18,7 +18,6 @@ import {
   saveEvalGrades,
   type EvalGradeRow,
 } from '../lib/queries';
-import { enqueueEvaluations, getQueuedEvaluations } from '../lib/offlineQueue';
 import { actKey, CREDITO_ACTIVITIES, sanitizeGrade, TERMS, TERM_LABEL, type GradeActivity } from '../lib/types';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { usePersistentState } from '../lib/usePersistentState';
@@ -44,16 +43,10 @@ export function EvaluationsPage() {
   const [saved, setSaved] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
-  const [pendingQueue, setPendingQueue] = useState(() => getQueuedEvaluations());
   const online = useOnlineStatus();
   const orgReady = !ctxLoading && !!activeOrgId;
 
   const { data: classes = [] } = useQuery({ queryKey: ['classes', activeOrgId], queryFn: listClasses, enabled: orgReady });
-  useEffect(() => {
-    const handleQueueUpdate = () => setPendingQueue(getQueuedEvaluations());
-    window.addEventListener('offline-queue-updated', handleQueueUpdate);
-    return () => window.removeEventListener('offline-queue-updated', handleQueueUpdate);
-  }, []);
 
   useEffect(() => {
     if (!orgReady || !classes.length) return;
@@ -155,29 +148,9 @@ export function EvaluationsPage() {
     },
   });
 
-  function buildEvalRows() {
-    return students
-      .map((s) => {
-        const row = cells[s.id] || {};
-        const marks: Record<string, { done: boolean; score: number | null }> = {};
-        activities.forEach((a) => {
-          const k = actKey(a);
-          const c = row[k];
-          if (c && (c.done || c.score !== '')) marks[k] = { done: c.done || c.score !== '', score: c.score !== '' ? Number(c.score) : null };
-        });
-        return { student_id: s.id, marks };
-      })
-      .filter((r) => Object.keys(r.marks).length > 0);
-  }
-
   function handleSave() {
-    const rows = buildEvalRows();
     if (!online) {
-      enqueueEvaluations({ classId, year, term, rows });
-      setPendingQueue(getQueuedEvaluations());
-      setSaved(true);
-      setEditing(false);
-      successToast('Avaliações salvas localmente. Serão enviadas quando reconectar.');
+      alert('Sem conexão com a internet. Conecte-se para salvar as avaliações — assim nada se perde.');
       return;
     }
     save.mutate();
@@ -323,12 +296,6 @@ export function EvaluationsPage() {
                   <Lock size={16} className="text-muted-foreground" /> Avaliações bloqueadas para evitar alterações acidentais. Clique em Editar para reabrir.
                 </div>
               ) : null}
-              {pendingQueue.length > 0 ? (
-                <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-                  Há {pendingQueue.length} avaliação(ões) offline aguardando sincronização.
-                </div>
-              ) : null}
-
               <Card className="max-h-[70vh] overflow-auto p-0">
                 <table className="w-full border-collapse text-sm">
                   <thead className="sticky top-0 z-20 bg-muted text-left text-[11px] font-black uppercase tracking-wide text-muted-foreground">

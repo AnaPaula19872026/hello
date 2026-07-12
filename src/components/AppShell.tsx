@@ -233,46 +233,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('offline-queue-updated', handleQueueUpdate);
   }, []);
 
-  useEffect(() => {
-    if (!online || queueCount === 0 || syncing) return;
-    let cancelled = false;
-    setSyncing(true);
-    syncOfflineQueue(async (item: OfflineQueueItem) => {
-      if (cancelled) return false;
-      if (item.type === 'grades') {
-        const { classId, year, term, rows } = item.payload as { classId: string; year: number; term: number; rows: Array<Record<string, any>> };
-        await saveTermGrades(classId, year, term, rows);
-        return true;
-      }
-      if (item.type === 'attendance') {
-        const { classId, date, records, examMode } = item.payload as { classId: string; date: string; records: Array<Record<string, any>>; examMode?: boolean };
-        await saveAttendance(classId, date, records, { examMode });
-        return true;
-      }
-      if (item.type === 'evaluations') {
-        const { classId, year, term, rows } = item.payload as { classId: string; year: number; term: number; rows: Array<Record<string, any>> };
-        await saveEvalGrades(classId, year, term, rows);
-        return true;
-      }
-      return false;
-    })
-      .then((removed) => {
-        if (!cancelled) {
-          setSyncing(false);
-          if (removed > 0) {
-            successToast('Dados offline sincronizados com sucesso');
-            qc.invalidateQueries();
-          }
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setSyncing(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [online, queueCount, syncing, qc]);
-
+  // Dreno de resgate: o lançamento offline foi removido, mas se algum aparelho ainda
+  // tiver dados antigos na fila local, este efeito os envia ao banco ao reconectar
+  // (para nada ficar órfão). Depois de esvaziar, fica inativo.
   useEffect(() => {
     if (!online || queueCount === 0 || syncing) return;
     let cancelled = false;
