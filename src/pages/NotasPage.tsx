@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Award, ClipboardList, FileText, GraduationCap, Lock, Pencil, Plus, Printer, Save, Share2, Sliders, Trash2 } from 'lucide-react';
+import { Award, Check, ClipboardList, FileText, GraduationCap, Lock, Pencil, Plus, Printer, Save, Share2, Sliders, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
@@ -915,67 +915,133 @@ function BoletimModal({
     return `*${titulo}*\n${sub}\n\n${linhas.join('\n')}`;
   }
 
+  const nothingSelected = mode === 'completo' && selectedActs.size === 0 && !showMedia && !showSituation && !showObs;
+
   return (
     <Modal open={open} onClose={onClose} title="Boletim / Relatório" size="xl">
-      <div className="space-y-4">
-        <div className="inline-flex rounded-xl bg-muted p-1">
-          {(['completo', 'resumido'] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={cn('rounded-lg px-4 py-2 text-sm font-bold capitalize transition', mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground')}
-            >
-              {m}
-            </button>
-          ))}
+      <div className="space-y-5">
+        {/* Turma + modo */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-black text-foreground">{className}</p>
+            <p className="text-xs text-muted-foreground">{TERM_LABEL[term]} • {year} • {rows.length} aluno(s)</p>
+          </div>
+          <Segmented<'completo' | 'resumido'>
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'completo', label: 'Completo' },
+              { value: 'resumido', label: 'Resumido' },
+            ]}
+          />
         </div>
-        <p className="text-sm text-muted-foreground">
-          {mode === 'completo' ? 'Escolha abaixo quais colunas e campos saem no relatório.' : 'Apenas média e situação por aluno.'} {rows.length} aluno(s) na turma {className}.
-        </p>
 
         {mode === 'completo' ? (
-          <div className="rounded-xl border border-border bg-muted/40 p-3">
-            <p className="mb-2 text-xs font-black uppercase tracking-wide text-muted-foreground">Campos do relatório</p>
-            <div className="flex flex-wrap gap-x-5 gap-y-2">
-              {activities.map((a) => (
-                <label key={a.name} className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <input type="checkbox" checked={selectedActs.has(a.name)} onChange={() => toggleAct(a.name)} className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500" />
-                  {a.name}
-                </label>
-              ))}
+          <div className="space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
+            {/* Colunas de notas */}
+            <div>
+              <div className="mb-2.5 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Colunas de notas</p>
+                  <p className="text-[11px] font-semibold text-muted-foreground">{selectedActs.size} de {activities.length} selecionada(s)</p>
+                </div>
+                <div className="flex shrink-0 gap-1.5">
+                  <button
+                    onClick={() => setSelectedActs(new Set(activities.map((a) => a.name)))}
+                    className="rounded-lg bg-card px-2.5 py-1 text-xs font-bold text-muted-foreground shadow-sm transition hover:text-foreground"
+                  >
+                    Todas
+                  </button>
+                  <button
+                    onClick={() => setSelectedActs(new Set())}
+                    className="rounded-lg bg-card px-2.5 py-1 text-xs font-bold text-muted-foreground shadow-sm transition hover:text-foreground"
+                  >
+                    Limpar
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {activities.map((a) => {
+                  const on = selectedActs.has(a.name);
+                  return (
+                    <button
+                      key={a.name}
+                      onClick={() => toggleAct(a.name)}
+                      aria-pressed={on}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-bold transition',
+                        on
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                          : 'border-border bg-card text-muted-foreground hover:border-emerald-300 hover:text-foreground',
+                      )}
+                    >
+                      <span className={cn('grid h-4 w-4 shrink-0 place-items-center rounded-full border', on ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-border')}>
+                        {on ? <Check size={11} strokeWidth={3} /> : null}
+                      </span>
+                      {a.name}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 border-t border-border pt-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <input type="checkbox" checked={showMedia} onChange={() => setShowMedia((v) => !v)} className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500" /> Média
-              </label>
-              <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <input type="checkbox" checked={showSituation} onChange={() => setShowSituation((v) => !v)} className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500" /> Situação
-              </label>
-              <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <input type="checkbox" checked={showObs} onChange={() => setShowObs((v) => !v)} className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500" /> Observações
-              </label>
+
+            {/* Campos gerais */}
+            <div className="border-t border-border pt-3">
+              <p className="mb-2.5 text-xs font-black uppercase tracking-wide text-muted-foreground">Campos gerais</p>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  ['Média', showMedia, () => setShowMedia((v) => !v)],
+                  ['Situação', showSituation, () => setShowSituation((v) => !v)],
+                  ['Observações', showObs, () => setShowObs((v) => !v)],
+                ] as const).map(([label, on, toggle]) => (
+                  <button
+                    key={label}
+                    onClick={toggle}
+                    aria-pressed={on}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-bold transition',
+                      on
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                        : 'border-border bg-card text-muted-foreground hover:border-emerald-300 hover:text-foreground',
+                    )}
+                  >
+                    <span className={cn('grid h-4 w-4 shrink-0 place-items-center rounded-full border', on ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-border')}>
+                      {on ? <Check size={11} strokeWidth={3} /> : null}
+                    </span>
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        ) : null}
+        ) : (
+          <p className="rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+            O modo <strong className="text-foreground">Resumido</strong> mostra apenas a média e a situação de cada aluno — ideal para uma visão rápida da turma.
+          </p>
+        )}
 
         {rows.length === 0 ? (
           <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">Sem alunos para gerar o boletim.</p>
         ) : (
           <>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => printDocument(titulo, buildHtml())}>
+            <div className="grid grid-cols-2 gap-2 border-t border-border pt-4 sm:flex sm:flex-wrap">
+              <Button onClick={() => printDocument(titulo, buildHtml())} disabled={nothingSelected} className="w-full sm:w-auto">
                 <Printer size={16} /> Imprimir
               </Button>
-              <Button variant="soft" onClick={() => printDocument(titulo, buildHtml())}>
+              <Button variant="soft" onClick={() => printDocument(titulo, buildHtml())} disabled={nothingSelected} className="w-full sm:w-auto">
                 <FileText size={16} /> Baixar PDF
               </Button>
             </div>
+            {nothingSelected ? (
+              <p className="text-xs font-semibold text-amber-600">Selecione ao menos uma coluna ou campo para gerar o relatório.</p>
+            ) : null}
             <div className="border-t border-border pt-3">
               <p className="mb-2 text-xs font-black uppercase tracking-wide text-muted-foreground">Enviar resumo</p>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                 <Button
                   variant="ghost"
                   onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText())}`, '_blank', 'noopener')}
+                  className="w-full sm:w-auto"
                 >
                   <Share2 size={16} /> WhatsApp
                 </Button>
@@ -984,6 +1050,7 @@ function BoletimModal({
                   onClick={() => {
                     window.location.href = `mailto:?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(shareText())}`;
                   }}
+                  className="w-full sm:w-auto"
                 >
                   <Share2 size={16} /> E-mail
                 </Button>
