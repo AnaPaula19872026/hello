@@ -856,7 +856,6 @@ function BoletimModal({
   activities: GradeActivity[];
   rows: BoletimRow[];
 }) {
-  const [mode, setMode] = useState<'completo' | 'resumido'>('completo');
   // Campos escolhidos pelo professor (mesma lógica dos Relatórios): quais colunas saem no relatório.
   const [selectedActs, setSelectedActs] = useState<Set<string>>(new Set());
   const [showMedia, setShowMedia] = useState(true);
@@ -882,11 +881,8 @@ function BoletimModal({
   }
 
   function buildHtml(): string {
-    const activeActs = mode === 'completo' ? activities.filter((a) => selectedActs.has(a.name)) : [];
-    const cols =
-      mode === 'completo'
-        ? ['#', 'Aluno', ...activeActs.map((a) => `${a.name} (0–${a.max})`), ...(showMedia ? ['Média'] : []), ...(showSituation ? ['Situação'] : []), ...(showObs ? ['Observações'] : [])]
-        : ['#', 'Aluno', 'Média', 'Situação'];
+    const activeActs = activities.filter((a) => selectedActs.has(a.name));
+    const cols = ['#', 'Aluno', ...activeActs.map((a) => `${a.name} (0–${a.max})`), ...(showMedia ? ['Média'] : []), ...(showSituation ? ['Situação'] : []), ...(showObs ? ['Observações'] : [])];
     const head = `<tr>${cols.map((c, i) => `<th class="${i === 1 ? 'name' : ''}">${escapeHtml(c)}</th>`).join('')}</tr>`;
     const body = rows
       .map((r, i) => {
@@ -894,9 +890,6 @@ function BoletimModal({
         const mediaCell = m == null ? '–' : `<span class="${m >= MEDIA_APROVACAO ? 'ok' : 'fail'}">${fmtNumber(m, 1)}</span>`;
         const sit = situacao(m);
         const sitCell = sit === '–' ? '–' : `<span class="${sit === 'Aprovado' ? 'ok' : 'fail'}">${sit}</span>`;
-        if (mode === 'resumido') {
-          return `<tr><td>${i + 1}</td><td class="name">${escapeHtml(r.name)}</td><td>${mediaCell}</td><td>${sitCell}</td></tr>`;
-        }
         const acts = activeActs
           .map((a) => {
             const v = r.scores[a.name];
@@ -910,7 +903,7 @@ function BoletimModal({
       })
       .join('');
     return `${schoolHeaderHtml(school, `RELATÓRIO DE NOTAS — ${TERM_LABEL[term]} / ${year}`)}
-      <p style="font-size:13px; margin:0 0 12px;"><strong>Turma:</strong> ${escapeHtml(className)} &nbsp;·&nbsp; ${rows.length} aluno(s) &nbsp;·&nbsp; ${mode === 'completo' ? 'Completo' : 'Resumido'}</p>
+      <p style="font-size:13px; margin:0 0 12px;"><strong>Turma:</strong> ${escapeHtml(className)} &nbsp;·&nbsp; ${rows.length} aluno(s)</p>
       <table><thead>${head}</thead><tbody>${body}</tbody></table>
       <p class="foot">${escapeHtml(sub)}</p>`;
   }
@@ -920,29 +913,18 @@ function BoletimModal({
     return `*${titulo}*\n${sub}\n\n${linhas.join('\n')}`;
   }
 
-  const nothingSelected = mode === 'completo' && selectedActs.size === 0 && !showMedia && !showSituation && !showObs;
+  const nothingSelected = selectedActs.size === 0 && !showMedia && !showSituation && !showObs;
 
   return (
     <Modal open={open} onClose={onClose} title="Boletim / Relatório" size="xl">
       <div className="space-y-5">
-        {/* Turma + modo */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-black text-foreground">{className}</p>
-            <p className="text-xs text-muted-foreground">{TERM_LABEL[term]} • {year} • {rows.length} aluno(s)</p>
-          </div>
-          <Segmented<'completo' | 'resumido'>
-            value={mode}
-            onChange={setMode}
-            options={[
-              { value: 'completo', label: 'Completo' },
-              { value: 'resumido', label: 'Resumido' },
-            ]}
-          />
+        {/* Turma */}
+        <div className="min-w-0">
+          <p className="truncate text-sm font-black text-foreground">{className}</p>
+          <p className="text-xs text-muted-foreground">{TERM_LABEL[term]} • {year} • {rows.length} aluno(s)</p>
         </div>
 
-        {mode === 'completo' ? (
-          <div className="space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
+        <div className="space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
             {/* Colunas de notas */}
             <div>
               <div className="mb-2.5 flex items-center justify-between gap-2">
@@ -1018,12 +1000,7 @@ function BoletimModal({
                 ))}
               </div>
             </div>
-          </div>
-        ) : (
-          <p className="rounded-xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-            O modo <strong className="text-foreground">Resumido</strong> mostra apenas a média e a situação de cada aluno — ideal para uma visão rápida da turma.
-          </p>
-        )}
+        </div>
 
         {rows.length === 0 ? (
           <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">Sem alunos para gerar o boletim.</p>
