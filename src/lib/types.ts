@@ -384,6 +384,8 @@ export interface ReportNotasRow {
   name: string;
   terms: (number | null)[]; // média de cada trimestre (4)
   final: number | null; // média anual
+  // Para relatório trimestral detalhado: notas por atividade (chave estável da atividade -> valor)
+  activityScores?: Record<string, number | null>;
 }
 export interface ReportPayload {
   kind: 'freq' | 'notas';
@@ -402,6 +404,10 @@ export interface ReportPayload {
   subject?: string;
   notasRows?: ReportNotasRow[];
   notasTerm?: number; // 0 = todos os trimestres; 1-4 = só aquele trimestre
+  // Quando `notasTerm` >= 1 estas são as atividades do trimestre (ordem estável)
+  termActivities?: GradeActivity[];
+  // Quais atividades mostrar no relatório (array de actKey)
+  termSelectedActivities?: string[];
   // Opções de exibição: chave -> incluir no relatório (permite ao professor marcar campos)
   show?: Record<string, boolean>;
 }

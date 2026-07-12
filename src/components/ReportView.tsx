@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { cn } from '../lib/cn';
+import { fmtNumber } from '../lib/format';
 import { groupByMonth, weekdayLetter } from '../lib/schooldays';
 import { MONTHS, type ReportPayload } from '../lib/types';
 
@@ -353,13 +354,18 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
   // Filtro por trimestre específico: mostra só a média daquele trimestre.
   const t = payload.notasTerm ?? 0;
   if (t >= 1 && t <= 3) {
+    const activities = payload.termActivities ?? [];
+    const selected = payload.termSelectedActivities ?? activities.map((a) => a.id ?? a.name);
     return (
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white print:border-slate-300">
         <table className="w-full text-sm">
           <thead className="border-b-2 border-slate-200 bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
             <tr>
               <th className={cn('sticky left-0 bg-slate-50', compact ? 'p-2' : 'p-3')}>Aluno</th>
-              {show[`term${t}`] ?? true ? <th className={cn('text-center', pad)}>{TLABEL[t - 1]}</th> : null}
+              {selected.map((k) => {
+                const act = activities.find((a) => (a.id ?? a.name) === k);
+                return act ? <th key={k} className={cn('text-center', pad)}>{act.name}</th> : null;
+              })}
               {show.situation ?? true ? <th className={cn('text-center', pad)}>Situação</th> : null}
             </tr>
           </thead>
@@ -374,11 +380,11 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
                       <span className="min-w-0 break-words leading-snug">{r.name}</span>
                     </div>
                   </td>
-                  {show[`term${t}`] ?? true ? (
-                    <td className={cn('text-center', pad)}>
-                      {m != null ? <span className={cn('text-base font-black', m >= 6 ? 'text-emerald-700' : 'text-red-600')}>{m.toFixed(1)}</span> : '–'}
+                  {selected.map((k) => (
+                    <td key={k} className={cn('text-center', pad)}>
+                      {r.activityScores?.[k] != null ? <span className={cn('text-base font-black', (r.activityScores?.[k] ?? 0) >= 6 ? 'text-emerald-700' : 'text-red-600')}>{fmtNumber(r.activityScores![k], 1)}</span> : '–'}
                     </td>
-                  ) : null}
+                  ))}
                   {show.situation ?? true ? <td className={cn('text-center text-xs font-bold', pad)}>{situacao(m)}</td> : null}
                 </tr>
               );

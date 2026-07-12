@@ -10,7 +10,7 @@ import { cn } from '../lib/cn';
 import { listNationalHolidays } from '../lib/holidays';
 import { downloadXlsx } from '../lib/importSheet';
 import { groupByMonth, schoolDaysBetween, weekdayLetter } from '../lib/schooldays';
-import { listClasses, listSchools, listStudentsByClass, reportAttendance, reportTerms } from '../lib/queries';
+import { listClasses, listSchools, listStudentsByClass, reportAttendance, reportTerms, reportTermDetails } from '../lib/queries';
 import { MONTHS, SCHOOL_YEAR_MONTHS, SUBJECT, TERM_MONTHS, type ReportPayload } from '../lib/types';
 
 type Tipo = 'freq' | 'notas';
@@ -28,6 +28,7 @@ export function ReportsPage() {
   const [minPct, setMinPct] = useState(75);
   const [onlyBelow, setOnlyBelow] = useState(false);
   const [notaTerm, setNotaTerm] = useState(0); // 0 = todos os trimestres
+  const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [activePreset, setActivePreset] = useState('mes');
   const [freqLayout, setFreqLayout] = useState<'list' | 'grid'>('grid');
   const [compact, setCompact] = useState(false);
@@ -76,6 +77,12 @@ export function ReportsPage() {
     queryKey: ['rep-notas', classId, year],
     queryFn: () => reportTerms(classId, year),
     enabled: tipo === 'notas' && !!classId,
+  });
+
+  const termDetails = useQuery({
+    queryKey: ['rep-notas-term-details', classId, year, notaTerm],
+    queryFn: () => reportTermDetails(classId, year, notaTerm),
+    enabled: tipo === 'notas' && !!classId && notaTerm >= 1,
   });
 
   // Feriados nacionais dos anos do período — para tirar do mapa de chamada (dias letivos).
@@ -157,19 +164,38 @@ export function ReportsPage() {
         show: showFields,
       };
     }
+    if (notaTerm >= 1) {
+      const detail = termDetails.data;
+      const activities = detail?.activities ?? [];
+      const rows = (detail?.rows ?? []).filter((r) => (studentId !== 'all' ? r.student_id === studentId : true));
+      return {
+        kind: 'notas',
+        school: reportSchool,
+        className,
+        title: `Relatório parcial de notas — ${SUBJECT}`,
+        period: `${notaTerm}º trimestre / ${year}`,
+        generatedAt,
+        subject: SUBJECT,
+        notasRows: rows.map((r) => ({ name: r.name, terms: [r.termAvg], final: r.termAvg, activityScores: r.activities })),
+        notasTerm: notaTerm,
+        termActivities: activities,
+        termSelectedActivities: selectedActivities.length ? selectedActivities : activities.map((a) => a.id ?? a.name),
+        show: showFields,
+      };
+    }
     return {
       kind: 'notas',
       school: reportSchool,
       className,
-      title: notaTerm >= 1 ? `Relatório parcial de notas — ${SUBJECT}` : `Relatório de Notas — ${SUBJECT}`,
-      period: notaTerm >= 1 ? `${notaTerm}º trimestre / ${year}` : String(year),
+      title: `Relatório de Notas — ${SUBJECT}`,
+      period: String(year),
       generatedAt,
       subject: SUBJECT,
       notasRows: notasRows.map((r) => ({ name: r.name, terms: r.terms, final: r.final })),
       notasTerm: notaTerm,
       show: showFields,
     };
-  }, [classId, tipo, school, className, from, to, minPct, freq.data, freqRows, gridDates, freqLayout, year, notasRows, notaTerm, showFields]);
+  }, [classId, tipo, school, className, from, to, minPct, freq.data, freqRows, gridDates, freqLayout, year, notasRows, notaTerm, showFields, termDetails.data, selectedActivities]);
 
   function exportExcel() {
     const titulo = [school?.name ?? 'Escola'];
@@ -360,6 +386,26 @@ export function ReportsPage() {
                     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.term3} onChange={(e) => setShowFields(s => ({ ...s, term3: e.target.checked }))} /> 3º tri</label>
                     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.final} onChange={(e) => setShowFields(s => ({ ...s, final: e.target.checked }))} /> Final</label>
                     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!showFields.situation} onChange={(e) => setShowFields(s => ({ ...s, situation: e.target.checked }))} /> Situação</label>
+                    {notaTerm >= 1 && termDetails.data ? (
+                      <div className="w-full mt-2">
+                        <p className="mb-2 text-sm font-bold">Atividades do trimestre (selecionar colunas):</p>
+                        <div className="flex flex-wrap gap-2">
+                          <button className="rounded-lg bg-muted px-2 py-1 text-xs font-bold" onClick={() => setSelectedActivities(termDetails.data!.activities.map(a => a.id ?? a.name))}>Selecionar todas</button>
+                          <button className="rounded-lg bg-muted px-2 py-1 text-xs font-bold" onClick={() => setSelectedActivities([])}>Limpar</button>
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                          {termDetails.data.activities.map((a) => {
+                            const k = a.id ?? a.name;
+                            const checked = selectedActivities.length ? selectedActivities.includes(k) : true;
+                            return (
+                              <label key={k} className="flex items-center gap-2 text-sm">
+                                <input type="checkbox" checked={checked} onChange={(e) => setSelectedActivities(s => e.target.checked ? Array.from(new Set([...s, k])) : s.filter(x => x !== k))} /> {a.name}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
                   </>
                 ) : (
                   <>

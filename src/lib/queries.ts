@@ -852,6 +852,55 @@ export async function reportTerms(classId: string, year: number): Promise<TermsR
   });
 }
 
+export interface TermActivityRow {
+  student_id: string;
+  name: string;
+  activities: Record<string, number | null>;
+  termAvg: number | null;
+}
+
+/** Detalhes de um trimestre: lista de atividades (ordem) + por-aluno notas por atividade e média do trimestre. */
+export async function reportTermDetails(classId: string, year: number, term: number): Promise<{ activities: GradeActivity[]; rows: TermActivityRow[] }> {
+  const [grades, configs, evalConfigs, students] = await Promise.all([
+    unwrap<{ student_id: string; term: number; scores: Record<string, number> }[]>(
+      await scoped(supabase.from('term_grades').select('student_id, term, scores')).eq('class_id', classId).eq('year', year),
+    ),
+    unwrap<{ term: number; activities: GradeActivity[] }[]>(await scoped(supabase.from('grade_terms').select('term, activities')).eq('year', year)),
+    (async () => {
+      const { data, error } = await scoped(supabase.from('evaluation_terms').select('term, activities')).eq('class_id', classId).eq('year', year);
+      if (error) return [] as { term: number; activities: GradeActivity[] }[];
+      return (data as { term: number; activities: GradeActivity[] }[]) ?? [];
+    })(),
+    listStudentsByClass(classId),
+  ]);
+
+  const creditByTerm = new Map(evalConfigs.map((c) => [c.term, ((c.activities as GradeActivity[]) ?? []).filter((a) => a && a.name && a.credito && a.id)]),
+  );
+  const actByTerm = new Map(
+    [1, 2, 3].map((t) => {
+      const gradeActs = (configs.find((c) => c.term === t)?.activities as GradeActivity[] | undefined ?? []).filter((a) => a && a.name);
+      const creditActs = creditByTerm.get(t) ?? [];
+      return [t, withRecoveryActivity([...gradeActs, ...creditActs])] as const;
+    }),
+  );
+
+  const activities = actByTerm.get(term) ?? [];
+
+  const rows: TermActivityRow[] = students.map((s) => {
+    const g = grades.find((x) => x.student_id === s.id && x.term === term);
+    const scores = (g?.scores as Record<string, number> | undefined) ?? {};
+    const activitiesMap: Record<string, number | null> = {};
+    for (const a of activities) {
+      const k = a.id ?? a.name;
+      activitiesMap[k] = scores[k] != null ? Number(scores[k]) : null;
+    }
+    const termAvg = g ? calcMedia(g.scores, activities) : null;
+    return { student_id: s.id, name: s.full_name, activities: activitiesMap, termAvg };
+  });
+
+  return { activities, rows };
+}
+
 /* ----------------------------------- Perfil ------------------------------------ */
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
