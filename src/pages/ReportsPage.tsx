@@ -101,7 +101,7 @@ export function ReportsPage() {
   // "Todas / Limpar" únicos: agem sobre os campos do relatório E as atividades do trimestre.
   const fieldKeys =
     tipo === 'freq'
-      ? ['present', 'absent', 'pct', 'absentDays']
+      ? ['present', 'absent', 'pct', 'absentDays', 'situation']
       : notaTerm === 0
         ? ['term1', 'term2', 'term3', 'final', 'situation']
         : ['situation'];
@@ -247,10 +247,11 @@ export function ReportsPage() {
     if (tipo === 'freq' && freqLayout === 'grid' && gridDates.length) {
       // Mapa de chamada: matriz aluno × dia letivo (P/F), um bloco por mês.
       const aoa: (string | number | null)[][] = [titulo, [`Mapa de chamada — Turma ${className} — ${fmtBR(from)} a ${fmtBR(to)}`], []];
+      const incSit = !!showFields.situation;
       for (const m of groupByMonth(gridDates)) {
         aoa.push([`${MONTHS[m.month - 1]} / ${m.year}`]);
         aoa.push(['', ...m.days.map((d) => weekdayLetter(d))]);
-        aoa.push(['Aluno', ...m.days.map((d) => Number(d.slice(8, 10))), 'Pres.', 'Faltas', '%', 'Situação']);
+        aoa.push(['Aluno', ...m.days.map((d) => Number(d.slice(8, 10))), 'Pres.', 'Faltas', '%', ...(incSit ? ['Situação'] : [])]);
         for (const r of freqRows) {
           let faltas = 0;
           const cells = m.days.map((d) => {
@@ -260,7 +261,7 @@ export function ReportsPage() {
           });
           const present = m.days.length - faltas;
           const pct = m.days.length ? Math.round((present / m.days.length) * 1000) / 10 : 0;
-          aoa.push([r.name, ...cells, present, faltas, pct, pct < minPct ? 'Reprovado' : 'Aprovado']);
+          aoa.push([r.name, ...cells, present, faltas, pct, ...(incSit ? [pct < minPct ? 'Reprovado' : 'Aprovado'] : [])]);
         }
         aoa.push([]);
       }
@@ -466,6 +467,7 @@ export function ReportsPage() {
                     <Chip on={!!showFields.absent} onClick={() => toggleField('absent')}>Faltas</Chip>
                     <Chip on={!!showFields.pct} onClick={() => toggleField('pct')}>% Presença</Chip>
                     <Chip on={!!showFields.absentDays} onClick={() => toggleField('absentDays')}>Dias de falta</Chip>
+                    <Chip on={!!showFields.situation} onClick={() => toggleField('situation')}>Situação</Chip>
                   </>
                 )}
               </div>
