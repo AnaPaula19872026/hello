@@ -870,6 +870,19 @@ function BoletimModal({
       n.has(name) ? n.delete(name) : n.add(name);
       return n;
     });
+  // "Todas / Limpar" únicos: agem sobre colunas de notas E campos gerais ao mesmo tempo.
+  const selectAll = () => {
+    setSelectedActs(new Set(activities.map((a) => a.name)));
+    setShowMedia(true);
+    setShowSituation(true);
+    setShowObs(true);
+  };
+  const clearAll = () => {
+    setSelectedActs(new Set());
+    setShowMedia(false);
+    setShowSituation(false);
+    setShowObs(false);
+  };
   const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: listSchools, enabled: open });
   const school = schools.find((s) => s.id === schoolId);
   const titulo = `Relatório — ${className}`;
@@ -925,28 +938,31 @@ function BoletimModal({
         </div>
 
         <div className="space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
+            {/* Cabeçalho geral: Todas/Limpar únicos p/ colunas + campos gerais */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Campos do relatório</p>
+                <p className="text-[11px] font-semibold text-muted-foreground">{selectedActs.size} de {activities.length} coluna(s) selecionada(s)</p>
+              </div>
+              <div className="flex shrink-0 gap-1.5">
+                <button
+                  onClick={selectAll}
+                  className="rounded-lg bg-card px-2.5 py-1 text-xs font-bold text-muted-foreground shadow-sm transition hover:text-foreground"
+                >
+                  Todas
+                </button>
+                <button
+                  onClick={clearAll}
+                  className="rounded-lg bg-card px-2.5 py-1 text-xs font-bold text-muted-foreground shadow-sm transition hover:text-foreground"
+                >
+                  Limpar
+                </button>
+              </div>
+            </div>
+
             {/* Colunas de notas */}
             <div>
-              <div className="mb-2.5 flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Colunas de notas</p>
-                  <p className="text-[11px] font-semibold text-muted-foreground">{selectedActs.size} de {activities.length} selecionada(s)</p>
-                </div>
-                <div className="flex shrink-0 gap-1.5">
-                  <button
-                    onClick={() => setSelectedActs(new Set(activities.map((a) => a.name)))}
-                    className="rounded-lg bg-card px-2.5 py-1 text-xs font-bold text-muted-foreground shadow-sm transition hover:text-foreground"
-                  >
-                    Todas
-                  </button>
-                  <button
-                    onClick={() => setSelectedActs(new Set())}
-                    className="rounded-lg bg-card px-2.5 py-1 text-xs font-bold text-muted-foreground shadow-sm transition hover:text-foreground"
-                  >
-                    Limpar
-                  </button>
-                </div>
-              </div>
+              <p className="mb-2.5 text-xs font-black uppercase tracking-wide text-muted-foreground">Colunas de notas</p>
               <div className="flex flex-wrap gap-2">
                 {activities.map((a) => {
                   const on = selectedActs.has(a.name);
