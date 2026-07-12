@@ -50,6 +50,11 @@ function situacao(media: number | null) {
   if (media == null) return '—';
   return media >= 6 ? 'Aprovado' : 'Recuperação';
 }
+/** Cor da situação/nota: verde ≥ 6,0 · vermelho < 6,0. */
+function situacaoCls(media: number | null): string {
+  if (media == null) return 'text-slate-400';
+  return media >= 6 ? 'text-emerald-700' : 'text-red-600';
+}
 
 export function ReportView({ payload, compact = false }: { payload: ReportPayload; compact?: boolean }) {
   const { school, kind, minPct = 75 } = payload;
@@ -97,18 +102,11 @@ export function ReportView({ payload, compact = false }: { payload: ReportPayloa
   );
 }
 
-/** Rodapé oficial: linhas de assinatura + nota de emissão eletrônica. */
+/** Rodapé oficial: nota de emissão eletrônica. */
 function ReportFooter({ generatedAt }: { generatedAt: string }) {
   return (
     <footer className="mt-10 break-inside-avoid">
-      <div className="mx-auto grid max-w-2xl grid-cols-1 gap-10 pt-10 sm:grid-cols-2">
-        {['Professor(a) Responsável', 'Coordenação Pedagógica'].map((label) => (
-          <div key={label} className="border-t border-slate-400 pt-2 text-center">
-            <p className="text-xs font-bold text-slate-600">{label}</p>
-          </div>
-        ))}
-      </div>
-      <p className="mt-8 border-t border-slate-200 pt-3 text-center text-[11px] text-slate-400">
+      <p className="border-t border-slate-200 pt-3 text-center text-[11px] text-slate-400">
         Documento gerado eletronicamente por <span className="font-bold text-slate-500">hello</span> — Gestão Escolar em {generatedAt}.
       </p>
     </footer>
@@ -380,12 +378,18 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
                       <span className="min-w-0 break-words leading-snug">{r.name}</span>
                     </div>
                   </td>
-                  {selected.map((k) => (
-                    <td key={k} className={cn('text-center', pad)}>
-                      {r.activityScores?.[k] != null ? <span className={cn('text-base font-black', (r.activityScores?.[k] ?? 0) >= 6 ? 'text-emerald-700' : 'text-red-600')}>{fmtNumber(r.activityScores![k], 1)}</span> : '–'}
-                    </td>
-                  ))}
-                  {show.situation ?? true ? <td className={cn('text-center text-xs font-bold', pad)}>{situacao(m)}</td> : null}
+                  {selected.map((k) => {
+                    const score = r.activityScores?.[k];
+                    const max = activities.find((a) => (a.id ?? a.name) === k)?.max ?? 10;
+                    // ≥ 60% do máximo = verde (ex.: 6/10, 3/5, 1,2/2). Abaixo disso, vermelho.
+                    const ok = score != null && score >= max * 0.6;
+                    return (
+                      <td key={k} className={cn('text-center', pad)}>
+                        {score != null ? <span className={cn('text-base font-black', ok ? 'text-emerald-700' : 'text-red-600')}>{fmtNumber(score, 1)}</span> : '–'}
+                      </td>
+                    );
+                  })}
+                  {show.situation ?? true ? <td className={cn('text-center text-xs font-bold', pad, situacaoCls(m))}>{situacao(m)}</td> : null}
                 </tr>
               );
             })}
@@ -424,7 +428,7 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
                   {r.final != null ? <span className={cn('font-black', r.final >= 6 ? 'text-emerald-700' : 'text-red-600')}>{fmtNumber(r.final, 1)}</span> : '–'}
                 </td>
               ) : null}
-              {(show.situation ?? true) ? <td className={cn('text-center text-xs font-bold', pad)}>{situacao(r.final)}</td> : null}
+              {(show.situation ?? true) ? <td className={cn('text-center text-xs font-bold', pad, situacaoCls(r.final))}>{situacao(r.final)}</td> : null}
             </tr>
           ))}
         </tbody>

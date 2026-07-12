@@ -496,7 +496,10 @@ export function NotasPage() {
                           const k = actKey(a);
                           const val = scores[s.id]?.[k] ?? '';
                           const numberVal = Number(val);
-                          const lowNote = val !== '' && Number.isFinite(numberVal) && numberVal < MEDIA_APROVACAO;
+                          const filled = val !== '' && Number.isFinite(numberVal);
+                          // ≥ 60% do máximo = passa (verde); abaixo = vermelho. Ex.: 6/10, 3/5, 1,2/2.
+                          const lowNote = filled && numberVal < (a.max || 10) * 0.6;
+                          const okNote = filled && !lowNote;
                           return (
                             <td key={k} className="px-1.5 py-1.5 text-center">
                               <input
@@ -507,7 +510,7 @@ export function NotasPage() {
                                 placeholder="–"
                                 className={cn(
                                   'h-10 w-14 rounded-lg border text-center font-bold tabular-nums outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed',
-                                  lowNote ? 'border-red-200 bg-red-50 text-red-600' : val !== '' ? 'border-border bg-card text-foreground' : 'border-border bg-card text-muted-foreground',
+                                  lowNote ? 'border-red-200 bg-red-50 text-red-600' : okNote ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-border bg-card text-muted-foreground',
                                   !editingGrades && 'bg-transparent disabled:bg-transparent',
                                 )}
                               />
@@ -761,7 +764,7 @@ function BoletimEscolarModal({
     const linhas = TERMS.map((t) => {
       const m = r.terms[t - 1] ?? null;
       const s = sit(m);
-      return `<tr><td class="name">${escapeHtml(TERM_LABEL[t])}</td><td>${m == null ? '—' : fmtNumber(m, 1)}</td><td><span class="${s.cls}">${s.txt}</span></td></tr>`;
+      return `<tr><td class="name">${escapeHtml(TERM_LABEL[t])}</td><td>${m == null ? '—' : `<span class="${m >= MEDIA_APROVACAO ? 'ok' : 'fail'}">${fmtNumber(m, 1)}</span>`}</td><td><span class="${s.cls}">${s.txt}</span></td></tr>`;
     }).join('');
     // Resultado final é APROVADO/REPROVADO (a nota de recuperação já está embutida na média).
     const sf = r.final == null ? { txt: '—', cls: '' } : r.final >= MEDIA_APROVACAO ? { txt: 'Aprovado', cls: 'ok' } : { txt: 'Reprovado', cls: 'fail' };
@@ -775,7 +778,7 @@ function BoletimEscolarModal({
       <p style="font-size:12px; margin:0 0 8px;"><strong>Aluno(a):</strong> ${escapeHtml(r.name)} &nbsp;·&nbsp; <strong>Turma:</strong> ${escapeHtml(className)}</p>
       <table><thead><tr><th class="name">Período</th><th>Média</th><th>Situação</th></tr></thead>
       <tbody>${linhas}
-        <tr style="background:#f1f5f9; font-weight:800;"><td class="name">Média final</td><td>${r.final == null ? '—' : fmtNumber(r.final, 1)}</td><td><span class="${sf.cls}">${sf.txt}</span></td></tr>
+        <tr style="background:#f1f5f9; font-weight:800;"><td class="name">Média final</td><td>${r.final == null ? '—' : `<span class="${r.final >= MEDIA_APROVACAO ? 'ok' : 'fail'}">${fmtNumber(r.final, 1)}</span>`}</td><td><span class="${sf.cls}">${sf.txt}</span></td></tr>
       </tbody></table>
       <p style="font-size:11px; margin:8px 0;"><strong>Resultado final:</strong> <span class="${sf.cls}">${sf.txt}</span> &nbsp; (média de aprovação: ${fmtNumber(MEDIA_APROVACAO, 1)} · recuperação já considerada na média)</p>
       <div style="display:flex; gap:40px; margin-top:12px; font-size:11px; color:#475569;">
@@ -898,7 +901,9 @@ function BoletimModal({
           .map((a) => {
             const v = r.scores[a.name];
             if (v === '' || v == null) return '<td>–</td>';
-            return `<td class="${Number(v) === 0 ? 'zero' : ''}">${escapeHtml(String(v).replace('.', ','))}</td>`;
+            // ≥ 60% do máximo = verde; abaixo = vermelho (mesma régua da média/nota 6 de 10).
+            const ok = Number(v) >= (a.max || 10) * 0.6;
+            return `<td class="${ok ? 'ok' : 'fail'}">${escapeHtml(String(v).replace('.', ','))}</td>`;
           })
           .join('');
         return `<tr><td>${i + 1}</td><td class="name">${escapeHtml(r.name)}</td>${acts}${showMedia ? `<td>${mediaCell}</td>` : ''}${showSituation ? `<td>${sitCell}</td>` : ''}${showObs ? `<td class="name">${escapeHtml(r.obs)}</td>` : ''}</tr>`;
