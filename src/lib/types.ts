@@ -415,6 +415,8 @@ export interface ReportPayload {
 export const SHIFTS = ['Manhã', 'Tarde', 'Noite', 'Integral'] as const;
 
 export const SUBJECT = 'Língua Inglesa';
+/** Forma curta da disciplina, para nome de arquivo. Ex.: "Ling. Ingl." */
+export const SUBJECT_SHORT = 'Ling. Ingl.';
 
 export const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',

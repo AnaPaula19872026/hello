@@ -11,7 +11,7 @@ import { listNationalHolidays } from '../lib/holidays';
 import { downloadXlsx } from '../lib/importSheet';
 import { groupByMonth, schoolDaysBetween, weekdayLetter } from '../lib/schooldays';
 import { listClasses, listSchools, listStudentsByClass, reportAttendance, reportTerms, reportTermDetails } from '../lib/queries';
-import { CREDITO_OVERRIDE_KEY, MONTHS, SCHOOL_YEAR_MONTHS, SUBJECT, TERM_MONTHS, collapseCreditoColumns, creditoSumFrom, isCreditoActivity, type ReportPayload } from '../lib/types';
+import { CREDITO_OVERRIDE_KEY, MONTHS, SCHOOL_YEAR_MONTHS, SUBJECT, SUBJECT_SHORT, TERM_MONTHS, collapseCreditoColumns, creditoSumFrom, isCreditoActivity, type ReportPayload } from '../lib/types';
 
 type Tipo = 'freq' | 'notas';
 const today = new Date();
@@ -252,9 +252,9 @@ export function ReportsPage() {
     }
     if (notaTerm >= 1) {
       const acts = termDisplayActs.filter((a) => selectedActivities.includes(a.id ?? a.name)).map((a) => a.name);
-      return safeFileName(`${acts.length ? acts.join(', ') : 'Notas'} - ${turmaShort} - ${notaTerm}º tri`);
+      return safeFileName(`${SUBJECT_SHORT} - ${turmaShort} - ${notaTerm}º tri - ${acts.length ? acts.join(', ') : 'Notas'}`);
     }
-    return safeFileName(`Notas - ${turmaShort} - ${year}`);
+    return safeFileName(`${SUBJECT_SHORT} - ${turmaShort} - ${year} - Notas`);
   }
 
   function printPdf() {

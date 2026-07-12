@@ -28,7 +28,7 @@ import {
   saveTermGrades,
   type TermsReportRow,
 } from '../lib/queries';
-import { CREDITO_OVERRIDE_KEY, DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, SUBJECT, TERMS, TERM_LABEL, actKey, calcMedia, collapseCreditoColumns, creditoSumFrom, isRecoveryActivity, orderGradeActivities, sanitizeGrade, type GradeActivity, type ReportPayload, type School } from '../lib/types';
+import { CREDITO_OVERRIDE_KEY, DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, SUBJECT, SUBJECT_SHORT, TERMS, TERM_LABEL, actKey, calcMedia, collapseCreditoColumns, creditoSumFrom, isRecoveryActivity, orderGradeActivities, sanitizeGrade, type GradeActivity, type ReportPayload, type School } from '../lib/types';
 
 /** Cabeçalho profissional para impressão (logo, escola, contato) — usado no boletim e no relatório.
  *  compact: versão reduzida p/ empilhar 3 boletins por folha. subject: matéria (aparece no cabeçalho). */
@@ -764,7 +764,7 @@ function BoletimEscolarModal({
     const sel = rows.filter((r) => selected.has(r.student_id));
     if (!sel.length) return;
     const body = sel.map((r, i) => boletimHtml(r, i, sel.length)).join('');
-    printDocument(`Boletim - ${className.split(/\s*[-–]\s*/)[0].trim()} - ${year}`.replace(/[\/\\:*?"<>|]+/g, '-'), body);
+    printDocument(`${SUBJECT_SHORT} - Boletim - ${className.split(/\s*[-–]\s*/)[0].trim()} - ${year}`.replace(/[\/\\:*?"<>|]+/g, '-'), body);
   }
 
   return (
@@ -864,13 +864,14 @@ function BoletimModal({
   const school = schools.find((s) => s.id === schoolId);
   const titulo = `Relatório — ${className}`;
   const sub = `${TERM_LABEL[term]} • ${year} • aprovação a partir de ${fmtNumber(MEDIA_APROVACAO, 1)}`;
-  // Nome automático (curto): Atividade - Turma - Trimestre. Ex.: "TESTE - 6º ANO - 2º tri"
+  // Nome automático (curto): Disciplina - Turma - Trimestre - Atividade.
+  // Ex.: "Ling. Ingl. - 6º ANO - 2º tri - TESTE"
   const safeFileName = (s: string) => s.replace(/[\/\\:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim();
   const turmaShort = className.split(/\s*[-–]\s*/)[0].trim();
   const reportFileName = (() => {
     const acts = displayCols.filter((a) => selectedActs.has(a.name)).map((a) => a.name);
     const atividade = acts.length ? acts.join(', ') : 'Notas';
-    return safeFileName(`${atividade} - ${turmaShort} - ${term}º tri`);
+    return safeFileName(`${SUBJECT_SHORT} - ${turmaShort} - ${term}º tri - ${atividade}`);
   })();
 
   function situacao(m: number | null): 'Aprovado' | 'Recuperação' | '–' {
