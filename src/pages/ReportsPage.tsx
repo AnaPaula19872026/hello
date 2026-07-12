@@ -242,18 +242,19 @@ export function ReportsPage() {
     };
   }, [classId, tipo, school, className, from, to, minPct, freq.data, freqRows, gridDates, freqLayout, year, notasRows, notaTerm, showFields, termDetails.data, selectedActivities]);
 
-  // Nome automático do arquivo: Disciplina - Turma - Trimestre - Atividade(s).
+  // Nome automático (curto): Atividade - Turma - Trimestre. Ex.: "TESTE - 6º ANO - 2º tri"
   const safeFileName = (s: string) => s.replace(/[\/\\:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim();
   function reportBaseName(): string {
+    const turmaShort = className.split(/\s*[-–]\s*/)[0].trim();
     if (tipo === 'freq') {
-      const kind = freqLayout === 'grid' ? 'Mapa de chamada' : 'Frequência';
-      return safeFileName(`${kind} - ${className} - ${fmtBR(from)} a ${fmtBR(to)}`);
+      const kind = freqLayout === 'grid' ? 'Chamada' : 'Frequência';
+      return safeFileName(`${kind} - ${turmaShort} - ${fmtBR(from)} a ${fmtBR(to)}`);
     }
     if (notaTerm >= 1) {
       const acts = termDisplayActs.filter((a) => selectedActivities.includes(a.id ?? a.name)).map((a) => a.name);
-      return safeFileName(`${SUBJECT} - ${className} - ${notaTerm}º trimestre - ${acts.length ? acts.join(', ') : 'Notas'}`);
+      return safeFileName(`${acts.length ? acts.join(', ') : 'Notas'} - ${turmaShort} - ${notaTerm}º tri`);
     }
-    return safeFileName(`${SUBJECT} - ${className} - Ano ${year} - Notas`);
+    return safeFileName(`Notas - ${turmaShort} - ${year}`);
   }
 
   function printPdf() {

@@ -764,7 +764,7 @@ function BoletimEscolarModal({
     const sel = rows.filter((r) => selected.has(r.student_id));
     if (!sel.length) return;
     const body = sel.map((r, i) => boletimHtml(r, i, sel.length)).join('');
-    printDocument(`${SUBJECT} - ${className} - Boletim Escolar - ${year}`.replace(/[\/\\:*?"<>|]+/g, '-'), body);
+    printDocument(`Boletim - ${className.split(/\s*[-–]\s*/)[0].trim()} - ${year}`.replace(/[\/\\:*?"<>|]+/g, '-'), body);
   }
 
   return (
@@ -864,13 +864,13 @@ function BoletimModal({
   const school = schools.find((s) => s.id === schoolId);
   const titulo = `Relatório — ${className}`;
   const sub = `${TERM_LABEL[term]} • ${year} • aprovação a partir de ${fmtNumber(MEDIA_APROVACAO, 1)}`;
-  // Nome automático do arquivo: Disciplina - Turma - Trimestre - Atividade(s).
-  // Ex.: "Língua Inglesa - 6º ANO - FUND II - 2º trimestre - TESTE"
+  // Nome automático (curto): Atividade - Turma - Trimestre. Ex.: "TESTE - 6º ANO - 2º tri"
   const safeFileName = (s: string) => s.replace(/[\/\\:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim();
+  const turmaShort = className.split(/\s*[-–]\s*/)[0].trim();
   const reportFileName = (() => {
     const acts = displayCols.filter((a) => selectedActs.has(a.name)).map((a) => a.name);
     const atividade = acts.length ? acts.join(', ') : 'Notas';
-    return safeFileName(`${SUBJECT} - ${className} - ${term}º trimestre - ${atividade}`);
+    return safeFileName(`${atividade} - ${turmaShort} - ${term}º tri`);
   })();
 
   function situacao(m: number | null): 'Aprovado' | 'Recuperação' | '–' {
