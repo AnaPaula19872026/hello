@@ -96,6 +96,31 @@ export function ReportsPage() {
 
   const toggleField = (k: string) => setShowFields((s) => ({ ...s, [k]: !s[k] }));
 
+  // "Todas / Limpar" únicos: agem sobre os campos do relatório E as atividades do trimestre.
+  const fieldKeys =
+    tipo === 'freq'
+      ? ['present', 'absent', 'pct', 'absentDays']
+      : notaTerm === 0
+        ? ['term1', 'term2', 'term3', 'final', 'situation']
+        : ['situation'];
+  const showActivities = tipo === 'notas' && notaTerm >= 1 && !!termDetails.data;
+  const selectAllFields = () => {
+    setShowFields((s) => {
+      const n = { ...s };
+      fieldKeys.forEach((k) => (n[k] = true));
+      return n;
+    });
+    if (showActivities) setSelectedActivities(termActKeys);
+  };
+  const clearAllFields = () => {
+    setShowFields((s) => {
+      const n = { ...s };
+      fieldKeys.forEach((k) => (n[k] = false));
+      return n;
+    });
+    if (showActivities) setSelectedActivities([]);
+  };
+
   // Feriados nacionais dos anos do período — para tirar do mapa de chamada (dias letivos).
   const fromYear = Number(from.slice(0, 4));
   const toYear = Number(to.slice(0, 4));
@@ -388,8 +413,31 @@ export function ReportsPage() {
 
           {/* Campos selecionáveis pelo professor */}
           <div className="mt-4 space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
+            {/* Cabeçalho geral: Todas/Limpar únicos p/ campos + atividades */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Campos do relatório</p>
+                {showActivities ? (
+                  <p className="text-[11px] font-semibold text-muted-foreground">{selectedActivities.length} de {termActKeys.length} atividade(s) selecionada(s)</p>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 gap-1.5">
+                <button
+                  onClick={selectAllFields}
+                  className="rounded-lg bg-card px-2.5 py-1 text-xs font-bold text-muted-foreground shadow-sm transition hover:text-foreground"
+                >
+                  Todas
+                </button>
+                <button
+                  onClick={clearAllFields}
+                  className="rounded-lg bg-card px-2.5 py-1 text-xs font-bold text-muted-foreground shadow-sm transition hover:text-foreground"
+                >
+                  Limpar
+                </button>
+              </div>
+            </div>
+
             <div>
-              <p className="mb-2.5 text-xs font-black uppercase tracking-wide text-muted-foreground">Campos do relatório</p>
               <div className="flex flex-wrap gap-2">
                 {tipo === 'notas' ? (
                   <>
@@ -416,26 +464,7 @@ export function ReportsPage() {
 
             {tipo === 'notas' && notaTerm >= 1 && termDetails.data ? (
               <div className="border-t border-border pt-3">
-                <div className="mb-2.5 flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Atividades do trimestre</p>
-                    <p className="text-[11px] font-semibold text-muted-foreground">{selectedActivities.length} de {termActKeys.length} selecionada(s)</p>
-                  </div>
-                  <div className="flex shrink-0 gap-1.5">
-                    <button
-                      onClick={() => setSelectedActivities(termActKeys)}
-                      className="rounded-lg bg-card px-2.5 py-1 text-xs font-bold text-muted-foreground shadow-sm transition hover:text-foreground"
-                    >
-                      Todas
-                    </button>
-                    <button
-                      onClick={() => setSelectedActivities([])}
-                      className="rounded-lg bg-card px-2.5 py-1 text-xs font-bold text-muted-foreground shadow-sm transition hover:text-foreground"
-                    >
-                      Limpar
-                    </button>
-                  </div>
-                </div>
+                <p className="mb-2.5 text-xs font-black uppercase tracking-wide text-muted-foreground">Atividades do trimestre</p>
                 <div className="flex flex-wrap gap-2">
                   {termDetails.data.activities.map((a) => {
                     const k = a.id ?? a.name;
