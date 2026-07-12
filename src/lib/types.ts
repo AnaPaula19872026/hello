@@ -484,6 +484,53 @@ export function withRecoveryActivity(activities: GradeActivity[]): GradeActivity
   return orderGradeActivities(next);
 }
 
+/* ------------------------- Crédito variável (só EXIBIÇÃO) -----------------------
+ * Por regra, PROJETO/PESQUISA/VISTOS/SIMULADO (e demais notas < 10) compõem UMA
+ * única nota: o "Crédito variável" (vale 10). O cálculo já faz isso em calcMedia.
+ * Estes helpers só COLAPSAM a exibição: em relatórios/seleção mostramos 1 coluna
+ * "Crédito variável" no lugar da lista de atividades. NÃO alteram nenhum cálculo. */
+export const CREDITO_COLUMN_NAME = 'Crédito variável';
+
+/** Atividade que compõe o crédito variável: marcada `credito` ou nota < 10 (exceto recuperação). */
+export function isCreditoActivity(a: GradeActivity): boolean {
+  return !isRecoveryActivity(a.name) && (a.credito === true || a.max < 10);
+}
+
+/** Coluna virtual única do crédito variável (chave = CREDITO_OVERRIDE_KEY, vale 0–10). */
+export function creditoColumn(): GradeActivity {
+  return { id: CREDITO_OVERRIDE_KEY, name: CREDITO_COLUMN_NAME, max: 10, credito: true };
+}
+
+/** Colapsa as atividades de crédito numa única coluna "Crédito variável".
+ *  Mantém as notas principais (>= 10) e a recuperação por último. Só exibição. */
+export function collapseCreditoColumns(activities: GradeActivity[]): GradeActivity[] {
+  const mains = activities.filter((a) => !isCreditoActivity(a) && !isRecoveryActivity(a.name));
+  const recovery = activities.find((a) => isRecoveryActivity(a.name));
+  const out = [...mains];
+  if (activities.some(isCreditoActivity)) out.push(creditoColumn());
+  if (recovery) out.push(recovery);
+  return out;
+}
+
+/** Soma (0–10) do crédito variável de um aluno, a partir das notas por atividade. */
+export function creditoSumFrom(
+  getScore: (a: GradeActivity) => number | string | null | undefined,
+  activities: GradeActivity[],
+): number | null {
+  const credits = activities.filter(isCreditoActivity);
+  if (!credits.length) return null;
+  let has = false;
+  let sum = 0;
+  for (const a of credits) {
+    const v = getScore(a);
+    if (v != null && String(v) !== '' && Number.isFinite(Number(v))) {
+      sum += Number(v) || 0;
+      has = true;
+    }
+  }
+  return has ? Math.min(sum, 10) : null;
+}
+
 /** Ordem canônica das colunas: TESTE, E-CERM, depois crédito variável, RECUPERAÇÃO por último. */
 function activityRank(a: GradeActivity): number {
   const n = a.name.trim().toUpperCase();

@@ -11,7 +11,7 @@ import { listNationalHolidays } from '../lib/holidays';
 import { downloadXlsx } from '../lib/importSheet';
 import { groupByMonth, schoolDaysBetween, weekdayLetter } from '../lib/schooldays';
 import { listClasses, listSchools, listStudentsByClass, reportAttendance, reportTerms, reportTermDetails } from '../lib/queries';
-import { MONTHS, SCHOOL_YEAR_MONTHS, SUBJECT, TERM_MONTHS, type ReportPayload } from '../lib/types';
+import { CREDITO_OVERRIDE_KEY, MONTHS, SCHOOL_YEAR_MONTHS, SUBJECT, TERM_MONTHS, collapseCreditoColumns, creditoSumFrom, isCreditoActivity, type ReportPayload } from '../lib/types';
 
 type Tipo = 'freq' | 'notas';
 const today = new Date();
@@ -85,9 +85,11 @@ export function ReportsPage() {
     enabled: tipo === 'notas' && !!classId && notaTerm >= 1,
   });
 
-  // Chaves das atividades do trimestre; inicializa a seleção com TODAS sempre que mudam
+  // Colunas exibidas: várias atividades de crédito viram UMA coluna "Crédito variável".
+  const termDisplayActs = useMemo(() => collapseCreditoColumns(termDetails.data?.activities ?? []), [termDetails.data]);
+  // Chaves das colunas do trimestre; inicializa a seleção com TODAS sempre que mudam
   // (turma/ano/trimestre). Assim "Limpar" realmente esvazia e "Todas" remarca.
-  const termActKeys = useMemo(() => (termDetails.data?.activities ?? []).map((a) => a.id ?? a.name), [termDetails.data]);
+  const termActKeys = useMemo(() => termDisplayActs.map((a) => a.id ?? a.name), [termDisplayActs]);
   const termActSig = termActKeys.join('|');
   useEffect(() => {
     if (termActKeys.length) setSelectedActivities(termActKeys);
@@ -202,7 +204,9 @@ export function ReportsPage() {
     }
     if (notaTerm >= 1) {
       const detail = termDetails.data;
-      const activities = detail?.activities ?? [];
+      const rawActivities = detail?.activities ?? [];
+      const displayActivities = collapseCreditoColumns(rawActivities);
+      const creditActs = rawActivities.filter(isCreditoActivity);
       const rows = (detail?.rows ?? []).filter((r) => (studentId !== 'all' ? r.student_id === studentId : true));
       return {
         kind: 'notas',
@@ -212,9 +216,14 @@ export function ReportsPage() {
         period: `${notaTerm}º trimestre / ${year}`,
         generatedAt,
         subject: SUBJECT,
-        notasRows: rows.map((r) => ({ name: r.name, terms: [r.termAvg], final: r.termAvg, activityScores: r.activities })),
+        notasRows: rows.map((r) => {
+          // Injeta a soma do crédito variável na coluna virtual (0–10). Não altera a média.
+          const scores = { ...r.activities } as Record<string, number | null>;
+          if (creditActs.length) scores[CREDITO_OVERRIDE_KEY] = creditoSumFrom((a) => r.activities[a.id ?? a.name], creditActs);
+          return { name: r.name, terms: [r.termAvg], final: r.termAvg, activityScores: scores };
+        }),
         notasTerm: notaTerm,
-        termActivities: activities,
+        termActivities: displayActivities,
         termSelectedActivities: selectedActivities,
         show: showFields,
       };
@@ -462,11 +471,11 @@ export function ReportsPage() {
               </div>
             </div>
 
-            {tipo === 'notas' && notaTerm >= 1 && termDetails.data ? (
+            {tipo === 'notas' && notaTerm >= 1 && termDisplayActs.length ? (
               <div className="border-t border-border pt-3">
-                <p className="mb-2.5 text-xs font-black uppercase tracking-wide text-muted-foreground">Atividades do trimestre</p>
+                <p className="mb-2.5 text-xs font-black uppercase tracking-wide text-muted-foreground">Colunas de notas</p>
                 <div className="flex flex-wrap gap-2">
-                  {termDetails.data.activities.map((a) => {
+                  {termDisplayActs.map((a) => {
                     const k = a.id ?? a.name;
                     const on = selectedActivities.includes(k);
                     return (

@@ -27,7 +27,7 @@ import {
   type TermsReportRow,
 } from '../lib/queries';
 import { enqueueGrades, getQueuedGrades } from '../lib/offlineQueue';
-import { CREDITO_OVERRIDE_KEY, DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, actKey, calcMedia, isRecoveryActivity, orderGradeActivities, sanitizeGrade, type GradeActivity, type School } from '../lib/types';
+import { CREDITO_OVERRIDE_KEY, DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, actKey, calcMedia, collapseCreditoColumns, creditoSumFrom, isRecoveryActivity, orderGradeActivities, sanitizeGrade, type GradeActivity, type School } from '../lib/types';
 
 /** Cabeçalho profissional para impressão (logo, escola, contato) — usado no boletim e no relatório.
  *  compact: versão reduzida p/ empilhar 3 boletins por folha. */
@@ -856,13 +856,17 @@ function BoletimModal({
   activities: GradeActivity[];
   rows: BoletimRow[];
 }) {
+  // Colunas exibidas: as várias atividades de crédito viram UMA coluna "Crédito variável".
+  const displayCols = collapseCreditoColumns(activities);
+  const creditActs = activities.filter((a) => !isRecoveryActivity(a.name) && (a.credito === true || a.max < 10));
   // Campos escolhidos pelo professor (mesma lógica dos Relatórios): quais colunas saem no relatório.
   const [selectedActs, setSelectedActs] = useState<Set<string>>(new Set());
   const [showMedia, setShowMedia] = useState(true);
   const [showSituation, setShowSituation] = useState(true);
   const [showObs, setShowObs] = useState(true);
   useEffect(() => {
-    if (open) setSelectedActs(new Set(activities.map((a) => a.name)));
+    if (open) setSelectedActs(new Set(displayCols.map((a) => a.name)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, activities]);
   const toggleAct = (name: string) =>
     setSelectedActs((p) => {
@@ -872,7 +876,7 @@ function BoletimModal({
     });
   // "Todas / Limpar" únicos: agem sobre colunas de notas E campos gerais ao mesmo tempo.
   const selectAll = () => {
-    setSelectedActs(new Set(activities.map((a) => a.name)));
+    setSelectedActs(new Set(displayCols.map((a) => a.name)));
     setShowMedia(true);
     setShowSituation(true);
     setShowObs(true);
@@ -894,7 +898,7 @@ function BoletimModal({
   }
 
   function buildHtml(): string {
-    const activeActs = activities.filter((a) => selectedActs.has(a.name));
+    const activeActs = displayCols.filter((a) => selectedActs.has(a.name));
     const cols = ['#', 'Aluno', ...activeActs.map((a) => `${a.name} (0–${a.max})`), ...(showMedia ? ['Média'] : []), ...(showSituation ? ['Situação'] : []), ...(showObs ? ['Observações'] : [])];
     const head = `<tr>${cols.map((c, i) => `<th class="${i === 1 ? 'name' : ''}">${escapeHtml(c)}</th>`).join('')}</tr>`;
     const body = rows
@@ -905,11 +909,13 @@ function BoletimModal({
         const sitCell = sit === '–' ? '–' : `<span class="${sit === 'Aprovado' ? 'ok' : 'fail'}">${sit}</span>`;
         const acts = activeActs
           .map((a) => {
-            const v = r.scores[a.name];
-            if (v === '' || v == null) return '<td>–</td>';
+            // Coluna "Crédito variável" = soma das atividades de crédito (0–10). Demais = nota da atividade.
+            const raw = a.id === CREDITO_OVERRIDE_KEY ? creditoSumFrom((ca) => r.scores[ca.name], creditActs) : r.scores[a.name];
+            const v = raw == null ? '' : String(raw);
+            if (v === '') return '<td>–</td>';
             // ≥ 60% do máximo = verde; abaixo = vermelho (mesma régua da média/nota 6 de 10).
             const ok = Number(v) >= (a.max || 10) * 0.6;
-            return `<td class="${ok ? 'ok' : 'fail'}">${escapeHtml(String(v).replace('.', ','))}</td>`;
+            return `<td class="${ok ? 'ok' : 'fail'}">${escapeHtml(v.replace('.', ','))}</td>`;
           })
           .join('');
         return `<tr><td>${i + 1}</td><td class="name">${escapeHtml(r.name)}</td>${acts}${showMedia ? `<td>${mediaCell}</td>` : ''}${showSituation ? `<td>${sitCell}</td>` : ''}${showObs ? `<td class="name">${escapeHtml(r.obs)}</td>` : ''}</tr>`;
@@ -942,7 +948,7 @@ function BoletimModal({
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Campos do relatório</p>
-                <p className="text-[11px] font-semibold text-muted-foreground">{selectedActs.size} de {activities.length} coluna(s) selecionada(s)</p>
+                <p className="text-[11px] font-semibold text-muted-foreground">{selectedActs.size} de {displayCols.length} coluna(s) selecionada(s)</p>
               </div>
               <div className="flex shrink-0 gap-1.5">
                 <button
@@ -964,7 +970,7 @@ function BoletimModal({
             <div>
               <p className="mb-2.5 text-xs font-black uppercase tracking-wide text-muted-foreground">Colunas de notas</p>
               <div className="flex flex-wrap gap-2">
-                {activities.map((a) => {
+                {displayCols.map((a) => {
                   const on = selectedActs.has(a.name);
                   return (
                     <button
