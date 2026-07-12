@@ -21,7 +21,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { Fragment, useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { successToast } from '../components/Feedback';
 import { cn } from '../lib/cn';
@@ -221,6 +221,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
+  const { pathname } = useLocation();
   const online = useOnlineStatus();
   const [queueCount, setQueueCount] = useState(() => getOfflineQueue().length);
   const [open, setOpen] = useState(false);
@@ -367,7 +368,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             {online ? (queueCount > 0 ? `${queueCount} em fila` : 'Online') : 'Offline'}
           </div>
         </header>
-        <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:py-8">{children}</main>
+        <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
+          <div key={pathname} className="animate-fade-up">{children}</div>
+        </main>
       </div>
     </div>
   );

@@ -7,10 +7,13 @@ import { cn } from '../lib/cn';
 /* --------------------------------- Botões -------------------------------------- */
 type Variant = 'primary' | 'ghost' | 'danger' | 'soft';
 const variants: Record<Variant, string> = {
-  primary: 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[.98]',
-  soft: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
-  ghost: 'bg-muted text-foreground hover:bg-muted',
-  danger: 'bg-red-50 text-red-700 hover:bg-red-100',
+  // Ação principal: gradiente verde + brilho + leve elevação no hover
+  primary:
+    'bg-brand-gradient text-white shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-[.98]',
+  soft: 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100 hover:bg-emerald-100 active:scale-[.98]',
+  // Botão neutro "outline" — mais elegante que cinza chapado
+  ghost: 'bg-card text-foreground ring-1 ring-inset ring-border shadow-soft hover:bg-muted active:scale-[.98]',
+  danger: 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-100 hover:bg-red-100 active:scale-[.98]',
 };
 
 export function Button({
@@ -22,7 +25,7 @@ export function Button({
   return (
     <button
       className={cn(
-        'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:opacity-50',
+        'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:pointer-events-none disabled:opacity-50',
         variants[variant],
         className,
       )}
@@ -146,14 +149,14 @@ export function Segmented<T extends string | number>({
   className?: string;
 }) {
   return (
-    <div className={cn('inline-flex flex-wrap rounded-xl bg-muted p-1', className)}>
+    <div className={cn('inline-flex flex-wrap rounded-xl bg-muted p-1 ring-1 ring-inset ring-border/60', className)}>
       {options.map((o) => (
         <button
           key={String(o.value)}
           onClick={() => onChange(o.value)}
           className={cn(
-            'flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition',
-            value === o.value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            'flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition-all duration-200',
+            value === o.value ? 'bg-card text-emerald-700 shadow-soft ring-1 ring-border/70' : 'text-muted-foreground hover:text-foreground',
           )}
         >
           {o.label}
@@ -174,7 +177,7 @@ export function AddButton({ onClick, label }: { onClick: () => void; label: stri
 /* ---------------------------------- Cartões ------------------------------------ */
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <div className={cn('rounded-xl border border-border/70 bg-card p-5 shadow-card', className)}>{children}</div>
+    <div className={cn('rounded-2xl border border-border/60 bg-card p-5 shadow-card', className)}>{children}</div>
   );
 }
 
@@ -214,26 +217,26 @@ export function StatCard({
   to?: string;
   highlight?: boolean;
 }) {
-  // Widget de KPI estilo Sakai: rótulo em cima, número grande, ícone quadrado à direita.
+  // Widget de KPI: rótulo em cima, número grande, ícone com gradiente à direita.
   const inner = (
-    <Card className={cn('p-5', to && 'transition hover:shadow-soft', highlight && 'border-emerald-300 bg-emerald-50/40')}>
+    <Card className={cn('p-5', to && 'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift', highlight && 'border-emerald-300 bg-emerald-50/40')}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[13px] font-semibold text-muted-foreground">{label}</p>
           <p className="mt-2 text-2xl font-black leading-none text-foreground">{value}</p>
         </div>
-        <div className={cn('grid h-12 w-12 shrink-0 place-items-center rounded-xl', highlight ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-50 text-emerald-600')}>{icon}</div>
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-gradient text-white shadow-glow">{icon}</div>
       </div>
       {sub ? <p className="mt-3 text-xs font-bold text-emerald-600">{sub}</p> : null}
     </Card>
   );
-  return to ? <Link to={to}>{inner}</Link> : inner;
+  return to ? <Link to={to} className="block">{inner}</Link> : inner;
 }
 
 export function EmptyState({ icon, title, hint, action }: { icon: ReactNode; title: string; hint?: string; action?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
-      <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-muted text-muted-foreground">{icon}</div>
+    <div className="animate-scale-in rounded-2xl border border-dashed border-border bg-card p-10 text-center shadow-soft">
+      <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-brand-gradient text-white shadow-glow">{icon}</div>
       <h3 className="text-lg font-black text-foreground">{title}</h3>
       {hint ? <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">{hint}</p> : null}
       {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
