@@ -9,6 +9,7 @@ import { ConfirmClearModal } from '../components/ConfirmClearModal';
 import { canManageOrg } from '../lib/permissions';
 import { cn } from '../lib/cn';
 import { printDocument, escapeHtml } from '../lib/print';
+import { fmtNumber } from '../lib/format';
 import { useOnlineStatus } from '../lib/useOnlineStatus';
 import { usePersistentState } from '../lib/usePersistentState';
 import {
@@ -147,7 +148,7 @@ export function NotasPage() {
     const total = creditoCols.reduce((acc, a) => acc + (Number(scores[id]?.[actKey(a)]) || 0), 0);
     return Math.min(total, 10);
   };
-  const fmtNum = (n: number) => (n % 1 === 0 ? String(n) : n.toFixed(1));
+  const fmtNum = (n: number) => (n % 1 === 0 ? String(n) : n.toFixed(1)).replace('.', ',');
 
   function resetScoresFromSaved() {
     const map: Record<string, Record<string, string>> = {};
@@ -337,21 +338,21 @@ export function NotasPage() {
         title="Notas"
         subtitle={`${TERM_LABEL[term]} • ${year} • média ${MEDIA_APROVACAO} (recuperação substitui a menor nota quando melhora a média)`}
         action={
-          <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" onClick={() => navigate('/avaliacoes')}>
-              <ClipboardList size={18} /> Central de Avaliações
-            </Button>
-            <Button onClick={() => setBoletimEscolarOpen(true)}>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+            <Button onClick={() => setBoletimEscolarOpen(true)} className="w-full sm:w-auto">
               <GraduationCap size={18} /> Boletins escolares
             </Button>
-            <Button variant="soft" onClick={() => setBoletimOpen(true)}>
+            <Button variant="soft" onClick={() => setBoletimOpen(true)} className="w-full sm:w-auto">
               <FileText size={18} /> Relatório do trimestre
             </Button>
-            <Button variant="ghost" onClick={() => setConfigOpen(true)}>
+            <Button variant="ghost" onClick={() => setConfigOpen(true)} className="w-full sm:w-auto">
               <Sliders size={18} /> Composição de notas
             </Button>
+            <Button variant="ghost" onClick={() => navigate('/avaliacoes')} className="w-full sm:w-auto">
+              <ClipboardList size={18} /> Central de Avaliações
+            </Button>
             {canClear && hasSavedGrades ? (
-              <Button variant="ghost" onClick={() => setClearOpen(true)}>
+              <Button variant="ghost" onClick={() => setClearOpen(true)} className="col-span-2 w-full text-red-600 sm:col-span-1 sm:w-auto">
                 <Trash2 size={18} /> Limpar notas
               </Button>
             ) : null}
@@ -432,7 +433,7 @@ export function NotasPage() {
                     </div>
                     <div className="rounded-2xl border border-border bg-card p-3 text-center">
                       <p className={cn('text-2xl font-black', turma == null ? 'text-muted-foreground' : turma >= MEDIA_APROVACAO ? 'text-emerald-700' : 'text-red-600')}>
-                        {turma != null ? turma.toFixed(1) : '–'}
+                        {turma != null ? fmtNumber(turma, 1) : '–'}
                       </p>
                       <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Média da turma</p>
                     </div>
@@ -500,7 +501,7 @@ export function NotasPage() {
                             <td key={k} className="px-1.5 py-1.5 text-center">
                               <input
                                 inputMode="decimal"
-                                value={val}
+                                value={val.replace('.', ',')}
                                 onChange={(e) => setScore(s.id, k, e.target.value, a.max)}
                                 disabled={!editingGrades}
                                 placeholder="–"
@@ -523,7 +524,7 @@ export function NotasPage() {
                               <td className="bg-amber-50/40 px-1.5 py-1.5 text-center" title="Vem da Central de Avaliações — você pode digitar para sobrescrever">
                                 <input
                                   inputMode="decimal"
-                                  value={shown}
+                                  value={String(shown).replace('.', ',')}
                                   onChange={(e) => setScore(s.id, CREDITO_OVERRIDE_KEY, e.target.value, 10)}
                                   disabled={!editingGrades}
                                   placeholder="–"
@@ -540,7 +541,7 @@ export function NotasPage() {
                         <td className="px-3 py-3 text-center">
                           {m != null ? (
                             <span className={cn('inline-block min-w-[44px] rounded-lg px-2 py-1 text-base font-black tabular-nums', ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600')}>
-                              {m.toFixed(1)}
+                              {fmtNumber(m, 1)}
                             </span>
                           ) : (
                             <span className="text-muted-foreground">–</span>
@@ -555,7 +556,7 @@ export function NotasPage() {
                               <td className="px-1.5 py-1.5 text-center">
                                 <input
                                   inputMode="decimal"
-                                  value={val}
+                                  value={val.replace('.', ',')}
                                   onChange={(e) => setScore(s.id, k, e.target.value, recoveryCol.max)}
                                   disabled={!canEditRecovery}
                                   placeholder={canEditRecovery ? '–' : 'Preencha 3 notas'}
@@ -760,7 +761,7 @@ function BoletimEscolarModal({
     const linhas = TERMS.map((t) => {
       const m = r.terms[t - 1] ?? null;
       const s = sit(m);
-      return `<tr><td class="name">${escapeHtml(TERM_LABEL[t])}</td><td>${m == null ? '—' : m.toFixed(1)}</td><td><span class="${s.cls}">${s.txt}</span></td></tr>`;
+      return `<tr><td class="name">${escapeHtml(TERM_LABEL[t])}</td><td>${m == null ? '—' : fmtNumber(m, 1)}</td><td><span class="${s.cls}">${s.txt}</span></td></tr>`;
     }).join('');
     // Resultado final é APROVADO/REPROVADO (a nota de recuperação já está embutida na média).
     const sf = r.final == null ? { txt: '—', cls: '' } : r.final >= MEDIA_APROVACAO ? { txt: 'Aprovado', cls: 'ok' } : { txt: 'Reprovado', cls: 'fail' };
@@ -774,9 +775,9 @@ function BoletimEscolarModal({
       <p style="font-size:12px; margin:0 0 8px;"><strong>Aluno(a):</strong> ${escapeHtml(r.name)} &nbsp;·&nbsp; <strong>Turma:</strong> ${escapeHtml(className)}</p>
       <table><thead><tr><th class="name">Período</th><th>Média</th><th>Situação</th></tr></thead>
       <tbody>${linhas}
-        <tr style="background:#f1f5f9; font-weight:800;"><td class="name">Média final</td><td>${r.final == null ? '—' : r.final.toFixed(1)}</td><td><span class="${sf.cls}">${sf.txt}</span></td></tr>
+        <tr style="background:#f1f5f9; font-weight:800;"><td class="name">Média final</td><td>${r.final == null ? '—' : fmtNumber(r.final, 1)}</td><td><span class="${sf.cls}">${sf.txt}</span></td></tr>
       </tbody></table>
-      <p style="font-size:11px; margin:8px 0;"><strong>Resultado final:</strong> <span class="${sf.cls}">${sf.txt}</span> &nbsp; (média de aprovação: ${MEDIA_APROVACAO.toFixed(1)} · recuperação já considerada na média)</p>
+      <p style="font-size:11px; margin:8px 0;"><strong>Resultado final:</strong> <span class="${sf.cls}">${sf.txt}</span> &nbsp; (média de aprovação: ${fmtNumber(MEDIA_APROVACAO, 1)} · recuperação já considerada na média)</p>
       <div style="display:flex; gap:40px; margin-top:12px; font-size:11px; color:#475569;">
         <div style="flex:1; border-top:1px solid #94a3b8; padding-top:5px; text-align:center;">Coordenação</div>
         <div style="flex:1; border-top:1px solid #94a3b8; padding-top:5px; text-align:center;">Responsável</div>
@@ -814,7 +815,7 @@ function BoletimEscolarModal({
                   <input type="checkbox" checked={selected.has(r.student_id)} onChange={() => toggle(r.student_id)} className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500" />
                   <span className="flex-1 font-bold text-foreground">{r.name}</span>
                   <span className={cn('text-xs font-black', r.final == null ? 'text-muted-foreground' : r.final >= MEDIA_APROVACAO ? 'text-emerald-600' : 'text-red-600')}>
-                    {r.final == null ? '–' : r.final.toFixed(1)}
+                    {r.final == null ? '–' : fmtNumber(r.final, 1)}
                   </span>
                 </label>
               ))}
@@ -853,10 +854,24 @@ function BoletimModal({
   rows: BoletimRow[];
 }) {
   const [mode, setMode] = useState<'completo' | 'resumido'>('completo');
+  // Campos escolhidos pelo professor (mesma lógica dos Relatórios): quais colunas saem no relatório.
+  const [selectedActs, setSelectedActs] = useState<Set<string>>(new Set());
+  const [showMedia, setShowMedia] = useState(true);
+  const [showSituation, setShowSituation] = useState(true);
+  const [showObs, setShowObs] = useState(true);
+  useEffect(() => {
+    if (open) setSelectedActs(new Set(activities.map((a) => a.name)));
+  }, [open, activities]);
+  const toggleAct = (name: string) =>
+    setSelectedActs((p) => {
+      const n = new Set(p);
+      n.has(name) ? n.delete(name) : n.add(name);
+      return n;
+    });
   const { data: schools = [] } = useQuery({ queryKey: ['schools'], queryFn: listSchools, enabled: open });
   const school = schools.find((s) => s.id === schoolId);
   const titulo = `Relatório — ${className}`;
-  const sub = `${TERM_LABEL[term]} • ${year} • aprovação a partir de ${MEDIA_APROVACAO.toFixed(1)}`;
+  const sub = `${TERM_LABEL[term]} • ${year} • aprovação a partir de ${fmtNumber(MEDIA_APROVACAO, 1)}`;
 
   function situacao(m: number | null): 'Aprovado' | 'Recuperação' | '–' {
     if (m == null) return '–';
@@ -864,28 +879,29 @@ function BoletimModal({
   }
 
   function buildHtml(): string {
+    const activeActs = mode === 'completo' ? activities.filter((a) => selectedActs.has(a.name)) : [];
     const cols =
       mode === 'completo'
-        ? ['#', 'Aluno', ...activities.map((a) => `${a.name} (0–${a.max})`), 'Média', 'Situação', 'Observações']
+        ? ['#', 'Aluno', ...activeActs.map((a) => `${a.name} (0–${a.max})`), ...(showMedia ? ['Média'] : []), ...(showSituation ? ['Situação'] : []), ...(showObs ? ['Observações'] : [])]
         : ['#', 'Aluno', 'Média', 'Situação'];
     const head = `<tr>${cols.map((c, i) => `<th class="${i === 1 ? 'name' : ''}">${escapeHtml(c)}</th>`).join('')}</tr>`;
     const body = rows
       .map((r, i) => {
         const m = r.media;
-        const mediaCell = m == null ? '–' : `<span class="${m >= MEDIA_APROVACAO ? 'ok' : 'fail'}">${m.toFixed(1)}</span>`;
+        const mediaCell = m == null ? '–' : `<span class="${m >= MEDIA_APROVACAO ? 'ok' : 'fail'}">${fmtNumber(m, 1)}</span>`;
         const sit = situacao(m);
         const sitCell = sit === '–' ? '–' : `<span class="${sit === 'Aprovado' ? 'ok' : 'fail'}">${sit}</span>`;
         if (mode === 'resumido') {
           return `<tr><td>${i + 1}</td><td class="name">${escapeHtml(r.name)}</td><td>${mediaCell}</td><td>${sitCell}</td></tr>`;
         }
-        const acts = activities
+        const acts = activeActs
           .map((a) => {
             const v = r.scores[a.name];
             if (v === '' || v == null) return '<td>–</td>';
-            return `<td class="${Number(v) === 0 ? 'zero' : ''}">${escapeHtml(v)}</td>`;
+            return `<td class="${Number(v) === 0 ? 'zero' : ''}">${escapeHtml(String(v).replace('.', ','))}</td>`;
           })
           .join('');
-        return `<tr><td>${i + 1}</td><td class="name">${escapeHtml(r.name)}</td>${acts}<td>${mediaCell}</td><td>${sitCell}</td><td class="name">${escapeHtml(r.obs)}</td></tr>`;
+        return `<tr><td>${i + 1}</td><td class="name">${escapeHtml(r.name)}</td>${acts}${showMedia ? `<td>${mediaCell}</td>` : ''}${showSituation ? `<td>${sitCell}</td>` : ''}${showObs ? `<td class="name">${escapeHtml(r.obs)}</td>` : ''}</tr>`;
       })
       .join('');
     return `${schoolHeaderHtml(school, `RELATÓRIO DE NOTAS — ${TERM_LABEL[term]} / ${year}`)}
@@ -895,7 +911,7 @@ function BoletimModal({
   }
 
   function shareText(): string {
-    const linhas = rows.map((r, i) => `${i + 1}. ${r.name} — ${r.media == null ? 's/ nota' : `média ${r.media.toFixed(1)} (${situacao(r.media)})`}`);
+    const linhas = rows.map((r, i) => `${i + 1}. ${r.name} — ${r.media == null ? 's/ nota' : `média ${fmtNumber(r.media, 1)} (${situacao(r.media)})`}`);
     return `*${titulo}*\n${sub}\n\n${linhas.join('\n')}`;
   }
 
@@ -914,8 +930,33 @@ function BoletimModal({
           ))}
         </div>
         <p className="text-sm text-muted-foreground">
-          {mode === 'completo' ? 'Todas as notas, média, situação e observações.' : 'Apenas média e situação por aluno.'} {rows.length} aluno(s) na turma {className}.
+          {mode === 'completo' ? 'Escolha abaixo quais colunas e campos saem no relatório.' : 'Apenas média e situação por aluno.'} {rows.length} aluno(s) na turma {className}.
         </p>
+
+        {mode === 'completo' ? (
+          <div className="rounded-xl border border-border bg-muted/40 p-3">
+            <p className="mb-2 text-xs font-black uppercase tracking-wide text-muted-foreground">Campos do relatório</p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              {activities.map((a) => (
+                <label key={a.name} className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <input type="checkbox" checked={selectedActs.has(a.name)} onChange={() => toggleAct(a.name)} className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500" />
+                  {a.name}
+                </label>
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 border-t border-border pt-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <input type="checkbox" checked={showMedia} onChange={() => setShowMedia((v) => !v)} className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500" /> Média
+              </label>
+              <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <input type="checkbox" checked={showSituation} onChange={() => setShowSituation((v) => !v)} className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500" /> Situação
+              </label>
+              <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <input type="checkbox" checked={showObs} onChange={() => setShowObs((v) => !v)} className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500" /> Observações
+              </label>
+            </div>
+          </div>
+        ) : null}
 
         {rows.length === 0 ? (
           <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">Sem alunos para gerar o boletim.</p>

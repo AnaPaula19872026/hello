@@ -437,7 +437,7 @@ export function EvaluationsPage() {
                                       definido na composição (max 0), a nota é livre (sem limite). */}
                                   <input
                                     inputMode="decimal"
-                                    value={c.score}
+                                    value={String(c.score).replace('.', ',')}
                                     onChange={(e) => setScore(s.id, k, e.target.value, a.max)}
                                     placeholder="nota"
                                     className="h-8 w-11 rounded-lg border border-border bg-card text-center font-bold tabular-nums text-foreground outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
@@ -449,7 +449,7 @@ export function EvaluationsPage() {
                           {hasCredito ? (
                             <td className="bg-amber-50/40 px-3 py-3 text-center">
                               <span className="inline-block min-w-[44px] rounded-lg bg-amber-100 px-2 py-1 text-sm font-black tabular-nums text-amber-700">
-                                {creditoTotal % 1 === 0 ? creditoTotal : creditoTotal.toFixed(1)}
+                                {creditoTotal % 1 === 0 ? creditoTotal : creditoTotal.toFixed(1).replace('.', ',')}
                               </span>
                             </td>
                           ) : null}

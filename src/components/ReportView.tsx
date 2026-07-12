@@ -164,7 +164,7 @@ function ReportSummary({ payload, minPct }: { payload: ReportPayload; minPct: nu
             ]
           : [
               { label: 'Alunos', value: rows.length },
-              { label: 'Média da turma', value: turma != null ? turma.toFixed(1) : '–', color: turma != null && turma >= 6 ? 'text-emerald-700' : 'text-red-600' },
+              { label: 'Média da turma', value: turma != null ? fmtNumber(turma, 1) : '–', color: turma != null && turma >= 6 ? 'text-emerald-700' : 'text-red-600' },
               { label: `Aprovados · ${pct}%`, value: aprov, color: 'text-emerald-700', box: 'border-emerald-200 bg-emerald-50' },
               { label: 'Em recuperação', value: vals.length - aprov, color: 'text-red-600', box: 'border-red-200 bg-red-50' },
             ]
@@ -416,12 +416,12 @@ function NotasBody({ payload, compact }: { payload: ReportPayload; compact: bool
               </td>
               {r.terms.map((m, j) => ((show[`term${j + 1}`] ?? true) ? (
                 <td key={j} className={cn('text-center', pad)}>
-                  {m != null ? <span className={cn('font-bold', m >= 6 ? 'text-emerald-700' : 'text-red-600')}>{m.toFixed(1)}</span> : '–'}
+                  {m != null ? <span className={cn('font-bold', m >= 6 ? 'text-emerald-700' : 'text-red-600')}>{fmtNumber(m, 1)}</span> : '–'}
                 </td>
               ) : null))}
               {(show.final ?? true) ? (
                 <td className={cn('text-center', pad)}>
-                  {r.final != null ? <span className={cn('font-black', r.final >= 6 ? 'text-emerald-700' : 'text-red-600')}>{r.final.toFixed(1)}</span> : '–'}
+                  {r.final != null ? <span className={cn('font-black', r.final >= 6 ? 'text-emerald-700' : 'text-red-600')}>{fmtNumber(r.final, 1)}</span> : '–'}
                 </td>
               ) : null}
               {(show.situation ?? true) ? <td className={cn('text-center text-xs font-bold', pad)}>{situacao(r.final)}</td> : null}

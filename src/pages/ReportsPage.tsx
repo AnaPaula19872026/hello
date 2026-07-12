@@ -422,20 +422,20 @@ export function ReportsPage() {
 
         {/* Barra de ações (responsiva) */}
         {classId ? (
-          <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-soft">
-            <Button variant="ghost" onClick={() => setCompact((c) => !c)} className="flex-1 sm:flex-none" title="Alternar layout">
+          <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl border border-border bg-card p-2 shadow-soft sm:flex sm:flex-wrap sm:items-center">
+            <Button variant="ghost" onClick={() => setCompact((c) => !c)} className="w-full sm:w-auto" title="Alternar layout">
               {compact ? <Rows3 size={18} /> : <List size={18} />} {compact ? 'Detalhado' : 'Compacto'}
             </Button>
-            <Button variant="ghost" onClick={() => setPreview(true)} disabled={!payload} className="flex-1 sm:flex-none">
+            <Button variant="ghost" onClick={() => setPreview(true)} disabled={!payload} className="w-full sm:w-auto">
               <Eye size={18} /> Visualizar
             </Button>
-            <Button variant="ghost" onClick={() => setShare(true)} disabled={!payload} className="flex-1 sm:flex-none">
+            <Button variant="ghost" onClick={() => setShare(true)} disabled={!payload} className="w-full sm:w-auto">
               <Send size={18} /> Enviar
             </Button>
-            <Button variant="ghost" onClick={() => window.print()} className="flex-1 sm:flex-none">
+            <Button variant="ghost" onClick={() => window.print()} className="w-full sm:w-auto">
               <Printer size={18} /> PDF
             </Button>
-            <Button onClick={exportExcel} className="flex-1 sm:ml-auto sm:flex-none">
+            <Button onClick={exportExcel} className="col-span-2 w-full sm:ml-auto sm:w-auto">
               <FileDown size={18} /> Excel
             </Button>
           </div>
