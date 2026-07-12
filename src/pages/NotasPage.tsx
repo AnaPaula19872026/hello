@@ -1,12 +1,12 @@
-import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Award, Check, ClipboardList, Eye, FileDown, FileText, GraduationCap, List, Lock, Mail, Pencil, Plus, Printer, Rows3, Save, Send, Share2, Sliders, Trash2 } from 'lucide-react';
+import { Award, Check, ClipboardList, Eye, FileDown, FileText, GraduationCap, List, Lock, Pencil, Plus, Printer, Rows3, Save, Send, Sliders, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { Button, Card, EmptyState, Field, Input, Modal, PageHeader, SearchInput, Segmented, Select, Loading} from '../components/ui';
 import { successToast } from '../components/Feedback';
 import { ConfirmClearModal } from '../components/ConfirmClearModal';
+import { ShareModal } from '../components/ShareModal';
 import { canManageOrg } from '../lib/permissions';
 import { cn } from '../lib/cn';
 import { printDocument, escapeHtml } from '../lib/print';
@@ -29,7 +29,7 @@ import {
   type TermsReportRow,
 } from '../lib/queries';
 import { enqueueGrades, getQueuedGrades } from '../lib/offlineQueue';
-import { CREDITO_OVERRIDE_KEY, DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, TERMS, TERM_LABEL, actKey, calcMedia, collapseCreditoColumns, creditoSumFrom, isRecoveryActivity, orderGradeActivities, sanitizeGrade, type GradeActivity, type School } from '../lib/types';
+import { CREDITO_OVERRIDE_KEY, DEFAULT_ACTIVITIES, MEDIA_APROVACAO, RECOVERY_ACTIVITY_NAME, SUBJECT, TERMS, TERM_LABEL, actKey, calcMedia, collapseCreditoColumns, creditoSumFrom, isRecoveryActivity, orderGradeActivities, sanitizeGrade, type GradeActivity, type ReportPayload, type School } from '../lib/types';
 
 /** Cabeçalho profissional para impressão (logo, escola, contato) — usado no boletim e no relatório.
  *  compact: versão reduzida p/ empilhar 3 boletins por folha. */
@@ -932,11 +932,6 @@ function BoletimModal({
       <p class="foot">${escapeHtml(sub)}</p>`;
   }
 
-  function shareText(): string {
-    const linhas = rows.map((r, i) => `${i + 1}. ${r.name} — ${r.media == null ? 's/ nota' : `média ${fmtNumber(r.media, 1)} (${situacao(r.media)})`}`);
-    return `*${titulo}*\n${sub}\n\n${linhas.join('\n')}`;
-  }
-
   // Exporta a mesma seleção de colunas/campos para Excel (mesma lógica do relatório).
   function exportExcel(): void {
     const activeActs = displayCols.filter((a) => selectedActs.has(a.name));
@@ -959,9 +954,44 @@ function BoletimModal({
     downloadXlsx(`notas-${TERM_LABEL[term].replace(/\D/g, '')}tri-${year}.xlsx`, aoa, 'Notas');
   }
 
+  const [share, setShare] = useState(false);
+  // Payload p/ o link compartilhável (mesmo formato dos Relatórios → abre via ReportView).
+  function buildSharePayload(): ReportPayload | null {
+    if (!rows.length) return null;
+    const notasRows = rows.map((r) => {
+      const activityScores: Record<string, number | null> = {};
+      for (const a of displayCols) {
+        const k = a.id ?? a.name;
+        if (a.id === CREDITO_OVERRIDE_KEY) activityScores[k] = creditoSumFrom((ca) => r.scores[ca.name], creditActs);
+        else {
+          const v = r.scores[a.name];
+          activityScores[k] = v === '' || v == null ? null : Number(v);
+        }
+      }
+      const terms: (number | null)[] = [null, null, null];
+      terms[term - 1] = r.media;
+      return { name: r.name, terms, final: r.media, activityScores };
+    });
+    return {
+      kind: 'notas',
+      school: school ? { name: school.name, logo_url: school.logo_url, address: school.address, city: school.city, phone: school.phone } : null,
+      className,
+      title: `Relatório parcial de notas — ${SUBJECT}`,
+      period: `${term}º trimestre / ${year}`,
+      generatedAt: new Date().toLocaleDateString('pt-BR'),
+      subject: SUBJECT,
+      notasRows,
+      notasTerm: term,
+      termActivities: displayCols,
+      termSelectedActivities: displayCols.filter((a) => selectedActs.has(a.name)).map((a) => a.id ?? a.name),
+      show: { situation: showSituation },
+    };
+  }
+
   const nothingSelected = selectedActs.size === 0 && !showMedia && !showSituation && !showObs;
 
   return (
+    <>
     <Modal open={open} onClose={onClose} title="Boletim / Relatório" size="xl">
       <div className="space-y-5">
         {/* Turma */}
@@ -1063,32 +1093,9 @@ function BoletimModal({
               <Button variant="ghost" onClick={() => printDocument(titulo, buildHtml(), { autoPrint: false })} disabled={nothingSelected} className="w-full sm:w-auto">
                 <Eye size={18} /> Visualizar
               </Button>
-              <Menu as="div" className="relative w-full sm:w-auto">
-                <MenuButton
-                  disabled={nothingSelected}
-                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-card px-4 py-2.5 text-sm font-bold text-foreground shadow-soft ring-1 ring-inset ring-border transition-all duration-200 hover:bg-muted active:scale-[.98] disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
-                >
-                  <Send size={18} /> Enviar
-                </MenuButton>
-                <MenuItems anchor="bottom start" className="z-[60] mt-1 w-48 rounded-xl border border-border bg-card p-1 text-sm shadow-soft focus:outline-none">
-                  <MenuItem>
-                    <button
-                      onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText())}`, '_blank', 'noopener')}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-bold text-foreground data-[focus]:bg-muted"
-                    >
-                      <Share2 size={16} /> WhatsApp
-                    </button>
-                  </MenuItem>
-                  <MenuItem>
-                    <button
-                      onClick={() => { window.location.href = `mailto:?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(shareText())}`; }}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-bold text-foreground data-[focus]:bg-muted"
-                    >
-                      <Mail size={16} /> E-mail
-                    </button>
-                  </MenuItem>
-                </MenuItems>
-              </Menu>
+              <Button variant="ghost" onClick={() => setShare(true)} disabled={nothingSelected} className="w-full sm:w-auto">
+                <Send size={18} /> Enviar
+              </Button>
               <Button variant="ghost" onClick={() => printDocument(titulo, buildHtml())} disabled={nothingSelected} className="w-full sm:w-auto">
                 <Printer size={18} /> PDF
               </Button>
@@ -1105,6 +1112,8 @@ function BoletimModal({
         )}
       </div>
     </Modal>
+    <ShareModal open={share} onClose={() => setShare(false)} payload={share ? buildSharePayload() : null} />
+    </>
   );
 }
 
